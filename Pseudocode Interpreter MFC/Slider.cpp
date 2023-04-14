@@ -1,0 +1,378 @@
+#include "stdafx.h"
+#include "Slider.h"
+
+void CSlider::SetPercentage(double percentage) {
+	m_Percentage = min(percentage, 1.0 - m_Ratio);
+	m_pCallback(m_Percentage);
+}
+
+
+BEGIN_MESSAGE_MAP(CHSlider, CSlider)
+	ON_WM_CREATE()
+	ON_WM_ERASEBKGND()
+	ON_WM_PAINT()
+	ON_WM_SIZE()
+	ON_WM_LBUTTONDOWN()
+	ON_WM_LBUTTONUP()
+	ON_WM_MOUSEMOVE()
+	ON_WM_MOUSELEAVE()
+END_MESSAGE_MAP()
+CHSlider::CHSlider()
+{
+	m_bHoverSlider = false;
+	m_bDragSlider = false;
+	m_bHover = false;
+	m_Percentage = 0.0;
+	m_pCallback = nullptr;
+	m_Ratio = 1.0;
+}
+CHSlider::~CHSlider()
+{
+	m_Pen.DeleteObject();
+	m_SliderColor.DeleteObject();
+	m_BgColor.DeleteObject();
+}
+int CHSlider::OnCreate(LPCREATESTRUCT lpCreateStruct)
+{
+	if (CWnd::OnCreate(lpCreateStruct) == -1)
+		return -1;
+
+	CDC* pWindowDC = GetDC();
+
+	// 准备工具
+	m_Pen.CreatePen(PS_NULL, 0, RGB(0, 0, 0));
+	m_SliderColor.CreateSolidBrush(RGB(220, 220, 220));
+	m_BgColor.CreateSolidBrush(RGB(46, 46, 46));
+
+	// 准备源
+	m_MemoryDC.CreateCompatibleDC(pWindowDC);
+	m_Bg.CreateCompatibleDC(pWindowDC);
+	m_Source.CreateCompatibleDC(pWindowDC);
+	m_Hover.CreateCompatibleDC(pWindowDC);
+	m_Bg.SelectObject(&m_Pen);
+	m_Source.SelectObject(&m_Pen);
+	m_Hover.SelectObject(&m_Pen);
+	m_Bg.SelectObject(&m_BgColor);
+	m_Source.SelectObject(&m_SliderColor);
+	m_Hover.SelectObject(pThemeColorBrush);
+
+	return 0;
+}
+BOOL CHSlider::OnEraseBkgnd(CDC* pDC)
+{
+	return TRUE;
+}
+void CHSlider::OnPaint()
+{
+	CPaintDC dc(this);
+	m_MemoryDC.BitBlt(0, 0, m_Height, 10, &m_Bg, 0, 0, SRCCOPY);
+	// 使滑动条最小为一个圆点
+	double minimum_ratio = (double)m_SliderHeight / m_Height;
+	double adjusted_percentage = min(1.0 - minimum_ratio, m_Percentage);
+	if (m_bHoverSlider) {
+		m_MemoryDC.TransparentBlt(m_Height * adjusted_percentage, 0, m_SliderHeight, 10, &m_Hover, 0, 0, m_SliderHeight, 10, 0);
+	}
+	else {
+		m_MemoryDC.TransparentBlt(m_Height * adjusted_percentage, 0, m_SliderHeight, 10, &m_Source, 0, 0, m_SliderHeight, 10, 0);
+	}
+	dc.BitBlt(0, 0, m_Height, 10, &m_MemoryDC, 0, 0, SRCCOPY);
+}
+void CHSlider::OnSize(UINT nType, int cx, int cy)
+{
+	m_Height = cx;
+	CDC* pWindowDC = GetDC();
+
+	CBitmap* pBitmap = new CBitmap;
+	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Height, 10);
+	CBitmap* pOldBitmap = m_MemoryDC.SelectObject(pBitmap);
+	pOldBitmap->DeleteObject();
+	pBitmap = new CBitmap;
+	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Height, 10);
+	pOldBitmap = m_Bg.SelectObject(pBitmap);
+	pOldBitmap->DeleteObject();
+	CRect rect(0, 0, m_Height, 10);
+	m_Bg.FillRect(&rect, pGreyBlackBrush);
+	m_Bg.RoundRect(&rect, CPoint(10, 10));
+}
+void CHSlider::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	if (m_bHoverSlider) {
+		m_DragPosition = (double)point.x / m_Height - m_Percentage;
+		m_bDragSlider = true;
+		SetCapture();
+	}
+	else {
+		double hit_percentage = (double)point.x / m_Height - m_Ratio / 2;
+		if (hit_percentage > m_Ratio) {
+			m_Percentage = min(m_Percentage + m_Ratio, 1.0 - m_Ratio);
+		}
+		else {
+			m_Percentage = max(m_Percentage - m_Ratio, 0.0);
+		}
+		Invalidate(FALSE);
+		m_pCallback(m_Percentage);
+	}
+}
+void CHSlider::OnLButtonUp(UINT nFlags, CPoint point)
+{
+	if (m_bDragSlider) {
+		ReleaseCapture();
+		m_bDragSlider = false;
+	}
+	bool previous_state = m_bHoverSlider;
+	// 计算最小滚动条信息
+	double adjusted_ratio = max(m_Ratio, 10.0 / m_Height);
+	double adjusted_percentage = min(m_Percentage, 1.0 - adjusted_ratio);
+	// 检查是否悬浮于滚动条按钮
+	m_bHoverSlider = point.x > adjusted_percentage * m_Height and point.x < (adjusted_percentage + adjusted_ratio) * m_Height and point.y > 0 and point.y < 10;
+	if (previous_state != m_bHoverSlider) {
+		Invalidate(FALSE);
+	}
+}
+void CHSlider::OnMouseMove(UINT nFlags, CPoint point)
+{
+	if (m_bDragSlider) {
+		double hit_percentage = (double)point.x / m_Height;
+		m_Percentage = hit_percentage - m_DragPosition;
+		m_Percentage = min(1.0 - m_Ratio, max(m_Percentage, 0.0));
+		Invalidate(FALSE);
+		UpdateWindow();
+		m_pCallback(m_Percentage);
+	}
+	else {
+		bool previous_state = m_bHoverSlider;
+		// 计算最小滚动条信息
+		double adjusted_ratio = max(m_Ratio, 10.0 / m_Height);
+		double adjusted_percentage = min(m_Percentage, 1.0 - adjusted_ratio);
+		// 检查是否悬浮于滚动条按钮
+		m_bHoverSlider = point.x > adjusted_percentage * m_Height and point.x < (adjusted_percentage + adjusted_ratio) * m_Height;
+		if (previous_state != m_bHoverSlider) {
+			Invalidate(FALSE);
+		}
+		TRACKMOUSEEVENT tme{};
+		tme.cbSize = sizeof(tme);
+		tme.dwFlags = TME_LEAVE;
+		tme.hwndTrack = m_hWnd;
+		TrackMouseEvent(&tme);
+		m_bHover = true;
+	}
+}
+void CHSlider::OnMouseLeave()
+{
+	m_bHover = false;
+	m_bHoverSlider = false;
+	Invalidate(FALSE);
+}
+void CHSlider::SetCallback(void(*callback)(double))
+{
+	m_pCallback = callback;
+}
+void CHSlider::SetRatio(double ratio)
+{
+	CDC* pWindowDC = GetDC();
+
+	ratio = min(ratio, 1.0);
+	if (ratio + m_Percentage > 1.0) {
+		m_Percentage = 1.0 - ratio;
+		m_pCallback(m_Percentage);
+	}
+	m_Ratio = ratio;
+	m_SliderHeight = (USHORT)max(m_Height * m_Ratio, 10); // 按钮最小是个圆
+	CBitmap* pBitmap = new CBitmap;
+	pBitmap->CreateCompatibleBitmap(pWindowDC, m_SliderHeight, 10);
+	CBitmap* pOldBitmap = m_Source.SelectObject(pBitmap);
+	pOldBitmap->DeleteObject();
+	pBitmap = new CBitmap;
+	pBitmap->CreateCompatibleBitmap(pWindowDC, m_SliderHeight, 10);
+	pOldBitmap = m_Hover.SelectObject(pBitmap);
+	pOldBitmap->DeleteObject();
+	CRect rect(0, 0, m_SliderHeight, 10);
+	m_Source.RoundRect(&rect, CPoint(10, 10));
+	m_Hover.RoundRect(&rect, CPoint(10, 10));
+}
+
+
+BEGIN_MESSAGE_MAP(CVSlider, CSlider)
+	ON_WM_CREATE()
+	ON_WM_ERASEBKGND()
+	ON_WM_PAINT()
+	ON_WM_SIZE()
+	ON_WM_LBUTTONDOWN()
+	ON_WM_LBUTTONUP()
+	ON_WM_MOUSEMOVE()
+	ON_WM_MOUSELEAVE()
+END_MESSAGE_MAP()
+CVSlider::CVSlider()
+{
+	m_bHoverSlider = false;
+	m_bDragSlider = false;
+	m_bHover = false;
+	m_Percentage = 0.0;
+	m_pCallback = nullptr;
+	m_Ratio = 1.0;
+}
+CVSlider::~CVSlider()
+{
+	m_Pen.DeleteObject();
+	m_SliderColor.DeleteObject();
+	m_BgColor.DeleteObject();
+}
+int CVSlider::OnCreate(LPCREATESTRUCT lpCreateStruct)
+{
+	if (CWnd::OnCreate(lpCreateStruct) == -1)
+		return -1;
+
+	CDC* pWindowDC = GetDC();
+
+	// 准备工具
+	m_Pen.CreatePen(PS_NULL, 0, RGB(0, 0, 0));
+	m_SliderColor.CreateSolidBrush(RGB(220, 220, 220));
+	m_BgColor.CreateSolidBrush(RGB(46, 46, 46));
+
+	// 准备源
+	m_MemoryDC.CreateCompatibleDC(pWindowDC);
+	m_Bg.CreateCompatibleDC(pWindowDC);
+	m_Source.CreateCompatibleDC(pWindowDC);
+	m_Hover.CreateCompatibleDC(pWindowDC);
+	m_Bg.SelectObject(&m_Pen);
+	m_Source.SelectObject(&m_Pen);
+	m_Hover.SelectObject(&m_Pen);
+	m_Bg.SelectObject(&m_BgColor);
+	m_Source.SelectObject(&m_SliderColor);
+	m_Hover.SelectObject(pThemeColorBrush);
+
+	return 0;
+}
+BOOL CVSlider::OnEraseBkgnd(CDC* pDC)
+{
+	return TRUE;
+}
+void CVSlider::OnPaint()
+{
+	CPaintDC dc(this);
+	m_MemoryDC.BitBlt(0, 0, 10, m_Height, &m_Bg, 0, 0, SRCCOPY);
+	// 使滑动条最小为一个圆点
+	double minimum_ratio = (double)m_SliderHeight / m_Height;
+	double adjusted_percentage = min(1.0 - minimum_ratio, m_Percentage);
+	if (m_bHoverSlider) {
+		m_MemoryDC.TransparentBlt(0, m_Height * adjusted_percentage, 10, m_SliderHeight, &m_Hover, 0, 0, 10, m_SliderHeight, 0);
+	}
+	else {
+		m_MemoryDC.TransparentBlt(0, m_Height * adjusted_percentage, 10, m_SliderHeight, &m_Source, 0, 0, 10, m_SliderHeight, 0);
+	}
+	dc.BitBlt(0, 0, 10, m_Height, &m_MemoryDC, 0, 0, SRCCOPY);
+}
+void CVSlider::OnSize(UINT nType, int cx, int cy)
+{
+	m_Height = cy;
+	CDC* pWindowDC = GetDC();
+
+	CBitmap* pBitmap = new CBitmap;
+	pBitmap->CreateCompatibleBitmap(pWindowDC, 10, m_Height);
+	CBitmap* pOldBitmap = m_MemoryDC.SelectObject(pBitmap);
+	pOldBitmap->DeleteObject();
+	pBitmap = new CBitmap;
+	pBitmap->CreateCompatibleBitmap(pWindowDC, 10, m_Height);
+	pOldBitmap = m_Bg.SelectObject(pBitmap);
+	pOldBitmap->DeleteObject();
+	CRect rect(0, 0, 10, m_Height);
+	m_Bg.FillRect(&rect, pGreyBlackBrush);
+	m_Bg.RoundRect(&rect, CPoint(10, 10));
+}
+void CVSlider::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	if (m_bHoverSlider) {
+		m_DragPosition = (double)point.y / m_Height - m_Percentage;
+		m_bDragSlider = true;
+		SetCapture();
+	}
+	else {
+		double hit_percentage = (double)point.y / m_Height - m_Ratio / 2;
+		if (hit_percentage > m_Ratio) {
+			m_Percentage = min(m_Percentage + m_Ratio, 1.0 - m_Ratio);
+		}
+		else {
+			m_Percentage = max(m_Percentage - m_Ratio, 0.0);
+		}
+		Invalidate(FALSE);
+		m_pCallback(m_Percentage);
+	}
+}
+void CVSlider::OnLButtonUp(UINT nFlags, CPoint point)
+{
+	if (m_bDragSlider) {
+		ReleaseCapture();
+		m_bDragSlider = false;
+	}
+	bool previous_state = m_bHoverSlider;
+	// 计算最小滚动条信息
+	double adjusted_ratio = max(m_Ratio, 10.0 / m_Height);
+	double adjusted_percentage = min(m_Percentage, 1.0 - adjusted_ratio);
+	// 检查是否悬浮于滚动条按钮
+	m_bHoverSlider = point.x > 0 and point.x < 10 and point.y > adjusted_percentage * m_Height and point.y < (adjusted_percentage + adjusted_ratio) * m_Height;
+	if (previous_state != m_bHoverSlider) {
+		Invalidate(FALSE);
+	}
+}
+void CVSlider::OnMouseMove(UINT nFlags, CPoint point)
+{
+	if (m_bDragSlider) {
+		double hit_percentage = (double)point.y / m_Height;
+		m_Percentage = hit_percentage - m_DragPosition;
+		m_Percentage = min(1.0 - m_Ratio, max(m_Percentage, 0.0));
+		Invalidate(FALSE);
+		UpdateWindow();
+		m_pCallback(m_Percentage);
+	}
+	else {
+		bool previous_state = m_bHoverSlider;
+		// 计算最小滚动条信息
+		double adjusted_ratio = max(m_Ratio, 10.0 / m_Height);
+		double adjusted_percentage = min(m_Percentage, 1.0 - adjusted_ratio);
+		// 检查是否悬浮于滚动条按钮
+		m_bHoverSlider = point.y > adjusted_percentage * m_Height and point.y < (adjusted_percentage + adjusted_ratio) * m_Height;
+		if (previous_state != m_bHoverSlider) {
+			Invalidate(FALSE);
+		}
+		TRACKMOUSEEVENT tme{};
+		tme.cbSize = sizeof(tme);
+		tme.dwFlags = TME_LEAVE;
+		tme.hwndTrack = m_hWnd;
+		TrackMouseEvent(&tme);
+		m_bHover = true;
+	}
+}
+void CVSlider::OnMouseLeave()
+{
+	m_bHover = false;
+	m_bHoverSlider = false;
+	Invalidate(FALSE);
+}
+void CVSlider::SetCallback(void(*callback)(double))
+{
+	m_pCallback = callback;
+}
+void CVSlider::SetRatio(double ratio)
+{
+	CDC* pWindowDC = GetDC();
+
+	ratio = min(ratio, 1.0);
+	if (ratio + m_Percentage > 1.0) {
+		m_Percentage = 1.0 - ratio;
+		m_pCallback(m_Percentage);
+	}
+	m_Ratio = ratio;
+	m_SliderHeight = (USHORT)max(m_Height * m_Ratio, 10); // 按钮最小是个圆
+	CBitmap* pBitmap = new CBitmap;
+	pBitmap->CreateCompatibleBitmap(pWindowDC, 10, m_SliderHeight);
+	CBitmap* pOldBitmap = m_Source.SelectObject(pBitmap);
+	pOldBitmap->DeleteObject();
+	pBitmap = new CBitmap;
+	pBitmap->CreateCompatibleBitmap(pWindowDC, 10, m_SliderHeight);
+	pOldBitmap = m_Hover.SelectObject(pBitmap);
+	pOldBitmap->DeleteObject();
+	CRect rect(0, 0, 10, m_SliderHeight);
+	m_Source.RoundRect(&rect, CPoint(10, 10));
+	m_Hover.RoundRect(&rect, CPoint(10, 10));
+	Invalidate(FALSE);
+}
