@@ -3,6 +3,7 @@
 
 BEGIN_MESSAGE_MAP(CFileTag, CWnd)
 	ON_WM_CREATE()
+	ON_WM_ERASEBKGND()
 	ON_WM_PAINT()
 	ON_WM_MOUSEMOVE()
 	ON_WM_MOUSELEAVE()
@@ -100,6 +101,10 @@ int CFileTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Source.DrawTextW(m_Directory, &rect, DT_END_ELLIPSIS);
 	return 0;
 }
+BOOL CFileTag::OnEraseBkgnd(CDC* pDC)
+{
+	return FALSE;
+}
 void CFileTag::OnPaint()
 {
 	CPaintDC dc(this);
@@ -141,9 +146,9 @@ std::list<wchar_t*>::iterator& CFileTag::GetCurrentLine()
 	return m_CurrentLine;
 }
 
-
 BEGIN_MESSAGE_MAP(CTagPanel, CWnd)
 	ON_WM_CREATE()
+	ON_WM_ERASEBKGND()
 	ON_WM_PAINT()
 END_MESSAGE_MAP()
 CTagPanel::CTagPanel()
@@ -206,6 +211,10 @@ int CTagPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Source.DrawTextW(L"已打开的文件", -1, &rect, DT_SINGLELINE);
 
 	return 0;
+}
+BOOL CTagPanel::OnEraseBkgnd(CDC* pDC)
+{
+	return FALSE;
 }
 void CTagPanel::OnPaint()
 {

@@ -526,6 +526,7 @@ void CConsoleOutput::ClearBuffer()
 BEGIN_MESSAGE_MAP(CTestWnd, CFrameWnd)
 	ON_WM_CREATE()
 	ON_WM_SIZE()
+	ON_WM_NCCALCSIZE()
 END_MESSAGE_MAP()
 CTestWnd::CTestWnd() noexcept
 {
@@ -538,12 +539,12 @@ int CTestWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CFrameWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	m_Component.Create(0, 0, WS_CHILD | WS_VISIBLE, CRect(), this, NULL);
+	/*m_Component.Create(0, 0, WS_CHILD | WS_VISIBLE, CRect(), this, NULL);
 	m_Component.AppendText(const_cast<char*>("整数(1)整数(2)整数(2)整数(2)整数(2)\n"), 46);
 	m_Component.AppendText(const_cast<char*>("整数(2)整数(2)整数(2)整数(2)整数(2)\n"), 46);
 	m_Component.AppendText(const_cast<char*>("整数(3)整数(2)整数(2)整数(2)整数(2)\n"), 46);
 	m_Component.AppendText(const_cast<char*>("整数(4)整数(2)整数(2)整数(2)整数(2)\n"), 46);
-	m_Component.AppendText(const_cast<char*>("整数(5)整数(2)整数(2)整数(2)整数(2)\n"), 46);
+	m_Component.AppendText(const_cast<char*>("整数(5)整数(2)整数(2)整数(2)整数(2)\n"), 46);*/
 
 	return 0;
 }
@@ -551,7 +552,7 @@ void CTestWnd::OnSize(UINT nType, int cx, int cy)
 {
 	CFrameWnd::OnSize(nType, cx, cy);
 	CRect rect(0, 0, cx, cy);
-	m_Component.MoveWindow(&rect);
+	//m_Component.MoveWindow(&rect);
 }
 
 App::App() noexcept
@@ -576,3 +577,13 @@ BOOL App::InitInstance()
 }
 
 App theApp;
+
+void CTestWnd::OnNcCalcSize(BOOL bCalcValidRects, NCCALCSIZE_PARAMS* lpncsp)
+{
+	// TODO: 在此添加消息处理程序代码和/或调用默认值
+	
+	CFrameWnd::OnNcCalcSize(bCalcValidRects, lpncsp);
+	lpncsp->rgrc[0].left -= 2;
+	lpncsp->rgrc[0].right += 2;
+	lpncsp->rgrc[0].bottom += 2;
+}

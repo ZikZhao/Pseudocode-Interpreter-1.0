@@ -18,8 +18,9 @@ protected:
 public:
 	CControlPanelTag(unsigned short tag_index, const wchar_t* text);
 	virtual ~CControlPanelTag();
-	afx_msg void OnPaint();
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
+	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
+	afx_msg void OnPaint();
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnMouseLeave();
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
@@ -43,6 +44,7 @@ public:
 	CControlPanelButton(UINT resourceID, const wchar_t* button_text, const wchar_t* tip_text);
 	virtual ~CControlPanelButton();
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
+	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	afx_msg void OnPaint();
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnMouseLeave();
@@ -78,6 +80,7 @@ public:
 	CControlPanel();
 	virtual ~CControlPanel();
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
+	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	afx_msg void OnPaint();
 	void ShiftTag(USHORT tag_index);
 	CControlPanelGroup* GetGroups();

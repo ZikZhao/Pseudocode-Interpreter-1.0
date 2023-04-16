@@ -23,6 +23,7 @@ public:
 	CFileTag(const wchar_t* path);
 	~CFileTag();
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
+	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	afx_msg void OnPaint();
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnMouseLeave();
@@ -46,6 +47,7 @@ public:
 	CTagPanel();
 	virtual ~CTagPanel();
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
+	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	afx_msg void OnPaint();
 	void NewTag(const wchar_t* filename);
 	void ShiftTag(USHORT index);

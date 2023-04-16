@@ -5,9 +5,10 @@ extern std::map<DWORD, DWORD(*)(LPVOID)> CALLBACK_MAP;
 
 BEGIN_MESSAGE_MAP(CControlPanelTag, CWnd)
 	ON_WM_CREATE()
+	ON_WM_ERASEBKGND()
+	ON_WM_PAINT()
 	ON_WM_MOUSEMOVE()
 	ON_WM_MOUSELEAVE()
-	ON_WM_PAINT()
 	ON_WM_LBUTTONUP()
 END_MESSAGE_MAP()
 CControlPanelTag::CControlPanelTag(unsigned short tag_index, const wchar_t* text)
@@ -19,19 +20,6 @@ CControlPanelTag::CControlPanelTag(unsigned short tag_index, const wchar_t* text
 }
 CControlPanelTag::~CControlPanelTag()
 {
-}
-void CControlPanelTag::OnPaint()
-{
-	CPaintDC dc(this);
-	if (m_bSelected) {
-		dc.BitBlt(0, 0, m_Width, m_Height, &m_Selected, 0, 0, SRCCOPY);
-	}
-	else if (m_bHover) {
-		dc.BitBlt(0, 0, m_Width, m_Height, &m_Hover, 0, 0, SRCCOPY);
-	}
-	else {
-		dc.BitBlt(0, 0, m_Width, m_Height, &m_Source, 0, 0, SRCCOPY);
-	}
 }
 int CControlPanelTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
@@ -77,6 +65,23 @@ int CControlPanelTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	return 0;
 }
+BOOL CControlPanelTag::OnEraseBkgnd(CDC* pDC)
+{
+	return TRUE;
+}
+void CControlPanelTag::OnPaint()
+{
+	CPaintDC dc(this);
+	if (m_bSelected) {
+		dc.BitBlt(0, 0, m_Width, m_Height, &m_Selected, 0, 0, SRCCOPY);
+	}
+	else if (m_bHover) {
+		dc.BitBlt(0, 0, m_Width, m_Height, &m_Hover, 0, 0, SRCCOPY);
+	}
+	else {
+		dc.BitBlt(0, 0, m_Width, m_Height, &m_Source, 0, 0, SRCCOPY);
+	}
+}
 void CControlPanelTag::OnMouseMove(UINT nFlags, CPoint point)
 {
 	if (!m_bHover) {
@@ -105,10 +110,10 @@ void CControlPanelTag::SetState(bool selected)
 	Invalidate(FALSE);
 }
 
-
 BEGIN_MESSAGE_MAP(CControlPanelButton, CWnd)
-	ON_WM_PAINT()
 	ON_WM_CREATE()
+	ON_WM_ERASEBKGND()
+	ON_WM_PAINT()
 	ON_WM_MOUSEMOVE()
 	ON_WM_MOUSELEAVE()
 	ON_WM_LBUTTONDOWN()
@@ -175,6 +180,10 @@ int CControlPanelButton::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	delete[] buffer;
 	return 0;
 }
+BOOL CControlPanelButton::OnEraseBkgnd(CDC* pDC)
+{
+	return TRUE;
+}
 void CControlPanelButton::OnPaint()
 {
 	CPaintDC dc(this);
@@ -226,7 +235,6 @@ void CControlPanelButton::SetState(bool state)
 	Invalidate(FALSE);
 }
 
-
 BEGIN_MESSAGE_MAP(CControlPanelGroup, CWnd)
 	ON_WM_CREATE()
 END_MESSAGE_MAP()
@@ -271,10 +279,10 @@ CControlPanelButton* CControlPanelGroup::GetButtons() {
 	return m_Buttons;
 }
 
-
 BEGIN_MESSAGE_MAP(CControlPanel, CWnd)
-	ON_WM_PAINT()
 	ON_WM_CREATE()
+	ON_WM_ERASEBKGND()
+	ON_WM_PAINT()
 END_MESSAGE_MAP()
 CControlPanel::CControlPanel()
 {
@@ -357,6 +365,10 @@ int CControlPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Groups[4].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, NULL);
 	ShiftTag(0);
 	return 0;
+}
+BOOL CControlPanel::OnEraseBkgnd(CDC* pDC)
+{
+	return TRUE;
 }
 void CControlPanel::OnPaint()
 {

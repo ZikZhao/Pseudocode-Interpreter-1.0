@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "Editor.h"
-#define LINE_NUMBER_OFFSET 30 // 展示行数所需的额外偏移量
+#define LINE_NUMBER_OFFSET 27 // 展示行数所需的额外偏移量
 #define SCROLL_UNIT 3 // 每次鼠标滚轮滚动时移动的行数
 
 BEGIN_MESSAGE_MAP(CEditor, CWnd)
@@ -81,14 +81,15 @@ int CEditor::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	// 准备断点源
 	m_Breakpoint.CreateCompatibleDC(pWindowDC);
 	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, 10, SCREEN_HEIGHT);
+	pBitmap->CreateCompatibleBitmap(pWindowDC, 15, SCREEN_HEIGHT);
 	m_Breakpoint.SelectObject(pBitmap);
+	m_Breakpoint.SelectObject(pThemeColorBrush);
+	m_Breakpoint.SelectObject(pNullPen);
 
 	// 创建滚动条
 	m_VSlider.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
 	m_HSlider.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
 
-	SetFocus();
 	return 0;
 }
 void CEditor::OnSize(UINT nType, int cx, int cy)
@@ -113,24 +114,25 @@ void CEditor::OnSize(UINT nType, int cx, int cy)
 	pOldBitmap->DeleteObject();
 
 	ArrangeText();
+	ArrangePointer();
 	ArrangeSelection();
 	CRect rect(cx - 10, 0, cx, cy - 10);
 	m_VSlider.MoveWindow(rect);
 	rect = CRect(0, cy - 10, cx - 10, cy);
 	m_HSlider.MoveWindow(rect);
+	ArrangeBreakpoints();
 	UpdateSlider();
 }
 BOOL CEditor::OnEraseBkgnd(CDC* pDC)
 {
-	CRect rect(m_Width, m_Height, m_Width + 10, m_Height + 10);
-	pDC->FillRect(&rect, pGreyBlackBrush);
-	return TRUE;
+	return FALSE;
 }
 void CEditor::OnPaint()
 {
 	CPaintDC dc(this);
 	m_MemoryDC.BitBlt(0, 0, m_Width, m_Height, &m_Selection, 0, 0, SRCCOPY);
 	m_MemoryDC.TransparentBlt(0, 0, m_Width, m_Height, &m_Source, 0, 0, m_Width, m_Height, 0);
+	m_MemoryDC.BitBlt(0, 0, m_Width, m_Height, &m_Breakpoint, 0, 0, SRCCOPY);
 	if (m_cPointer.x >= (INT64)m_LineNumberWidth + LINE_NUMBER_OFFSET and m_bFocus) {
 		m_MemoryDC.BitBlt(m_cPointer.x, m_cPointer.y, 1, m_CharSize.cy, &m_Pointer, 0, 0, SRCCOPY);
 	}
@@ -149,22 +151,33 @@ void CEditor::OnLButtonDown(UINT nFlags, CPoint point)
 	SetFocus();
 	if (point.x > m_LineNumberWidth + LINE_NUMBER_OFFSET) {
 		m_bDrag = true;
+		m_DragPointerPoint = TranslatePointer(point);
+		m_PointerPoint = m_DragPointerPoint;
+		CRect rect(0, 0, m_Width, m_Height);
+		m_Selection.FillRect(&rect, pGreyBlackBrush);
+		ArrangePointer();
+		Invalidate(FALSE);
 	}
-	m_DragPointerPoint = TranslatePointer(point);
-	m_PointerPoint = m_DragPointerPoint;
-	CRect rect(0, 0, m_Width, m_Height);
-	m_Selection.FillRect(&rect, pGreyBlackBrush);
-	ArrangePointer();
-	Invalidate(FALSE);
 }
 void CEditor::OnLButtonUp(UINT nFlags, CPoint point)
 {
 	ReleaseCapture();
 	if (not m_bDrag) {
-		double start_line = m_PercentageVertical * m_FullHeight;
-		ULONG64 line_index = (ULONG64)((double)point.y / m_CharSize.cy - m_PercentageVertical);
+		double start_line = m_PercentageVertical * m_CurrentTag->GetLines()->size();
+		ULONG64 line_index = (ULONG64)((double)point.y / m_CharSize.cy + start_line);
+		for (std::list<BREAKPOINT>::iterator iter = m_Breakpoints.begin(); iter != m_Breakpoints.end(); iter++) {
+			if (iter->line_index == line_index) {
+				// 删除断点
+				m_Breakpoints.erase(iter);
+				ArrangeBreakpoints();
+				Invalidate(FALSE);
+				return;
+			}
+		}
+		// 添加断点
 		m_Breakpoints.push_back(BREAKPOINT{ line_index, 0, 0, 0 });
 		ArrangeBreakpoints();
+		Invalidate(FALSE);
 	}
 	else {
 		m_bDrag = false;
@@ -172,6 +185,7 @@ void CEditor::OnLButtonUp(UINT nFlags, CPoint point)
 }
 void CEditor::OnRButtonUp(UINT nFlags, CPoint point)
 {
+	// 添加或删除断点
 	double start_line = m_PercentageVertical * m_CurrentTag->GetLines()->size();
 	ULONG64 line_index = (ULONG64)((double)point.y / m_CharSize.cy + m_PercentageVertical);
 	std::list<BREAKPOINT>::iterator iter = m_Breakpoints.begin();
@@ -297,6 +311,7 @@ void CEditor::LoadFile(CFileTag* tag)
 	m_DragPointerPoint = CPoint(0, 0);
 	ArrangeSelection();
 	ArrangePointer();
+	ArrangeBreakpoints();
 	UpdateSlider();
 	Invalidate(FALSE);
 }
@@ -306,6 +321,7 @@ void CEditor::VerticalCallback(double percentage)
 	pObject->ArrangeText();
 	pObject->ArrangePointer();
 	pObject->ArrangeSelection();
+	pObject->ArrangeBreakpoints();
 	pObject->Invalidate(FALSE);
 }
 void CEditor::HorizontalCallback(double percentage)
@@ -385,6 +401,7 @@ void CEditor::ArrangeSingleLine()
 }
 void CEditor::ArrangePointer()
 {
+	if (not m_CurrentTag) { return; }
 	double start_line = m_PercentageVertical * m_CurrentTag->GetLines()->size();
 	CRect rect;
 	m_Source.DrawTextW(*m_CurrentTag->GetCurrentLine(), m_PointerPoint.x, &rect, DT_CALCRECT);
@@ -491,17 +508,18 @@ void CEditor::ArrangeSelection()
 }
 void CEditor::ArrangeBreakpoints()
 {
-	CRect rect(0, 0, 10, SCREEN_HEIGHT);
+	if (not m_CurrentTag) { return; }
+	CRect rect(0, 0, 15, SCREEN_HEIGHT);
 	m_Breakpoint.FillRect(&rect, pGreyBlackBrush);
 	double start_line = m_PercentageVertical * m_CurrentTag->GetLines()->size();
 	double end_line = start_line + (double)m_Height / m_CharSize.cy;
 	for (std::list<BREAKPOINT>::iterator iter = m_Breakpoints.begin(); iter != m_Breakpoints.end(); iter++) {
-		if (start_line - 1 < iter->line_index and iter->line_index > end_line + 1) {
+		if (start_line - 1 < iter->line_index and iter->line_index < end_line + 1) {
 			m_Breakpoint.MoveTo(CPoint(2, (iter->line_index - start_line) * m_CharSize.cy));
 			CPoint* points = new CPoint[]{
-				CPoint(2, (iter->line_index - start_line) * m_CharSize.cy),
-				CPoint(2, (iter->line_index - start_line) * m_CharSize.cy + 10),
-				CPoint(8, (iter->line_index - start_line) * m_CharSize.cy + 5),
+				CPoint(2, (iter->line_index - start_line) * m_CharSize.cy - 8),
+				CPoint(2, (iter->line_index - start_line) * m_CharSize.cy + 8),
+				CPoint(13, (iter->line_index - start_line) * m_CharSize.cy),
 			};
 			m_Breakpoint.Polygon(points, 3);
 			delete[] points;

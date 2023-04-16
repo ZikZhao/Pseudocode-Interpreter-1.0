@@ -965,7 +965,9 @@ void CConsole::JoinDebug(HANDLE process)
 				m_Output.AppendText(buffer, remain_stderr);
 			}
 			if (remain_signal) {
-				ReadFile(m_Pipes.signal_out_read, buffer, 20, nullptr, nullptr);
+				if (not ReadFile(m_Pipes.signal_out_read, buffer, 20, nullptr, nullptr)) {
+					throw L"管道读取异常";
+				}
 				UINT message = *(UINT*)buffer;
 				WPARAM wParam = *(WPARAM*)(buffer + 4);
 				LPARAM lParam = *(LPARAM*)(buffer + 12);

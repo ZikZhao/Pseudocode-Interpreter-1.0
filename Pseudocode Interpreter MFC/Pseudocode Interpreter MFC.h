@@ -34,5 +34,6 @@ protected:
 extern App theApp;
 extern CBrush* pThemeColorBrush;
 extern CBrush* pGreyBlackBrush;
+extern CPen* pNullPen;
 extern int SCREEN_WIDTH;
 extern int SCREEN_HEIGHT;

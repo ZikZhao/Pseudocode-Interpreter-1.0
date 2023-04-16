@@ -9,6 +9,10 @@ class CEditor : public CWnd
 public:
 	static inline CEditor* pObject = nullptr;
 protected:
+	struct OPERATION {
+		CPoint point;
+		wchar_t* content;
+	};
 	CDC m_MemoryDC; // 内存缓冲DC
 	CDC m_Free; // 未选中文件时展示
 	CDC m_Source; // 渲染文字源
@@ -30,6 +34,7 @@ protected:
 	UINT64 m_FullWidth, m_FullHeight; // 所有文字同时展示计算大小
 	CVSlider m_VSlider; // 垂直滚动条
 	CHSlider m_HSlider; // 水平滚动条
+	std::list<OPERATION> m_Operations; // 操作撤销/还原列表
 	CBreakpointDlg* m_Dialog; // 断点对话框
 	std::list<BREAKPOINT> m_Breakpoints; // 所有断点
 public:

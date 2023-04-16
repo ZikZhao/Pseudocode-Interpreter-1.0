@@ -7,6 +7,7 @@
 
 CBrush* pThemeColorBrush = new CBrush(RGB(254, 74, 99));
 CBrush* pGreyBlackBrush = new CBrush(RGB(30, 30, 30));
+CPen* pNullPen = new CPen(PS_NULL, 0, RGB(0, 0, 0));
 
 namespace CALLBACKS {
 	DWORD undo(LPVOID lpParameter) {
@@ -78,12 +79,13 @@ std::map<DWORD, DWORD(*)(LPVOID)> CALLBACK_MAP {
 };
 
 // CMainFrame
-IMPLEMENT_DYNCREATE(CMainFrame, CFrameWndEx)
 BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_WM_CREATE()
 	ON_WM_ERASEBKGND()
 	ON_WM_SIZE()
 	ON_WM_GETMINMAXINFO()
+	ON_WM_NCACTIVATE()
+	ON_WM_NCCALCSIZE()
 END_MESSAGE_MAP()
 CMainFrame::CMainFrame() noexcept
 {
@@ -91,6 +93,11 @@ CMainFrame::CMainFrame() noexcept
 }
 CMainFrame::~CMainFrame()
 {
+}
+BOOL CMainFrame::PreCreateWindow(CREATESTRUCT& cs)
+{
+	cs.hMenu = LoadMenuW(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDR_MAINFRAME));
+	return CFrameWndEx::PreCreateWindow(cs);
 }
 int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
@@ -129,6 +136,23 @@ void CMainFrame::OnSize(UINT nType, int cx, int cy)
 void CMainFrame::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 {
 	lpMMI->ptMinTrackSize = POINT(300, 300);
+}
+BOOL CMainFrame::OnNcActivate(BOOL bActive)
+{
+	CFrameWndEx::OnNcActivate(bActive);
+	m_ControlPanel.Invalidate(FALSE);
+	m_TagPanel.Invalidate(FALSE);
+	m_Editor.Invalidate(FALSE);
+	m_InfoView.Invalidate(FALSE);
+	m_StatusBar.Invalidate(FALSE);
+	return TRUE;
+}
+void CMainFrame::OnNcCalcSize(BOOL bCalcValidRects, NCCALCSIZE_PARAMS* lpncsp)
+{
+	CFrameWndEx::OnNcCalcSize(bCalcValidRects, lpncsp);
+	lpncsp->rgrc[0].left -= 2;
+	lpncsp->rgrc[0].right += 2;
+	lpncsp->rgrc[0].bottom += 2;
 }
 inline void CMainFrame::OpenFile(const wchar_t* path)
 {
