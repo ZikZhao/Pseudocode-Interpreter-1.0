@@ -1,5 +1,4 @@
 #include "stdafx.h"
-#include "Slider.h"
 
 void CSlider::SetPercentage(double percentage) {
 	m_Percentage = min(percentage, 1.0 - m_Ratio);

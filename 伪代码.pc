@@ -1,0 +1,6 @@
+TYPE type1 ← ^INTEGER
+DECLARE a : type1
+DECLARE b : INTEGER
+b ← 2
+a ← @b
+OUTPUT a

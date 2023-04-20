@@ -4,38 +4,51 @@
 //
 #define IDD_ABOUTBOX                    100
 #define IDP_OLE_INIT_FAILED             101
-#define ID_VIEW_ARRANGE                 103
 #define IDR_MAINFRAME                   104
-#define ID_VIEW_FILEVIEW                105
-#define ID_VIEW_CLASSVIEW               106
-#define ID_CLASS_ADD_MEMBER_FUNCTION    111
-#define ID_CLASS_ADD_MEMBER_VARIABLE    112
-#define ID_CLASS_DEFINITION             113
-#define ID_CLASS_PROPERTIES             114
-#define IDR_PASTE_MENU                  120
 #define IDB_NEWFILE                     125
+#define IDB_FILE_NEW                    125
 #define IDB_REDO                        126
+#define IDB_EDIT_REDO                   126
 #define IDB_RUN_DEBUG                   127
+#define IDB_DEBUG_DEBUG                 127
 #define IDB_RUN_NORMAL                  128
+#define IDB_DEBUG_RUN                   128
 #define IDB_SAVE_FILE                   129
+#define IDB_FILE_SAVE                   129
 #define IDB_UNDO                        130
-#define ID_WRITE_PASTEASHYPERLINK       131
-#define ID_BUTTON2                      132
+#define IDB_EDIT_UNDO                   130
 #define IDD_BREAKPOINT                  133
 #define IDC_RADIO1                      134
 #define IDC_RADIO2                      135
+#define IDB_DEBUG_HALT                  135
 #define IDC_RADIO3                      136
 #define IDC_RADIO4                      137
+#define ID_FILE                         138
 #define IDC_COMBO1                      139
+#define ID_EDIT                         139
 #define IDC_EDIT1                       140
+#define ID_DEBUG                        140
+#define ID_GENERATE                     141
+#define ID_SETTINGS                     142
+#define ID_32771                        32771
+#define ID_32772                        32772
+#define ID_32773                        32773
+#define ID_DEBUG_RUN                    32774
+#define ID_DEBUG_DEBUG                  32775
+#define ID_32776                        32776
+#define ID_DEBUG_HALT                   32776
+#define ID_32780                        32780
+#define ID_32781                        32781
+#define ID_32782                        32782
+#define ID_Menu                         32783
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        135
-#define _APS_NEXT_COMMAND_VALUE         32768
+#define _APS_NEXT_RESOURCE_VALUE        136
+#define _APS_NEXT_COMMAND_VALUE         32784
 #define _APS_NEXT_CONTROL_VALUE         141
-#define _APS_NEXT_SYMED_VALUE           138
+#define _APS_NEXT_SYMED_VALUE           144
 #endif
 #endif

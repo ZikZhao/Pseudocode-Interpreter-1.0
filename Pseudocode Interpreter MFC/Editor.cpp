@@ -1,5 +1,4 @@
 #include "stdafx.h"
-#include "Editor.h"
 #define LINE_NUMBER_OFFSET 27 // 展示行数所需的额外偏移量
 #define SCROLL_UNIT 3 // 每次鼠标滚轮滚动时移动的行数
 
@@ -39,7 +38,6 @@ int CEditor::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
-
 
 	CDC* pWindowDC = GetDC();
 
@@ -262,10 +260,9 @@ void CEditor::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 			*m_CurrentTag->GetCurrentLine() + m_PointerPoint.x,
 			(wcslen(*m_CurrentTag->GetCurrentLine()) - m_PointerPoint.x + 1) * 2);
 		delete[] *m_CurrentTag->GetCurrentLine();
-		CRect rect;
-		m_Source.DrawTextW(buffer, -1, &rect, DT_CALCRECT);
-		rect.right += 15;
-		m_FullWidth = max(m_FullWidth, rect.right);
+		CSize size;
+		GetTextExtentPoint32W(m_Source, buffer, wcslen(buffer), &size);
+		m_FullWidth = max(m_FullWidth, size.cx + 15);
 		*m_CurrentTag->GetCurrentLine() = buffer;
 		m_PointerPoint.x++;
 		break;
@@ -292,6 +289,48 @@ void CEditor::OnKillFocus(CWnd* pNewWnd)
 	m_bFocus = false;
 	Invalidate(FALSE);
 }
+void CEditor::OnUndo()
+{
+	m_CurrentOperation--;
+	if (m_CurrentOperation == m_Operations.begin()) {
+		m_CurrentOperation++;
+	}
+	else {
+		if (m_CurrentOperation->content) {
+			// 删除插入的内容
+			m_DragPointerPoint = m_CurrentOperation->start;
+			MovePointer(m_CurrentOperation->end);
+			Delete();
+		}
+		else {
+			// 插入删除的内容
+			MovePointer(m_CurrentOperation->end);
+			Insert(m_CurrentOperation->content);
+		}
+		FIND_BUTTON(ID_EDIT, ID_EDIT_UNDO)->SetState(false);
+	}
+}
+void CEditor::OnRedo()
+{
+	if (m_CurrentOperation != m_Operations.end()) {
+		if (m_CurrentOperation->content) {
+			// 复原插入的内容
+			MovePointer(m_CurrentOperation->start);
+			Insert(m_CurrentOperation->content);
+			m_DragPointerPoint = m_PointerPoint;
+		}
+		else {
+			// 继续删除的内容
+			m_DragPointerPoint = m_CurrentOperation->start;
+			MovePointer(m_CurrentOperation->end);
+			Delete();
+		}
+		m_CurrentOperation++;
+		if (m_CurrentOperation == m_Operations.end()) {
+			FIND_BUTTON(ID_EDIT, ID_EDIT_REDO)->SetState(false);
+		}
+	}
+}
 void CEditor::LoadFile(CFileTag* tag)
 {
 	CDC* pWindowDC = GetDC();
@@ -299,13 +338,12 @@ void CEditor::LoadFile(CFileTag* tag)
 	m_CurrentTag = tag;
 	// 计算文字大小
 	m_FullHeight = tag->GetLines()->size() * m_CharSize.cy;
-	int longest = 0;
+	m_FullWidth = 0;
+	CSize size;
 	for (std::list<wchar_t*>::iterator iter = tag->GetLines()->begin(); iter != tag->GetLines()->end(); iter++) {
-		int size = *((int*)*iter - 4);
-		if (size > longest) { longest = size; }
+		GetTextExtentPointW(m_Source, *iter, wcslen(*iter), &size);
+		m_FullWidth = max(m_FullWidth, size.cx + 15);
 	}
-	longest /= 2; // 实际字符长度（包含\0）
-	m_FullWidth = (size_t)longest * m_CharSize.cx;
 	ArrangeText();
 	m_PointerPoint = CPoint(0, 0);
 	m_DragPointerPoint = CPoint(0, 0);
@@ -531,24 +569,29 @@ inline void CEditor::UpdateSlider()
 	m_VSlider.SetRatio((double)(m_Height - 15) / m_FullHeight);
 	m_HSlider.SetRatio((double)(m_Width - 15) / m_FullWidth);
 }
+void CEditor::MovePointer(CPoint pointer)
+{
+	LONG difference = pointer.y - m_PointerPoint.y;
+	if (difference < 0) {
+		for (LONG index = 0; index != difference; index--) {
+			m_CurrentTag->GetCurrentLine()--;
+		}
+	}
+	else if (difference > 0) {
+		for (LONG index = 0; index != difference; index++) {
+			m_CurrentTag->GetCurrentLine()++;
+		}
+	}
+	m_PointerPoint.x = pointer.x;
+}
 CPoint CEditor::TranslatePointer(CPoint point)
 {
 	CPoint point_out;
 	double start_line = m_PercentageVertical * m_CurrentTag->GetLines()->size();
 	size_t new_pointer_vertical = min(start_line + (double)point.y / m_CharSize.cy, m_CurrentTag->GetLines()->size() - 1);
-	long long difference = new_pointer_vertical - m_PointerPoint.y;
 	point.x += m_PercentageHorizontal * m_FullWidth - m_LineNumberWidth - LINE_NUMBER_OFFSET;
 	// 调整行指针
-	if (difference < 0) {
-		for (long long index = 0; index != difference; index--) {
-			m_CurrentTag->GetCurrentLine()--;
-		}
-	}
-	else if (difference > 0) {
-		for (long long index = 0; index != difference; index++) {
-			m_CurrentTag->GetCurrentLine()++;
-		}
-	}
+	MovePointer(CPoint(0, new_pointer_vertical));
 	point_out.y = new_pointer_vertical;
 	// 计算列指针
 	size_t total_length = 0;
@@ -569,6 +612,33 @@ CPoint CEditor::TranslatePointer(CPoint point)
 	}
 	point_out.x = wcslen(*m_CurrentTag->GetCurrentLine());
 	return point_out;
+}
+void CEditor::Insert(wchar_t* text)
+{
+	LONG64 last_return = -1;
+	for (ULONG64 index = 0;; index++) {
+		if (text[index] == 0 or text[index] == 10) {
+			wchar_t*& this_line = *m_CurrentTag->GetCurrentLine();
+			size_t original_length = wcslen(this_line);
+			wchar_t* combined_line = new wchar_t[original_length + index - last_return];
+			memcpy(combined_line, this_line, original_length * 2);
+			memcpy(combined_line + original_length, this_line + last_return + 1, (index - last_return - 1) * 2);
+			combined_line[original_length + index - last_return - 1] = 0;
+			delete[] this_line;
+			if (this_line[index] == 10) {
+				// 创建新行
+				m_CurrentTag->GetLines()->insert(m_CurrentTag->GetCurrentLine(), new wchar_t[] {0});
+				m_PointerPoint = CPoint(0, m_PointerPoint.y + 1);
+				m_CurrentTag->GetCurrentLine()++;
+			}
+			else {
+				m_PointerPoint = CPoint(original_length + index - last_return - 1, m_PointerPoint.y);
+				break;
+			}
+			last_return = index;
+		}
+	}
+	m_DragPointerPoint = m_PointerPoint;
 }
 void CEditor::Delete()
 {

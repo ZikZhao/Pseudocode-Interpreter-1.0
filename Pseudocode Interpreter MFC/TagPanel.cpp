@@ -1,5 +1,4 @@
 #include "stdafx.h"
-#include "TagPanel.h"
 
 BEGIN_MESSAGE_MAP(CFileTag, CWnd)
 	ON_WM_CREATE()

@@ -1,5 +1,4 @@
 #include "stdafx.h"
-#include "InfoView.h"
 
 BEGIN_MESSAGE_MAP(CInfoViewTag, CWnd)
 	ON_WM_CREATE()

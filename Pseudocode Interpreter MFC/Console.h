@@ -45,7 +45,7 @@ protected:
 	CPoint m_DragPointerPoint; // 拖拽开始指针位置
 	CPoint m_cPointer; // 指针像素位置
 	bool m_bDrag; // 是否开始拖拽
-	std::mutex m_Lock; // 行缓冲读写锁
+	std::mutex m_Lock; // 行缓冲读写锁（以及m_Source源的同步访问）
 	CVSlider m_Slider; // 纵向滚动条
 public:
 	CConsoleOutput();
@@ -125,11 +125,12 @@ public:
 	static inline CConsole* pObject = nullptr;
 	static inline CFont font; // 字体
 	static inline CBrush selectionColor; //选区背景色
-	static HANDLE process; // 子进程句柄
 protected:
 	CConsoleOutput m_Output;
 	CConsoleInput m_Input;
 	PIPE m_Pipes; // 所有管道句柄
+	STARTUPINFO m_SI; // 进程启动信息
+	PROCESS_INFORMATION m_PI; // 进程信息
 	bool m_bRun; // 子进程正在运行
 	bool m_bShow; // 是否显示窗口
 public:
@@ -138,9 +139,12 @@ public:
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
-	STARTUPINFO InitSubprocess(bool debug_mode); // 启动新的解释器实例
-	void Join(HANDLE process); // 进入管道监听循环
-	void JoinDebug(HANDLE process); // 进入管道监听循环（调试模式）
-	void ExitSubprocess(); // 解释器实例结束时运行
+	afx_msg void OnDebugRun();
+	afx_msg void OnDebugDebug();
+	afx_msg void OnDebugHalt();
+	void InitSubprocess(bool debug_mode); // 准备监听新进程
+	void ExitSubprocess(UINT exit_code); // 解释器实例结束时运行
+	static DWORD Join(LPVOID lpParamter); // 进入管道监听循环
+	static DWORD JoinDebug(LPVOID lpParameter); // 进入管道监听循环（调试模式）
 	bool SendInput(wchar_t* input, DWORD count); // 发送输入到子进程
 };

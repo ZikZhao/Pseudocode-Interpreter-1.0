@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "Console.h"
+#define PROCESS_HALTED 2
 
 BEGIN_MESSAGE_MAP(CConsoleOutput, CWnd)
 	ON_WM_CREATE()
@@ -77,6 +77,7 @@ int CConsoleOutput::OnCreate(LPCREATESTRUCT lpCreateStruct)
 }
 void CConsoleOutput::OnPaint()
 {
+	m_Lock.lock(); // 保证m_Source并未用于文本长度估算
 	CPaintDC dc(this);
 	m_Temp.BitBlt(0, 0, m_Width, m_Height, &m_Selection, 0, 0, SRCCOPY);
 	m_Temp.TransparentBlt(0, 0, m_Width, m_Height, &m_Source, 0, 0, m_Width, m_Height, 0);
@@ -84,6 +85,7 @@ void CConsoleOutput::OnPaint()
 		m_Temp.BitBlt(m_cPointer.x, m_cPointer.y, 1, m_CharSize.cy, &m_Pointer, 0, 0, SRCCOPY);
 	}
 	dc.BitBlt(0, 0, m_Width, m_Height, &m_Temp, 0, 0, SRCCOPY);
+	m_Lock.unlock();
 }
 BOOL CConsoleOutput::OnEraseBkgnd(CDC* pDC)
 {
@@ -204,7 +206,6 @@ void CConsoleOutput::AppendText(char* buffer, DWORD transferred)
 	m_Lock.unlock();
 	UpdateSlider();
 	m_Slider.SetPercentage(1.0);
-	Invalidate(FALSE);
 }
 void CConsoleOutput::AppendInput(wchar_t* input, DWORD count)
 {
@@ -326,9 +327,11 @@ void CConsoleOutput::ArrangeText()
 	for (; this_line != m_Lines.end(); this_line++) {
 		ULONG offset = 0;
 		while (offset != this_line->length) {
-			int number;
+			int number = 0;
 			static CSize size;
-			GetTextExtentExPointW(m_Source, this_line->line + offset, this_line->length - offset, m_Width, &number, NULL, &size);
+			if (not GetTextExtentExPointW(m_Source, this_line->line + offset, this_line->length - offset, m_Width, &number, NULL, &size)) {
+				break;
+			}
 			m_Source.ExtTextOutW(0, rect.top, ETO_CLIPPED, &rect, this_line->line + offset, number, NULL);
 			offset += number;
 			rect.top = rect.bottom;
@@ -804,6 +807,8 @@ END_MESSAGE_MAP()
 CConsole::CConsole()
 {
 	m_Pipes = PIPE{};
+	m_SI = STARTUPINFO{};
+	m_PI = PROCESS_INFORMATION{};
 	m_bRun = false;
 	m_bShow = false;
 	pObject = this;
@@ -826,6 +831,8 @@ int CConsole::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	// 创建组件
 	m_Output.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
 	m_Input.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
+	// 更新控制区按钮
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(false);
 
 	return 0;
 }
@@ -841,8 +848,68 @@ void CConsole::OnSize(UINT nType, int cx, int cy)
 	rect = CRect(2, cy - 2 - m_Input.GetCharHeight(), cx - 2, cy - 2);
 	m_Input.MoveWindow(&rect);
 }
-STARTUPINFO CConsole::InitSubprocess(bool debug_mode)
+void CConsole::OnDebugRun()
 {
+	// 准备进程启动选项
+	InitSubprocess(false);
+	ZeroMemory(&m_SI, sizeof(m_SI));
+	m_SI.cb = sizeof(m_SI);
+	m_SI.dwFlags = STARTF_USESTDHANDLES;
+	m_SI.hStdInput = m_Pipes.stdin_read;
+	m_SI.hStdOutput = m_Pipes.stdout_write;
+	m_SI.hStdError = m_Pipes.stderr_write;
+	// 启动子进程
+	ZeroMemory(&m_PI, sizeof(m_PI));
+	wchar_t* other_opt = new wchar_t[1];
+	other_opt[0] = 0;
+	size_t command_length = 33 + wcslen(CTagPanel::pObject->GetCurrentTag()->GetPath()) + wcslen(other_opt);
+	wchar_t* command = new wchar_t[command_length] {};
+	static const wchar_t* format = L"\"Pseudocode Interpreter.exe\" \"%s\" %s";
+	StringCchPrintfW(command, command_length, format, CTagPanel::pObject->GetCurrentTag()->GetPath(), other_opt);
+	command[command_length - 1] = 0;
+	CreateProcessW(0, command, 0, 0, true, CREATE_NO_WINDOW, 0, 0, &m_SI, &m_PI);
+	delete[] command;
+	// 监听管道
+	CreateThread(NULL, NULL, CConsole::Join, nullptr, NULL, NULL);
+}
+void CConsole::OnDebugDebug()
+{
+	// 准备进程启动选项
+	InitSubprocess(true);
+	ZeroMemory(&m_SI, sizeof(m_SI));
+	m_SI.cb = sizeof(m_SI);
+	m_SI.dwFlags = STARTF_USESTDHANDLES;
+	m_SI.hStdInput = m_Pipes.stdin_read;
+	m_SI.hStdOutput = m_Pipes.stdout_write;
+	m_SI.hStdError = m_Pipes.stderr_write;
+	// 启动子进程
+	ZeroMemory(&m_PI, sizeof(m_PI));
+	wchar_t* other_opt = new wchar_t[1];
+	other_opt[0] = 0;
+	size_t command_length = 40 + wcslen(CTagPanel::pObject->GetCurrentTag()->GetPath()) + wcslen(other_opt);
+	wchar_t* command = new wchar_t[command_length] {};
+	static const wchar_t* format = L"\"Pseudocode Interpreter.exe\" \"%s\" /debug %s";
+	StringCchPrintfW(command, command_length, format, CTagPanel::pObject->GetCurrentTag()->GetPath(), other_opt);
+	command[command_length - 1] = 0;
+	CreateProcessW(0, command, 0, 0, true, CREATE_NO_WINDOW, 0, 0, &m_SI, &m_PI);
+	static const wchar_t* start_message = L"本地伪代码解释器已启动";
+	CMainFrame::pObject->UpdateStatus(true, start_message);
+	delete[] command;
+	// 监听管道
+	CreateThread(NULL, NULL, CConsole::JoinDebug, nullptr, NULL, NULL);
+}
+void CConsole::OnDebugHalt()
+{
+	TerminateProcess(m_PI.hProcess, PROCESS_HALTED);
+}
+void CConsole::InitSubprocess(bool debug_mode)
+{
+	// 更新组件状态
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(true);
+	static const wchar_t* start_message = L"本地伪代码解释器已启动";
+	CMainFrame::pObject->UpdateStatus(true, start_message);
 	// 创建管道
 	SECURITY_ATTRIBUTES sa{};
 	sa.nLength = sizeof(sa);
@@ -858,17 +925,8 @@ STARTUPINFO CConsole::InitSubprocess(bool debug_mode)
 	// 清理控制台
 	m_Output.ClearBuffer();
 	m_bRun = true;
-	// 准备进程启动选项
-	STARTUPINFO si{};
-	ZeroMemory(&si, sizeof(si));
-	si.cb = sizeof(si);
-	si.dwFlags = STARTF_USESTDHANDLES;
-	si.hStdInput = m_Pipes.stdin_read;
-	si.hStdOutput = m_Pipes.stdout_write;
-	si.hStdError = m_Pipes.stderr_write;
-	return si;
 }
-void CConsole::Join(HANDLE process)
+DWORD CConsole::Join(LPVOID lpParameter)
 {
 	char* buffer = new char[0];
 	DWORD size_allocated = 0;
@@ -877,8 +935,8 @@ void CConsole::Join(HANDLE process)
 	DWORD remain_stdout = 0;
 	DWORD remain_stderr = 0;
 	while (true) {
-		PeekNamedPipe(m_Pipes.stdout_read, 0, 0, 0, &remain_stdout, 0);
-		PeekNamedPipe(m_Pipes.stderr_read, 0, 0, 0, &remain_stderr, 0);
+		PeekNamedPipe(pObject->m_Pipes.stdout_read, 0, 0, 0, &remain_stdout, 0);
+		PeekNamedPipe(pObject->m_Pipes.stderr_read, 0, 0, 0, &remain_stderr, 0);
 		if (remain_stdout or remain_stderr) {
 			if (remain_stdout) {
 				if (remain_stdout > size_allocated) {
@@ -886,10 +944,10 @@ void CConsole::Join(HANDLE process)
 					buffer = new char[remain_stdout];
 					size_allocated = remain_stdout;
 				}
-				if (not ReadFile(m_Pipes.stdout_read, buffer, remain_stdout, 0, 0)) {
+				if (not ReadFile(pObject->m_Pipes.stdout_read, buffer, remain_stdout, 0, 0)) {
 					throw L"管道读取异常";
 				}
-				m_Output.AppendText(buffer, remain_stdout);
+				pObject->m_Output.AppendText(buffer, remain_stdout);
 			}
 			if (remain_stderr) {
 				if (remain_stderr > size_allocated) {
@@ -897,22 +955,25 @@ void CConsole::Join(HANDLE process)
 					buffer = new char[remain_stderr];
 					size_allocated = remain_stderr;
 				}
-				if (not ReadFile(m_Pipes.stderr_read, buffer, remain_stderr, 0, 0)) {
+				if (not ReadFile(pObject->m_Pipes.stderr_read, buffer, remain_stderr, 0, 0)) {
 					throw L"管道读取异常";
 				}
-				m_Output.AppendText(buffer, remain_stderr);
+				pObject->m_Output.AppendText(buffer, remain_stderr);
 			}
 		}
 		else {
-			GetExitCodeProcess(process, &state);
+			GetExitCodeProcess(pObject->m_PI.hProcess, &state);
 			if (state != STILL_ACTIVE) {
 				break;
 			}
 		}
 	}
 	delete[] buffer;
+	// 结束执行
+	pObject->ExitSubprocess(state);
+	return 0;
 }
-void CConsole::JoinDebug(HANDLE process)
+DWORD CConsole::JoinDebug(LPVOID lpParameter)
 {
 	// 编码函数
 	auto Encode = [](UINT message, WPARAM wParam, LPARAM lParam) -> char* {
@@ -925,9 +986,9 @@ void CConsole::JoinDebug(HANDLE process)
 	// 传递管道句柄
 	WriteFile(pObject->m_Pipes.stdin_write, &pObject->m_Pipes.signal_in_read, 8, nullptr, nullptr);
 	// 建立连接
-	WriteFile(pObject->m_Pipes.signal_in_write, Encode(PM_CONNECTION, CONNECTION_PIPE, (LPARAM)m_Pipes.signal_out_write), 20, 0, nullptr);
+	WriteFile(pObject->m_Pipes.signal_in_write, Encode(PM_CONNECTION, CONNECTION_PIPE, (LPARAM)pObject->m_Pipes.signal_out_write), 20, 0, nullptr);
 	// 启动执行
-	WriteFile(pObject->m_Pipes.signal_in_write, Encode(PM_BREAKPOINT, BREAKPOINT_ADD | (BREAKPOINT_TYPE_NORMAL << 16), 104), 20, 0, nullptr);
+	//WriteFile(pObject->m_Pipes.signal_in_write, Encode(PM_BREAKPOINT, BREAKPOINT_ADD | (BREAKPOINT_TYPE_NORMAL << 16), 104), 20, 0, nullptr);
 	WriteFile(pObject->m_Pipes.signal_in_write, Encode(PM_CONNECTION, CONNECTION_START, 0), 20, 0, nullptr);
 	// 准备监听
 	char* buffer = new char[20];
@@ -938,9 +999,9 @@ void CConsole::JoinDebug(HANDLE process)
 	DWORD remain_stderr = 0;
 	DWORD remain_signal = 0;
 	while (true) {
-		PeekNamedPipe(m_Pipes.stdout_read, 0, 0, 0, &remain_stdout, 0);
-		PeekNamedPipe(m_Pipes.stderr_read, 0, 0, 0, &remain_stderr, 0);
-		PeekNamedPipe(m_Pipes.signal_out_read, 0, 0, 0, &remain_signal, 0);
+		PeekNamedPipe(pObject->m_Pipes.stdout_read, 0, 0, 0, &remain_stdout, 0);
+		PeekNamedPipe(pObject->m_Pipes.stderr_read, 0, 0, 0, &remain_stderr, 0);
+		PeekNamedPipe(pObject->m_Pipes.signal_out_read, 0, 0, 0, &remain_signal, 0);
 		if (remain_stdout or remain_stderr or remain_signal) {
 			if (remain_stdout) {
 				if (remain_stdout > size_allocated) {
@@ -948,10 +1009,10 @@ void CConsole::JoinDebug(HANDLE process)
 					buffer = new char[remain_stdout];
 					size_allocated = remain_stdout;
 				}
-				if (not ReadFile(m_Pipes.stdout_read, buffer, remain_stdout, 0, 0)) {
+				if (not ReadFile(pObject->m_Pipes.stdout_read, buffer, remain_stdout, 0, 0)) {
 					throw L"管道读取异常";
 				}
-				m_Output.AppendText(buffer, remain_stdout);
+				pObject->m_Output.AppendText(buffer, remain_stdout);
 			}
 			if (remain_stderr) {
 				if (remain_stderr > size_allocated) {
@@ -959,13 +1020,13 @@ void CConsole::JoinDebug(HANDLE process)
 					buffer = new char[remain_stderr];
 					size_allocated = remain_stderr;
 				}
-				if (not ReadFile(m_Pipes.stderr_read, buffer, remain_stderr, 0, 0)) {
+				if (not ReadFile(pObject->m_Pipes.stderr_read, buffer, remain_stderr, 0, 0)) {
 					throw L"管道读取异常";
 				}
-				m_Output.AppendText(buffer, remain_stderr);
+				pObject->m_Output.AppendText(buffer, remain_stderr);
 			}
 			if (remain_signal) {
-				if (not ReadFile(m_Pipes.signal_out_read, buffer, 20, nullptr, nullptr)) {
+				if (not ReadFile(pObject->m_Pipes.signal_out_read, buffer, 20, nullptr, nullptr)) {
 					throw L"管道读取异常";
 				}
 				UINT message = *(UINT*)buffer;
@@ -977,15 +1038,18 @@ void CConsole::JoinDebug(HANDLE process)
 			}
 		}
 		else {
-			GetExitCodeProcess(process, &state);
+			GetExitCodeProcess(pObject->m_PI.hProcess, &state);
 			if (state != STILL_ACTIVE) {
 				break;
 			}
 		}
 	}
 	delete[] buffer;
+	// 结束执行
+	pObject->ExitSubprocess(state);
+	return 0;
 }
-void CConsole::ExitSubprocess()
+void CConsole::ExitSubprocess(UINT exit_code)
 {
 	// 关闭管道
 	CloseHandle(m_Pipes.stdin_read);
@@ -1002,6 +1066,22 @@ void CConsole::ExitSubprocess()
 	}
 	m_Pipes = PIPE{};
 	m_bRun = false;
+	// 更新组件状态
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(false);
+
+	switch (exit_code) {
+	case 0:
+		CMainFrame::pObject->UpdateStatus(false, L"代码运行结束");
+		break;
+	case 1:
+		CMainFrame::pObject->UpdateStatus(false, L"代码运行异常退出");
+		break;
+	case 2:
+		CMainFrame::pObject->UpdateStatus(false, L"运行已被强制终止");
+		break;
+	}
 }
 inline bool CConsole::SendInput(wchar_t* input, DWORD count)
 {

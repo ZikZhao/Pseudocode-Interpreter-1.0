@@ -1,5 +1,7 @@
 #include "stdafx.h"
-#include "ControlPanel.h"
+#define BEGIN_GROUP(id) { UINT id_group = id;
+#define BUTTON(id, id_bitmap, button_text, x) { CControlPanelButton* button = new CControlPanelButton(id, id_bitmap, button_text); m_Buttons.push_back(button); button->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(x, 0, x + 68, 88), this, id); CMainFrame::pObject->m_Tip.AddTool(FIND_BUTTON(id_group, id), id); }
+#define END_GROUP() }
 
 extern std::map<DWORD, DWORD(*)(LPVOID)> CALLBACK_MAP;
 
@@ -11,7 +13,7 @@ BEGIN_MESSAGE_MAP(CControlPanelTag, CWnd)
 	ON_WM_MOUSELEAVE()
 	ON_WM_LBUTTONUP()
 END_MESSAGE_MAP()
-CControlPanelTag::CControlPanelTag(unsigned short tag_index, const wchar_t* text)
+CControlPanelTag::CControlPanelTag(USHORT tag_index, const wchar_t* text)
 {
 	m_TagIndex = tag_index;
 	m_Text = CString(text);
@@ -102,7 +104,7 @@ void CControlPanelTag::OnMouseLeave()
 }
 void CControlPanelTag::OnLButtonUp(UINT nFlags, CPoint point)
 {
-	((CControlPanel*)(GetParent()))->ShiftTag(m_TagIndex);
+	CControlPanel::pObject->ShiftTag(m_TagIndex);
 }
 void CControlPanelTag::SetState(bool selected)
 {
@@ -119,11 +121,11 @@ BEGIN_MESSAGE_MAP(CControlPanelButton, CWnd)
 	ON_WM_LBUTTONDOWN()
 	ON_WM_LBUTTONUP()
 END_MESSAGE_MAP()
-CControlPanelButton::CControlPanelButton(UINT resourceID, const wchar_t* button_text, const wchar_t* tip_text)
+CControlPanelButton::CControlPanelButton(UINT commandID, UINT resourceID, const wchar_t* button_text)
 {
 	m_ResourceID = resourceID;
+	m_CommandID = commandID;
 	m_Text = button_text;
-	m_TipText = tip_text;
 	m_bHover = false;
 	m_bDisabled = false;
 }
@@ -226,7 +228,7 @@ void CControlPanelButton::OnLButtonUp(UINT nFlags, CPoint point)
 {
 	ReleaseCapture();
 	if (point.x < 68 and point.y < 88) {
-		CreateThread(NULL, NULL, CALLBACK_MAP.find(m_ResourceID)->second, NULL, NULL, NULL);
+		CMainFrame::pObject->SendMessageW(WM_COMMAND, MAKEWPARAM(m_CommandID, 0), NULL);
 	}
 }
 void CControlPanelButton::SetState(bool state)
@@ -238,10 +240,9 @@ void CControlPanelButton::SetState(bool state)
 BEGIN_MESSAGE_MAP(CControlPanelGroup, CWnd)
 	ON_WM_CREATE()
 END_MESSAGE_MAP()
-CControlPanelGroup::CControlPanelGroup(unsigned short tag_index)
+CControlPanelGroup::CControlPanelGroup(USHORT tag_index)
 {
 	m_TagIndex = tag_index;
-	m_Buttons = nullptr;
 }
 CControlPanelGroup::~CControlPanelGroup()
 {
@@ -250,24 +251,22 @@ int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	switch (m_TagIndex) {
 	case 0:
-		m_Buttons = new CControlPanelButton[]{
-			CControlPanelButton(IDB_UNDO, L"撤销", L"撤销上次编辑"),
-		};
-		m_Buttons[0].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 68, 88), this, IDB_UNDO);
+		BEGIN_GROUP(ID_FILE)
+			BUTTON(ID_FILE_NEW, IDB_FILE_NEW, L"新建", 0)
+			BUTTON(ID_FILE_SAVE, IDB_FILE_SAVE, L"保存", 82)
+		END_GROUP()
 		return 0;
 	case 1:
-		m_Buttons = new CControlPanelButton[]{
-			CControlPanelButton(IDB_UNDO, L"撤销", L"撤销上次编辑"),
-		};
-		m_Buttons[0].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 68, 88), this, IDB_UNDO);
+		BEGIN_GROUP(ID_EDIT)
+			BUTTON(ID_EDIT_UNDO, IDB_EDIT_UNDO, L"撤销", 0)
+		END_GROUP()
 		return 0;
 	case 2:
-		m_Buttons = new CControlPanelButton[]{
-			CControlPanelButton(IDB_RUN_NORMAL, L"运行", L"解释并运行代码"),
-			CControlPanelButton(IDB_RUN_DEBUG, L"调试", L"解释代码，并在调试模式下运行"),
-		};
-		m_Buttons[0].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 68, 88), this, IDB_RUN_NORMAL);
-		m_Buttons[1].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(82, 0, 150, 88), this, IDB_RUN_DEBUG);
+		BEGIN_GROUP(ID_DEBUG)
+			BUTTON(ID_DEBUG_RUN, IDB_RUN_NORMAL, L"运行", 0)
+			BUTTON(ID_DEBUG_DEBUG, IDB_RUN_DEBUG, L"调试", 82)
+			BUTTON(ID_DEBUG_HALT, IDB_DEBUG_HALT, L"终止", 164)
+		END_GROUP()
 		return 0;
 	case 3:
 		return 0;
@@ -275,8 +274,15 @@ int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return 0;
 	}
 }
-CControlPanelButton* CControlPanelGroup::GetButtons() {
-	return m_Buttons;
+CControlPanelButton* CControlPanelGroup::GetButton(UINT id)
+{
+	for (std::list<CControlPanelButton*>::iterator iter = m_Buttons.begin(); iter != m_Buttons.end(); iter++) {
+		UINT nID = GetWindowLongW((*iter)->GetSafeHwnd(), GWL_ID);
+		if (nID == id) {
+			return *iter;
+		}
+	}
+	return nullptr;
 }
 
 BEGIN_MESSAGE_MAP(CControlPanel, CWnd)
@@ -296,9 +302,9 @@ CControlPanel::CControlPanel()
 
 	// 创建标签栏
 	m_Tags = new CControlPanelTag[]{
-		CControlPanelTag(0, L"开始"),
+		CControlPanelTag(0, L"文件"),
 		CControlPanelTag(1, L"编辑"),
-		CControlPanelTag(2, L"运行"),
+		CControlPanelTag(2, L"调试"),
 		CControlPanelTag(3, L"生成"),
 		CControlPanelTag(4, L"设置"),
 	};
@@ -322,14 +328,6 @@ int CControlPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
-
-	// 设置悬浮标签 
-	m_Ttc.Create(this);
-	EnableToolTips(true);
-	m_Ttc.SetDelayTime(3);
-	m_Ttc.SetTipTextColor(RGB(255, 255, 255));
-	m_Ttc.SetTipBkColor(RGB(66, 66, 66));
-	m_Ttc.Activate(true);
 
 	// 创建悬浮于按钮之上时的高亮背景
 	CDC* windowDC = GetDC();
@@ -358,11 +356,11 @@ int CControlPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Tags[2].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(130, 10, 130 + rect.right, 10 + rect.bottom), this, NULL);
 	m_Tags[3].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(190, 10, 190 + rect.right, 10 + rect.bottom), this, NULL);
 	m_Tags[4].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(250, 10, 250 + rect.right, 10 + rect.bottom), this, NULL);
-	m_Groups[0].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, NULL);
-	m_Groups[1].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, NULL);
-	m_Groups[2].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, NULL);
-	m_Groups[3].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, NULL);
-	m_Groups[4].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, NULL);
+	m_Groups[0].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_FILE);
+	m_Groups[1].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_EDIT);
+	m_Groups[2].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_DEBUG);
+	m_Groups[3].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_GENERATE);
+	m_Groups[4].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_SETTINGS);
 	ShiftTag(0);
 	return 0;
 }
@@ -383,6 +381,18 @@ void CControlPanel::ShiftTag(USHORT tag_index) {
 	m_Tags[m_CurrentTagIndex].SetState(true);
 	m_Groups[m_CurrentTagIndex].ShowWindow(SW_NORMAL);
 }
-CControlPanelGroup* CControlPanel::GetGroups() {
-	return m_Groups;
+CControlPanelGroup* CControlPanel::GetGroup(UINT id)
+{
+	switch (id) {
+	case ID_FILE:
+		return m_Groups + 0;
+	case ID_EDIT:
+		return m_Groups + 1;
+	case ID_DEBUG:
+		return m_Groups + 2;
+	case ID_GENERATE:
+		return m_Groups + 3;
+	case ID_SETTINGS:
+		return m_Groups + 4;
+	}
 }

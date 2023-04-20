@@ -111,28 +111,37 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <Image Include="images\file_new.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\edit_redo.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\debug_debug.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\debug_run.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\file_save.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\edit_undo.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\debug_halt.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
     <Image Include="images\new.bmp">
-      <Filter>资源文件</Filter>
-    </Image>
-    <Image Include="images\opened_file_button_off.bmp">
-      <Filter>资源文件</Filter>
-    </Image>
-    <Image Include="images\opened_file_button_on.bmp">
-      <Filter>资源文件</Filter>
-    </Image>
-    <Image Include="images\redo.bmp">
-      <Filter>资源文件</Filter>
-    </Image>
-    <Image Include="images\run_debug.bmp">
-      <Filter>资源文件</Filter>
-    </Image>
-    <Image Include="images\run_normal.bmp">
       <Filter>资源文件</Filter>
     </Image>
     <Image Include="images\save.bmp">
       <Filter>资源文件</Filter>
     </Image>
-    <Image Include="images\undo.bmp">
+    <Image Include="images\file_newfile.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\file_savefile.bmp">
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>

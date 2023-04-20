@@ -47,6 +47,7 @@
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <UseOfMfc>Static</UseOfMfc>
+    <EnableASAN>true</EnableASAN>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -226,14 +227,17 @@
     <ResourceCompile Include="PseudocodeInterpreterMFC.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="images\file_new.bmp" />
+    <Image Include="images\edit_redo.bmp" />
+    <Image Include="images\debug_debug.bmp" />
+    <Image Include="images\debug_halt.bmp" />
+    <Image Include="images\debug_run.bmp" />
+    <Image Include="images\file_newfile.bmp" />
+    <Image Include="images\file_save.bmp" />
+    <Image Include="images\edit_undo.bmp" />
+    <Image Include="images\file_savefile.bmp" />
     <Image Include="images\new.bmp" />
-    <Image Include="images\opened_file_button_off.bmp" />
-    <Image Include="images\opened_file_button_on.bmp" />
-    <Image Include="images\redo.bmp" />
-    <Image Include="images\run_debug.bmp" />
-    <Image Include="images\run_normal.bmp" />
     <Image Include="images\save.bmp" />
-    <Image Include="images\undo.bmp" />
   </ItemGroup>
   <ItemGroup>
     <Font Include="YAHEI CONSOLAS HYBRID.TTF" />

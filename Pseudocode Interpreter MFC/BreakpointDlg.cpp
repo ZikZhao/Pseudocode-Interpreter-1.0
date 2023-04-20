@@ -1,5 +1,4 @@
 ﻿#include "stdafx.h"
-#include "BreakpointDlg.h"
 
 BEGIN_MESSAGE_MAP(CBreakpointDlg, CDialogEx)
 END_MESSAGE_MAP()

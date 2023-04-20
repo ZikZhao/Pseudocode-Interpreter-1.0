@@ -1,22 +1,23 @@
 #pragma once
+#define FIND_BUTTON(id_group, id_button) CControlPanel::pObject->GetGroup(id_group)->GetButton(id_button)
 
 class CControlPanelTag : public CWnd
 {
 	DECLARE_MESSAGE_MAP()
 public:
 	static inline CFont m_Font;
-	static inline unsigned short m_Width;
-	static inline unsigned short m_Height;
+	static inline USHORT m_Width;
+	static inline USHORT m_Height;
 protected:
 	bool m_bHover;
 	bool m_bSelected;
 	CDC m_Source;
 	CDC m_Selected;
 	CDC m_Hover;
-	unsigned short m_TagIndex;
+	USHORT m_TagIndex;
 	CString m_Text;
 public:
-	CControlPanelTag(unsigned short tag_index, const wchar_t* text);
+	CControlPanelTag(USHORT tag_index, const wchar_t* text);
 	virtual ~CControlPanelTag();
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
@@ -35,13 +36,14 @@ public:
 	static inline CFont m_Font;
 protected:
 	UINT m_ResourceID;
+	UINT m_CommandID;
 	const wchar_t* m_Text;
-	const wchar_t* m_TipText;
-	CDC m_Source, m_SourceDisabled;
+	CDC m_Source;
+	CDC m_SourceDisabled;
 	bool m_bHover;
 	bool m_bDisabled;
 public:
-	CControlPanelButton(UINT resourceID, const wchar_t* button_text, const wchar_t* tip_text);
+	CControlPanelButton(UINT commandID, UINT resourceID, const wchar_t* button_text);
 	virtual ~CControlPanelButton();
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
@@ -57,13 +59,13 @@ class CControlPanelGroup : public CWnd
 {
 	DECLARE_MESSAGE_MAP()
 protected:
-	unsigned short m_TagIndex;
-	CControlPanelButton* m_Buttons;
+	USHORT m_TagIndex;
+	std::list<CControlPanelButton*> m_Buttons;
 public:
-	CControlPanelGroup(unsigned short tag_index);
+	CControlPanelGroup(USHORT tag_index);
 	virtual ~CControlPanelGroup();
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
-	CControlPanelButton* GetButtons();
+	CControlPanelButton* GetButton(UINT id);
 };
 
 class CControlPanel : public CWnd
@@ -72,8 +74,7 @@ class CControlPanel : public CWnd
 public:
 	static inline CControlPanel* pObject = nullptr;
 protected:
-	CToolTipCtrl m_Ttc;
-	unsigned short m_CurrentTagIndex;
+	USHORT m_CurrentTagIndex;
 	CControlPanelTag* m_Tags;
 	CControlPanelGroup* m_Groups;
 public:
@@ -83,5 +84,5 @@ public:
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	afx_msg void OnPaint();
 	void ShiftTag(USHORT tag_index);
-	CControlPanelGroup* GetGroups();
+	CControlPanelGroup* GetGroup(UINT id);
 };

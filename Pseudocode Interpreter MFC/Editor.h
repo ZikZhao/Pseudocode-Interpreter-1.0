@@ -1,5 +1,6 @@
 #pragma once
 #include "TagPanel.h"
+#include "ControlPanel.h"
 #include "BreakpointDlg.h"
 #include "..\Pseudocode Interpreter\Debug.h"
 
@@ -10,8 +11,11 @@ public:
 	static inline CEditor* pObject = nullptr;
 protected:
 	struct OPERATION {
-		CPoint point;
-		wchar_t* content;
+		CPoint start; // 插入/删除起始点
+		CPoint end; // 插入/删除结束点
+		wchar_t* content; // 插入/删除内容
+		size_t length; // 插入/删除长度
+		bool insert; // 是否为插入
 	};
 	CDC m_MemoryDC; // 内存缓冲DC
 	CDC m_Free; // 未选中文件时展示
@@ -35,11 +39,14 @@ protected:
 	CVSlider m_VSlider; // 垂直滚动条
 	CHSlider m_HSlider; // 水平滚动条
 	std::list<OPERATION> m_Operations; // 操作撤销/还原列表
+	std::list<OPERATION>::iterator m_CurrentOperation; // 当前操作
 	CBreakpointDlg* m_Dialog; // 断点对话框
 	std::list<BREAKPOINT> m_Breakpoints; // 所有断点
 public:
+	// 构造
 	CEditor();
 	virtual ~CEditor();
+	// 消息处理
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
@@ -53,6 +60,10 @@ public:
 	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
 	afx_msg void OnKillFocus(CWnd* pNewWnd);
+	// 命令
+	afx_msg void OnUndo();
+	afx_msg void OnRedo();
+	// 自定义
 	void LoadFile(CFileTag* tag); // 加载文档
 	static void VerticalCallback(double percentage); // 垂直滚动条回调函数
 	static void HorizontalCallback(double percentage); // 水平滚动条回调函数
@@ -63,6 +74,8 @@ protected:
 	void ArrangeSelection(); // 计算选区源
 	void ArrangeBreakpoints(); // 计算断点源
 	void UpdateSlider(); // 更新垂直和水平滚动条
+	void MovePointer(CPoint pointer); // 更新指针坐标（m_PointerPoint）以及当前行指针
 	CPoint TranslatePointer(CPoint point); // 将逻辑坐标转换为字符单位（同时移动当前行指针）
+	void Insert(wchar_t* text); // 插入复杂文本
 	void Delete(); // 删除字符或选区
 };

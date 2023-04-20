@@ -1,5 +1,4 @@
 #include "stdafx.h"
-#include "StatusBar.h"
 #define LASTING_TIME 5000
 
 

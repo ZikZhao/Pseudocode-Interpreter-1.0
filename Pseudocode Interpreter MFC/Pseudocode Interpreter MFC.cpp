@@ -1,5 +1,4 @@
 #include "stdafx.h"
-#include "MainFrm.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -40,7 +39,6 @@ BOOL App::InitInstance()
 	InitKeyboardManager();
 	InitTooltipManager();
 
-	//m_pMainWnd = (CFrameWndEx*)CMainFrame::CreateObject();
 	m_pMainWnd = new CMainFrame;
 	m_pMainWnd->CreateEx(NULL, NULL, L"Pseudocode Interpreter", WS_OVERLAPPEDWINDOW, CRect(0, 0, 0, 0), nullptr, NULL);
 	m_pMainWnd->ShowWindow(m_nCmdShow);

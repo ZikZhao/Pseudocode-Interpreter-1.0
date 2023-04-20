@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "MainFrm.h"
+#define DISPATCH_CASE(id, cls, function) {case id: cls::pObject->function(); break;}
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -9,83 +9,14 @@ CBrush* pThemeColorBrush = new CBrush(RGB(254, 74, 99));
 CBrush* pGreyBlackBrush = new CBrush(RGB(30, 30, 30));
 CPen* pNullPen = new CPen(PS_NULL, 0, RGB(0, 0, 0));
 
-namespace CALLBACKS {
-	DWORD undo(LPVOID lpParameter) {
-		return 0;
-	}
-	DWORD redo(LPVOID lpParameter) {
-		return 0;
-	}
-	DWORD run_normal(LPVOID lpParameter) {
-		((CControlPanel::pObject->GetGroups() + 2)->GetButtons() + 0)->SetState(false);
-		((CControlPanel::pObject->GetGroups() + 2)->GetButtons() + 1)->SetState(false);
-		STARTUPINFO si = CConsole::pObject->InitSubprocess(true);
-		PROCESS_INFORMATION pi{};
-		ZeroMemory(&pi, sizeof(pi));
-		wchar_t* other_opt = new wchar_t[1];
-		other_opt[0] = 0;
-		size_t command_length = 33 + wcslen(CTagPanel::pObject->GetCurrentTag()->GetPath()) + wcslen(other_opt);
-		wchar_t* command = new wchar_t[command_length] {};
-		static const wchar_t* format = L"\"Pseudocode Interpreter.exe\" \"%s\" %s";
-		StringCchPrintfW(command, command_length, format, CTagPanel::pObject->GetCurrentTag()->GetPath(), other_opt);
-		command[command_length - 1] = 0;
-		CreateProcessW(0, command, 0, 0, true, CREATE_NO_WINDOW, 0, 0, &si, &pi);
-		static const wchar_t* start_message = L"本地伪代码解释器已启动";
-		CMainFrame::pObject->UpdateStatus(true, start_message);
-		delete[] command;
-		// 监听管道
-		CConsole::pObject->Join(pi.hProcess);
-		// 结束执行
-		CConsole::pObject->ExitSubprocess();
-		((CControlPanel::pObject->GetGroups() + 2)->GetButtons() + 0)->SetState(true);
-		((CControlPanel::pObject->GetGroups() + 2)->GetButtons() + 1)->SetState(true);
-		static const wchar_t* end_message = L"代码运行结束";
-		CMainFrame::pObject->UpdateStatus(false, end_message);
-		return 0;
-	}
-	DWORD run_debug(LPVOID lpParameter) {
-		((CControlPanel::pObject->GetGroups() + 2)->GetButtons() + 0)->SetState(false);
-		((CControlPanel::pObject->GetGroups() + 2)->GetButtons() + 1)->SetState(false);
-		STARTUPINFO si = CConsole::pObject->InitSubprocess(true);
-		PROCESS_INFORMATION pi{};
-		ZeroMemory(&pi, sizeof(pi));
-		wchar_t* other_opt = new wchar_t[1];
-		other_opt[0] = 0;
-		size_t command_length = 40 + wcslen(CTagPanel::pObject->GetCurrentTag()->GetPath()) + wcslen(other_opt);
-		wchar_t* command = new wchar_t[command_length] {};
-		static const wchar_t* format = L"\"Pseudocode Interpreter.exe\" \"%s\" /debug %s";
-		StringCchPrintfW(command, command_length, format, CTagPanel::pObject->GetCurrentTag()->GetPath(), other_opt);
-		command[command_length - 1] = 0;
-		CreateProcessW(0, command, 0, 0, true, CREATE_NO_WINDOW, 0, 0, &si, &pi);
-		static const wchar_t* start_message = L"本地伪代码解释器已启动";
-		CMainFrame::pObject->UpdateStatus(true, start_message);
-		delete[] command;
-		// 监听管道
-		CConsole::pObject->JoinDebug(pi.hProcess);
-		// 结束执行
-		CConsole::pObject->ExitSubprocess();
-		((CControlPanel::pObject->GetGroups() + 2)->GetButtons() + 0)->SetState(true);
-		((CControlPanel::pObject->GetGroups() + 2)->GetButtons() + 1)->SetState(true);
-		static const wchar_t* end_message = L"代码运行结束";
-		CMainFrame::pObject->UpdateStatus(false, end_message);
-		return 0;
-	}
-}
-std::map<DWORD, DWORD(*)(LPVOID)> CALLBACK_MAP {
-	{ IDB_UNDO, CALLBACKS::undo },
-	{ IDB_REDO, CALLBACKS::redo },
-	{ IDB_RUN_NORMAL, CALLBACKS::run_normal },
-	{ IDB_RUN_DEBUG, CALLBACKS::run_debug },
-};
-
 // CMainFrame
 BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_WM_CREATE()
 	ON_WM_ERASEBKGND()
 	ON_WM_SIZE()
 	ON_WM_GETMINMAXINFO()
-	ON_WM_NCACTIVATE()
 	ON_WM_NCCALCSIZE()
+	ON_COMMAND_RANGE(32768, 65535, CMainFrame::OnDispatchCommand)
 END_MESSAGE_MAP()
 CMainFrame::CMainFrame() noexcept
 {
@@ -96,11 +27,25 @@ CMainFrame::~CMainFrame()
 }
 BOOL CMainFrame::PreCreateWindow(CREATESTRUCT& cs)
 {
-	cs.hMenu = LoadMenuW(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDR_MAINFRAME));
 	return CFrameWndEx::PreCreateWindow(cs);
+}
+BOOL CMainFrame::PreTranslateMessage(MSG* pMsg)
+{
+	if (pMsg->message == WM_MOUSEMOVE)
+	{
+		m_Tip.RelayEvent(pMsg);
+	}
+	return CFrameWndEx::PreTranslateMessage(pMsg);
 }
 int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
+	// 创建提示文本
+	m_Tip.Create(this, TTS_ALWAYSTIP);
+	m_Tip.SetTipBkColor(RGB(30, 30, 30));
+	m_Tip.SetTipTextColor(RGB(255, 255, 255));
+	static CRect rect(5, 5, 5, 5);
+	m_Tip.SetMargin(&rect);
+
 	// 创建子组件
 	m_ControlPanel.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
 	m_TagPanel.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
@@ -108,8 +53,13 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_InfoView.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 200), this, NULL);
 	m_StatusBar.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
 
-	// 再创建主窗口
-	CFrameWndEx::OnCreate(lpCreateStruct);
+	// 再创建窗口
+	if (CFrameWndEx::OnCreate(lpCreateStruct))
+		return -1;
+
+	ModifyStyleEx(WS_EX_CLIENTEDGE, 0, SWP_FRAMECHANGED);
+	LoadAccelTable(MAKEINTRESOURCE(IDR_MAINFRAME));
+
 	return 0;
 }
 BOOL CMainFrame::OnEraseBkgnd(CDC* pDC)
@@ -137,22 +87,22 @@ void CMainFrame::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 {
 	lpMMI->ptMinTrackSize = POINT(300, 300);
 }
-BOOL CMainFrame::OnNcActivate(BOOL bActive)
-{
-	CFrameWndEx::OnNcActivate(bActive);
-	m_ControlPanel.Invalidate(FALSE);
-	m_TagPanel.Invalidate(FALSE);
-	m_Editor.Invalidate(FALSE);
-	m_InfoView.Invalidate(FALSE);
-	m_StatusBar.Invalidate(FALSE);
-	return TRUE;
-}
 void CMainFrame::OnNcCalcSize(BOOL bCalcValidRects, NCCALCSIZE_PARAMS* lpncsp)
 {
 	CFrameWndEx::OnNcCalcSize(bCalcValidRects, lpncsp);
 	lpncsp->rgrc[0].left -= 2;
 	lpncsp->rgrc[0].right += 2;
 	lpncsp->rgrc[0].bottom += 2;
+}
+void CMainFrame::OnDispatchCommand(UINT uID)
+{
+	switch (uID) {
+		DISPATCH_CASE(ID_EDIT_UNDO, CEditor, OnUndo)
+		DISPATCH_CASE(ID_EDIT_REDO, CEditor, OnRedo)
+		DISPATCH_CASE(ID_DEBUG_RUN, CConsole, OnDebugRun)
+		DISPATCH_CASE(ID_DEBUG_DEBUG, CConsole, OnDebugDebug)
+		DISPATCH_CASE(ID_DEBUG_HALT, CConsole, OnDebugHalt)
+	}
 }
 inline void CMainFrame::OpenFile(const wchar_t* path)
 {
@@ -163,7 +113,7 @@ void CMainFrame::LoadOpenedFiles()
 {
 	OpenFile(const_cast<wchar_t*>(L"C:\\Users\\Zik\\OneDrive - 6666zik\\Desktop\\code.txt"));
 }
-inline void CMainFrame::UpdateStatus(bool state, const wchar_t* text)
+void CMainFrame::UpdateStatus(bool state, const wchar_t* text)
 {
 	m_StatusBar.UpdateState(state);
 	m_StatusBar.UpdateMessage(text);

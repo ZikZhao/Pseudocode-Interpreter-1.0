@@ -9,3 +9,4 @@
 #include "afxdialogex.h"
 #include "Pseudocode Interpreter MFC.h"
 #include "Slider.h"
+#include "MainFrm.h"
