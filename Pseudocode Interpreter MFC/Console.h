@@ -140,8 +140,10 @@ public:
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnDebugRun();
-	afx_msg void OnDebugDebug();
 	afx_msg void OnDebugHalt();
+	afx_msg void OnDebugDebug();
+	afx_msg void OnDebugStepin();
+	afx_msg void OnDebugStepover();
 	void InitSubprocess(bool debug_mode); // 准备监听新进程
 	void ExitSubprocess(UINT exit_code); // 解释器实例结束时运行
 	static DWORD Join(LPVOID lpParamter); // 进入管道监听循环

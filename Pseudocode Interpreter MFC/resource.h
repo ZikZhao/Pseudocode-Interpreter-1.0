@@ -22,14 +22,21 @@
 #define IDC_RADIO2                      135
 #define IDB_DEBUG_HALT                  135
 #define IDC_RADIO3                      136
+#define IDI_PI                          136
 #define IDC_RADIO4                      137
 #define ID_FILE                         138
+#define IDB_DEBUG_STEPIN                138
 #define IDC_COMBO1                      139
 #define ID_EDIT                         139
+#define IDB_DEBUG_STEPOVER              139
 #define IDC_EDIT1                       140
 #define ID_DEBUG                        140
+#define IDB_DEBUG_STEPOUT               140
 #define ID_GENERATE                     141
 #define ID_SETTINGS                     142
+#define ID_DEBUG_STEPIN                 144
+#define ID_DEBUG_STEPOVER               145
+#define ID_DEBUG_STEPOUT                146
 #define ID_32771                        32771
 #define ID_32772                        32772
 #define ID_32773                        32773
@@ -46,9 +53,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        136
+#define _APS_NEXT_RESOURCE_VALUE        141
 #define _APS_NEXT_COMMAND_VALUE         32784
 #define _APS_NEXT_CONTROL_VALUE         141
-#define _APS_NEXT_SYMED_VALUE           144
+#define _APS_NEXT_SYMED_VALUE           147
 #endif
 #endif

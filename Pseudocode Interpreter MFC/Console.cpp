@@ -872,6 +872,10 @@ void CConsole::OnDebugRun()
 	// 监听管道
 	CreateThread(NULL, NULL, CConsole::Join, nullptr, NULL, NULL);
 }
+void CConsole::OnDebugHalt()
+{
+	TerminateProcess(m_PI.hProcess, PROCESS_HALTED);
+}
 void CConsole::OnDebugDebug()
 {
 	// 准备进程启动选项
@@ -897,10 +901,6 @@ void CConsole::OnDebugDebug()
 	delete[] command;
 	// 监听管道
 	CreateThread(NULL, NULL, CConsole::JoinDebug, nullptr, NULL, NULL);
-}
-void CConsole::OnDebugHalt()
-{
-	TerminateProcess(m_PI.hProcess, PROCESS_HALTED);
 }
 void CConsole::InitSubprocess(bool debug_mode)
 {
@@ -972,6 +972,12 @@ DWORD CConsole::Join(LPVOID lpParameter)
 	// 结束执行
 	pObject->ExitSubprocess(state);
 	return 0;
+}
+void CConsole::OnDebugStepin()
+{
+}
+void CConsole::OnDebugStepover()
+{
 }
 DWORD CConsole::JoinDebug(LPVOID lpParameter)
 {

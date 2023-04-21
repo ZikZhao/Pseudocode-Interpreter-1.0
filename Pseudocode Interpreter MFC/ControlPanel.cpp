@@ -1,9 +1,8 @@
 #include "stdafx.h"
 #define BEGIN_GROUP(id) { UINT id_group = id;
-#define BUTTON(id, id_bitmap, button_text, x) { CControlPanelButton* button = new CControlPanelButton(id, id_bitmap, button_text); m_Buttons.push_back(button); button->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(x, 0, x + 68, 88), this, id); CMainFrame::pObject->m_Tip.AddTool(FIND_BUTTON(id_group, id), id); }
 #define END_GROUP() }
-
-extern std::map<DWORD, DWORD(*)(LPVOID)> CALLBACK_MAP;
+#define BUTTON(id, id_bitmap, button_text, x) { CControlPanelButton* button = new CControlPanelButton(id, id_bitmap, button_text); m_Components.push_back(button); button->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(x, 0, x + 68, 88), this, id); CMainFrame::pObject->m_Tip.AddTool(FIND_BUTTON(id_group, id), id); }
+#define SPLITTER(x) { CControlPanelSplitter* splitter = new CControlPanelSplitter(); m_Components.push_back(splitter); splitter->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(x, 5, x + 1, 83), this, NULL); }
 
 BEGIN_MESSAGE_MAP(CControlPanelTag, CWnd)
 	ON_WM_CREATE()
@@ -110,6 +109,10 @@ void CControlPanelTag::SetState(bool selected)
 {
 	m_bSelected = selected;
 	Invalidate(FALSE);
+}
+
+void CControlPanelComponent::SetState(bool state)
+{
 }
 
 BEGIN_MESSAGE_MAP(CControlPanelButton, CWnd)
@@ -237,6 +240,21 @@ void CControlPanelButton::SetState(bool state)
 	Invalidate(FALSE);
 }
 
+BEGIN_MESSAGE_MAP(CControlPanelSplitter, CWnd)
+	ON_WM_PAINT()
+END_MESSAGE_MAP()
+CControlPanelSplitter::CControlPanelSplitter()
+{
+}
+CControlPanelSplitter::~CControlPanelSplitter()
+{
+}
+void CControlPanelSplitter::OnPaint()
+{
+	CPaintDC dc(this);
+	dc.BitBlt(0, 0, 1, 78, &m_DC, 0, 0, SRCCOPY);
+}
+
 BEGIN_MESSAGE_MAP(CControlPanelGroup, CWnd)
 	ON_WM_CREATE()
 END_MESSAGE_MAP()
@@ -249,11 +267,12 @@ CControlPanelGroup::~CControlPanelGroup()
 }
 int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
+	// 相邻控件间宽度为12px
 	switch (m_TagIndex) {
 	case 0:
 		BEGIN_GROUP(ID_FILE)
 			BUTTON(ID_FILE_NEW, IDB_FILE_NEW, L"新建", 0)
-			BUTTON(ID_FILE_SAVE, IDB_FILE_SAVE, L"保存", 82)
+			BUTTON(ID_FILE_SAVE, IDB_FILE_SAVE, L"保存", 80)
 		END_GROUP()
 		return 0;
 	case 1:
@@ -263,9 +282,13 @@ int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return 0;
 	case 2:
 		BEGIN_GROUP(ID_DEBUG)
-			BUTTON(ID_DEBUG_RUN, IDB_RUN_NORMAL, L"运行", 0)
-			BUTTON(ID_DEBUG_DEBUG, IDB_RUN_DEBUG, L"调试", 82)
-			BUTTON(ID_DEBUG_HALT, IDB_DEBUG_HALT, L"终止", 164)
+			BUTTON(ID_DEBUG_RUN, IDB_DEBUG_RUN, L"运行", 0)
+			BUTTON(ID_DEBUG_HALT, IDB_DEBUG_HALT, L"终止", 80)
+			SPLITTER(160)
+			BUTTON(ID_DEBUG_DEBUG, IDB_DEBUG_DEBUG, L"调试", 172)
+			BUTTON(ID_DEBUG_STEPIN, IDB_DEBUG_STEPIN, L"步入", 252)
+			BUTTON(ID_DEBUG_STEPOVER, IDB_DEBUG_STEPOVER, L"步进", 332)
+			BUTTON(ID_DEBUG_STEPOUT, IDB_DEBUG_STEPOUT, L"步出", 412)
 		END_GROUP()
 		return 0;
 	case 3:
@@ -276,10 +299,10 @@ int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 }
 CControlPanelButton* CControlPanelGroup::GetButton(UINT id)
 {
-	for (std::list<CControlPanelButton*>::iterator iter = m_Buttons.begin(); iter != m_Buttons.end(); iter++) {
+	for (std::list<CControlPanelComponent*>::iterator iter = m_Components.begin(); iter != m_Components.end(); iter++) {
 		UINT nID = GetWindowLongW((*iter)->GetSafeHwnd(), GWL_ID);
 		if (nID == id) {
-			return *iter;
+			return (CControlPanelButton*)*iter;
 		}
 	}
 	return nullptr;
@@ -329,12 +352,12 @@ int CControlPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
+	CDC* pWindowDC = GetDC();
 	// 创建悬浮于按钮之上时的高亮背景
-	CDC* windowDC = GetDC();
-	CControlPanelButton::m_HoverBG.CreateCompatibleDC(windowDC);
-	CBitmap* bitmap = new CBitmap;
-	bitmap->CreateCompatibleBitmap(windowDC, 68, 88);
-	CControlPanelButton::m_HoverBG.SelectObject(bitmap);
+	CControlPanelButton::m_HoverBG.CreateCompatibleDC(pWindowDC);
+	CBitmap* pBitmap = new CBitmap;
+	pBitmap->CreateCompatibleBitmap(pWindowDC, 68, 88);
+	CControlPanelButton::m_HoverBG.SelectObject(pBitmap);
 	CBrush brush(RGB(61, 61, 61));
 	CControlPanelButton::m_HoverBG.SelectObject(&brush);
 	CPen pen(PS_SOLID, 1, RGB(112, 112, 112));
@@ -343,19 +366,28 @@ int CControlPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	// 计算Tag组件字体大小
 	CDC temp;
-	temp.CreateCompatibleDC(windowDC);
+	temp.CreateCompatibleDC(pWindowDC);
 	temp.SelectObject(CControlPanelTag::m_Font);
-	CRect rect;
-	temp.DrawTextW(CString(L"你好"), &rect, DT_CALCRECT);
-	CControlPanelTag::m_Width = rect.right;
-	CControlPanelTag::m_Height = rect.bottom;
+	CSize size;
+	GetTextExtentPoint32W(temp, L"你好", 2, &size);
+	CControlPanelTag::m_Width = size.cx;
+	CControlPanelTag::m_Height = size.cy;
+
+	// 计算分割条
+	CControlPanelSplitter::m_DC.CreateCompatibleDC(pWindowDC);
+	pBitmap = new CBitmap;
+	pBitmap->CreateCompatibleBitmap(pWindowDC, 1, 78);
+	CControlPanelSplitter::m_DC.SelectObject(pBitmap);
+	CRect rect(0, 0, 1, 78);
+	CBrush brush2(RGB(56, 56, 56));
+	CControlPanelSplitter::m_DC.FillRect(&rect, &brush2);
 
 	// 创建当前组
-	m_Tags[0].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(10, 10, 10 + rect.right, 10 + rect.bottom), this, NULL);
-	m_Tags[1].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(70, 10, 70 + rect.right, 10 + rect.bottom), this, NULL);
-	m_Tags[2].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(130, 10, 130 + rect.right, 10 + rect.bottom), this, NULL);
-	m_Tags[3].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(190, 10, 190 + rect.right, 10 + rect.bottom), this, NULL);
-	m_Tags[4].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(250, 10, 250 + rect.right, 10 + rect.bottom), this, NULL);
+	m_Tags[0].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(10, 10, 10 + size.cx, 10 + size.cy), this, NULL);
+	m_Tags[1].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(70, 10, 70 + size.cx, 10 + size.cy), this, NULL);
+	m_Tags[2].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(130, 10, 130 + size.cx, 10 + size.cy), this, NULL);
+	m_Tags[3].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(190, 10, 190 + size.cx, 10 + size.cy), this, NULL);
+	m_Tags[4].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(250, 10, 250 + size.cx, 10 + size.cy), this, NULL);
 	m_Groups[0].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_FILE);
 	m_Groups[1].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_EDIT);
 	m_Groups[2].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_DEBUG);

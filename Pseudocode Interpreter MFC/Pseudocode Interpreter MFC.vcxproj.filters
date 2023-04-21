@@ -95,13 +95,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Pseudocode Interpreter MFC.reg" />
-    <None Include="res\ribbon.mfcribbon-ms">
-      <Filter>资源文件</Filter>
-    </None>
     <None Include="res\PseudocodeInterpreterMFC.rc2">
-      <Filter>资源文件</Filter>
-    </None>
-    <None Include="images\ribbon1.mfcribbon-ms">
       <Filter>资源文件</Filter>
     </None>
   </ItemGroup>
@@ -132,16 +126,25 @@
     <Image Include="images\debug_halt.bmp">
       <Filter>资源文件</Filter>
     </Image>
-    <Image Include="images\new.bmp">
-      <Filter>资源文件</Filter>
-    </Image>
-    <Image Include="images\save.bmp">
-      <Filter>资源文件</Filter>
-    </Image>
     <Image Include="images\file_newfile.bmp">
       <Filter>资源文件</Filter>
     </Image>
     <Image Include="images\file_savefile.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\PI.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\bitmap1.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\debug_stepin.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\debug_stepover.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\debug_stepout.bmp">
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>

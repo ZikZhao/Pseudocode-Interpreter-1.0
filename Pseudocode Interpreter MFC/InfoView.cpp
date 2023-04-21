@@ -177,11 +177,11 @@ void CInfoView::OnPaint()
 	dc.SelectObject(&m_SplitterPen);
 	dc.MoveTo(CPoint(0, 0));
 	dc.LineTo(CPoint(m_Width, 0));
+	CRect rect(0, 0, m_Width, m_Height);
+	dc.FillRect(&rect, pGreyBlackBrush);
 }
 BOOL CInfoView::OnEraseBkgnd(CDC* pDC)
 {
-	CRect rect(0, 0, m_Width, m_Height);
-	pDC->FillRect(&rect, pGreyBlackBrush);
 	return TRUE;
 }
 void CInfoView::OnSize(UINT nType, int cx, int cy)
@@ -190,8 +190,9 @@ void CInfoView::OnSize(UINT nType, int cx, int cy)
 
 	m_Width = cx;
 	m_Height = cy;
+	RedrawWindow(NULL, NULL, RDW_UPDATENOW | RDW_INTERNALPAINT | RDW_INVALIDATE);
 	CRect rect(0, m_CharSize.cy + 4, cx, cy);
-	m_Console.MoveWindow(rect);
+	m_Console.MoveWindow(rect, FALSE);
 }
 void CInfoView::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 {

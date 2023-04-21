@@ -391,7 +391,7 @@ void CEditor::ArrangeText()
 		m_Width - 15,
 		(long)((start_line_index - start_line + 1) * m_CharSize.cy));
 	for (; iter != m_CurrentTag->GetLines()->end(); iter++) {
-		m_Source.DrawTextW(*iter, -1, &rect, DT_SINGLELINE | DT_TABSTOP | 4 << 8);
+		m_Source.DrawTextW(*iter, -1, &rect, DT_LEFT | DT_TABSTOP | 4 << 8);
 		rect.top = rect.bottom;
 		rect.bottom += m_CharSize.cy;
 		if (rect.top >= m_Height) { break; }

@@ -15,8 +15,7 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_WM_ERASEBKGND()
 	ON_WM_SIZE()
 	ON_WM_GETMINMAXINFO()
-	ON_WM_NCCALCSIZE()
-	ON_COMMAND_RANGE(32768, 65535, CMainFrame::OnDispatchCommand)
+	ON_COMMAND_RANGE(0, 65535, CMainFrame::OnDispatchCommand)
 END_MESSAGE_MAP()
 CMainFrame::CMainFrame() noexcept
 {
@@ -59,6 +58,8 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	ModifyStyleEx(WS_EX_CLIENTEDGE, 0, SWP_FRAMECHANGED);
 	LoadAccelTable(MAKEINTRESOURCE(IDR_MAINFRAME));
+	SetIcon(AfxGetApp()->LoadIconW(MAKEINTRESOURCE(IDI_PI)), true);
+	SetIcon(AfxGetApp()->LoadIconW(MAKEINTRESOURCE(IDI_PI)), false);
 
 	return 0;
 }
@@ -68,31 +69,24 @@ BOOL CMainFrame::OnEraseBkgnd(CDC* pDC)
 }
 void CMainFrame::OnSize(UINT nType, int cx, int cy)
 {
-	CFrameWndEx::OnSize(nType, cx, cy);
 	CRect rect;
 	m_InfoView.GetClientRect(&rect);
 	int original_height = rect.bottom - rect.top;
 	rect = CRect(0, 0, cx, 150);
-	m_ControlPanel.MoveWindow(rect, FALSE);
+	m_ControlPanel.MoveWindow(rect, TRUE);
 	rect = CRect(0, 150, 300, cy - 24);
-	m_TagPanel.MoveWindow(rect, FALSE);
+	m_TagPanel.MoveWindow(rect, TRUE);
 	rect = CRect(300, 150, cx, cy - 24 - original_height);
 	m_Editor.MoveWindow(rect);
 	rect = CRect(300, 150 + cy - 174 - original_height, cx, cy - 24);
-	m_InfoView.MoveWindow(rect, FALSE);
+	m_InfoView.MoveWindow(rect, TRUE);
 	rect = CRect(0, cy - 24, cx, cy);
-	m_StatusBar.MoveWindow(rect, FALSE);
+	m_StatusBar.MoveWindow(rect, TRUE);
+	CFrameWndEx::OnSize(nType, cx, cy);
 }
 void CMainFrame::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 {
 	lpMMI->ptMinTrackSize = POINT(300, 300);
-}
-void CMainFrame::OnNcCalcSize(BOOL bCalcValidRects, NCCALCSIZE_PARAMS* lpncsp)
-{
-	CFrameWndEx::OnNcCalcSize(bCalcValidRects, lpncsp);
-	lpncsp->rgrc[0].left -= 2;
-	lpncsp->rgrc[0].right += 2;
-	lpncsp->rgrc[0].bottom += 2;
 }
 void CMainFrame::OnDispatchCommand(UINT uID)
 {
@@ -100,8 +94,11 @@ void CMainFrame::OnDispatchCommand(UINT uID)
 		DISPATCH_CASE(ID_EDIT_UNDO, CEditor, OnUndo)
 		DISPATCH_CASE(ID_EDIT_REDO, CEditor, OnRedo)
 		DISPATCH_CASE(ID_DEBUG_RUN, CConsole, OnDebugRun)
-		DISPATCH_CASE(ID_DEBUG_DEBUG, CConsole, OnDebugDebug)
 		DISPATCH_CASE(ID_DEBUG_HALT, CConsole, OnDebugHalt)
+		DISPATCH_CASE(ID_DEBUG_DEBUG, CConsole, OnDebugDebug)
+		DISPATCH_CASE(ID_DEBUG_STEPIN, CConsole, OnDebugStepin)
+		DISPATCH_CASE(ID_DEBUG_STEPOVER, CConsole, OnDebugStepover)
+		DISPATCH_CASE(ID_DEBUG_STEPOUT, CConsole, OnDebugStepout)
 	}
 }
 inline void CMainFrame::OpenFile(const wchar_t* path)

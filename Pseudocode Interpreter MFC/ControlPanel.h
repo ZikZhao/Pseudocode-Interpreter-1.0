@@ -28,7 +28,13 @@ public:
 	void SetState(bool selected);
 };
 
-class CControlPanelButton : public CWnd
+class CControlPanelComponent : public CWnd
+{
+public:
+	virtual void SetState(bool state);
+};
+
+class CControlPanelButton : public CControlPanelComponent
 {
 	DECLARE_MESSAGE_MAP()
 public:
@@ -52,7 +58,18 @@ public:
 	afx_msg void OnMouseLeave();
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
-	void SetState(bool state);
+	virtual void SetState(bool state);
+};
+
+class CControlPanelSplitter : public CControlPanelComponent
+{
+	DECLARE_MESSAGE_MAP()
+public:
+	static inline CDC m_DC;
+public:
+	CControlPanelSplitter();
+	~CControlPanelSplitter();
+	afx_msg void OnPaint();
 };
 
 class CControlPanelGroup : public CWnd
@@ -60,7 +77,7 @@ class CControlPanelGroup : public CWnd
 	DECLARE_MESSAGE_MAP()
 protected:
 	USHORT m_TagIndex;
-	std::list<CControlPanelButton*> m_Buttons;
+	std::list<CControlPanelComponent*> m_Components;
 public:
 	CControlPanelGroup(USHORT tag_index);
 	virtual ~CControlPanelGroup();

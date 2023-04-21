@@ -218,15 +218,17 @@
     <ClCompile Include="Pseudocode Interpreter MFC.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="images\ribbon1.mfcribbon-ms" />
     <None Include="Pseudocode Interpreter MFC.reg" />
     <None Include="res\PseudocodeInterpreterMFC.rc2" />
-    <None Include="res\ribbon.mfcribbon-ms" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PseudocodeInterpreterMFC.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="images\bitmap1.bmp" />
+    <Image Include="images\debug_stepin.bmp" />
+    <Image Include="images\debug_stepout.bmp" />
+    <Image Include="images\debug_stepover.bmp" />
     <Image Include="images\file_new.bmp" />
     <Image Include="images\edit_redo.bmp" />
     <Image Include="images\debug_debug.bmp" />
@@ -236,8 +238,7 @@
     <Image Include="images\file_save.bmp" />
     <Image Include="images\edit_undo.bmp" />
     <Image Include="images\file_savefile.bmp" />
-    <Image Include="images\new.bmp" />
-    <Image Include="images\save.bmp" />
+    <Image Include="images\PI.ico" />
   </ItemGroup>
   <ItemGroup>
     <Font Include="YAHEI CONSOLAS HYBRID.TTF" />
