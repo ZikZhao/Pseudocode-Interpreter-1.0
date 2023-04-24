@@ -833,6 +833,9 @@ int CConsole::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Input.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
 	// 更新控制区按钮
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetState(false);
 
 	return 0;
 }
@@ -902,12 +905,45 @@ void CConsole::OnDebugDebug()
 	// 监听管道
 	CreateThread(NULL, NULL, CConsole::JoinDebug, nullptr, NULL, NULL);
 }
+void CConsole::OnDebugContinue()
+{
+	CEditor::pObject->SendMessageW(WM_STEP, 0, -1);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	SendSignal(SIGNAL_EXECUTION, EXECUTION_CONTINUE, 0);
+}
+void CConsole::OnDebugStepin()
+{
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPIN, 0);
+}
+void CConsole::OnDebugStepover()
+{
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPOVER, 0);
+}
+void CConsole::OnDebugStepout()
+{
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPOUT, 0);
+}
 void CConsole::InitSubprocess(bool debug_mode)
 {
 	// 更新组件状态
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(false);
 	static const wchar_t* start_message = L"本地伪代码解释器已启动";
 	CMainFrame::pObject->UpdateStatus(true, start_message);
 	// 创建管道
@@ -921,10 +957,50 @@ void CConsole::InitSubprocess(bool debug_mode)
 	if (debug_mode) {
 		CreatePipe(&m_Pipes.signal_in_read, &m_Pipes.signal_in_write, &sa, 20);
 		CreatePipe(&m_Pipes.signal_out_read, &m_Pipes.signal_out_write, &sa, 20);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->ShowWindow(SW_HIDE);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_SHOW);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
 	}
 	// 清理控制台
 	m_Output.ClearBuffer();
 	m_bRun = true;
+}
+void CConsole::ExitSubprocess(UINT exit_code)
+{
+	// 关闭管道
+	CloseHandle(m_Pipes.stdin_read);
+	CloseHandle(m_Pipes.stdin_write);
+	CloseHandle(m_Pipes.stdout_read);
+	CloseHandle(m_Pipes.stdout_write);
+	CloseHandle(m_Pipes.stderr_read);
+	CloseHandle(m_Pipes.stderr_write);
+	if (m_Pipes.signal_in_read) {
+		CloseHandle(m_Pipes.signal_in_read);
+		CloseHandle(m_Pipes.signal_in_write);
+		CloseHandle(m_Pipes.signal_out_read);
+		CloseHandle(m_Pipes.signal_out_write);
+	}
+	m_Pipes = PIPE{};
+	m_bRun = false;
+	// 更新组件状态
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetState(false);
+
+	switch (exit_code) {
+	case 0:
+		CMainFrame::pObject->UpdateStatus(false, L"代码运行结束");
+		break;
+	case -1:
+		CMainFrame::pObject->UpdateStatus(false, L"代码运行异常退出");
+		break;
+	case PROCESS_HALTED:
+		CMainFrame::pObject->UpdateStatus(false, L"运行已被强制终止");
+		break;
+	}
 }
 DWORD CConsole::Join(LPVOID lpParameter)
 {
@@ -973,29 +1049,18 @@ DWORD CConsole::Join(LPVOID lpParameter)
 	pObject->ExitSubprocess(state);
 	return 0;
 }
-void CConsole::OnDebugStepin()
-{
-}
-void CConsole::OnDebugStepover()
-{
-}
 DWORD CConsole::JoinDebug(LPVOID lpParameter)
 {
-	// 编码函数
-	auto Encode = [](UINT message, WPARAM wParam, LPARAM lParam) -> char* {
-		static char buffer[20];
-		memcpy(buffer, &message, 4);
-		memcpy(buffer + 4, &wParam, 8);
-		memcpy(buffer + 12, &lParam, 8);
-		return buffer;
-	};
 	// 传递管道句柄
 	WriteFile(pObject->m_Pipes.stdin_write, &pObject->m_Pipes.signal_in_read, 8, nullptr, nullptr);
 	// 建立连接
-	WriteFile(pObject->m_Pipes.signal_in_write, Encode(PM_CONNECTION, CONNECTION_PIPE, (LPARAM)pObject->m_Pipes.signal_out_write), 20, 0, nullptr);
+	SendSignal(SIGNAL_CONNECTION, CONNECTION_PIPE, (LPARAM)pObject->m_Pipes.signal_out_write);
+	// 预设断点
+	for (std::list<BREAKPOINT>::iterator iter = CEditor::m_Breakpoints.begin(); iter != CEditor::m_Breakpoints.end(); iter++) {
+		SendSignal(SIGNAL_BREAKPOINT, MAKELPARAM(BREAKPOINT_ADD, BREAKPOINT_TYPE_NORMAL), iter->line_index);
+	}
 	// 启动执行
-	//WriteFile(pObject->m_Pipes.signal_in_write, Encode(PM_BREAKPOINT, BREAKPOINT_ADD | (BREAKPOINT_TYPE_NORMAL << 16), 104), 20, 0, nullptr);
-	WriteFile(pObject->m_Pipes.signal_in_write, Encode(PM_CONNECTION, CONNECTION_START, 0), 20, 0, nullptr);
+	SendSignal(SIGNAL_CONNECTION, CONNECTION_START, 0);
 	// 准备监听
 	char* buffer = new char[20];
 	DWORD size_allocated = 20;
@@ -1038,9 +1103,7 @@ DWORD CConsole::JoinDebug(LPVOID lpParameter)
 				UINT message = *(UINT*)buffer;
 				WPARAM wParam = *(WPARAM*)(buffer + 4);
 				LPARAM lParam = *(LPARAM*)(buffer + 12);
-				switch (message) {
-
-				}
+				pObject->SignalProc(message, wParam, lParam);
 			}
 		}
 		else {
@@ -1055,39 +1118,13 @@ DWORD CConsole::JoinDebug(LPVOID lpParameter)
 	pObject->ExitSubprocess(state);
 	return 0;
 }
-void CConsole::ExitSubprocess(UINT exit_code)
+void CConsole::SendSignal(UINT message, WPARAM wParam, LPARAM lParam)
 {
-	// 关闭管道
-	CloseHandle(m_Pipes.stdin_read);
-	CloseHandle(m_Pipes.stdin_write);
-	CloseHandle(m_Pipes.stdout_read);
-	CloseHandle(m_Pipes.stdout_write);
-	CloseHandle(m_Pipes.stderr_read);
-	CloseHandle(m_Pipes.stderr_write);
-	if (m_Pipes.signal_in_read) {
-		CloseHandle(m_Pipes.signal_in_read);
-		CloseHandle(m_Pipes.signal_in_write);
-		CloseHandle(m_Pipes.signal_out_read);
-		CloseHandle(m_Pipes.signal_out_write);
-	}
-	m_Pipes = PIPE{};
-	m_bRun = false;
-	// 更新组件状态
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(false);
-
-	switch (exit_code) {
-	case 0:
-		CMainFrame::pObject->UpdateStatus(false, L"代码运行结束");
-		break;
-	case 1:
-		CMainFrame::pObject->UpdateStatus(false, L"代码运行异常退出");
-		break;
-	case 2:
-		CMainFrame::pObject->UpdateStatus(false, L"运行已被强制终止");
-		break;
-	}
+	static char buffer[20];
+	memcpy(buffer, &message, 4);
+	memcpy(buffer + 4, &wParam, 8);
+	memcpy(buffer + 12, &lParam, 8);
+	WriteFile(pObject->m_Pipes.signal_in_write, buffer, 20, 0, nullptr);
 }
 inline bool CConsole::SendInput(wchar_t* input, DWORD count)
 {
@@ -1100,4 +1137,18 @@ inline bool CConsole::SendInput(wchar_t* input, DWORD count)
 		delete[] buffer;
 	}
 	return m_bRun;
+}
+void CConsole::SignalProc(UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message) {
+	case SIGNAL_CONNECTION:
+		CEditor::pObject->PostMessageW(WM_STEP, 0, -1);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->ShowWindow(SW_SHOW);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(true);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_HIDE);
+		break;
+	case SIGNAL_BREAKPOINT: case SIGNAL_EXECUTION:
+		CEditor::pObject->PostMessageW(WM_STEP, 0, lParam);
+		break;
+	}
 }

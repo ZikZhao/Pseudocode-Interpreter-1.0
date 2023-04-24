@@ -1,10 +1,38 @@
 #include "stdafx.h"
 
-void CSlider::SetPercentage(double percentage) {
-	m_Percentage = min(percentage, 1.0 - m_Ratio);
-	m_pCallback(m_Percentage);
+inline void CSlider::SetPercentage(double percentage) {
+	m_Percentage = max(min(percentage, 1.0 - m_Ratio), 0);
+	RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+	if (m_pCallback) { m_pCallback(m_Percentage); }
 }
-
+void CSlider::DeflateLength(ULONG original, ULONG current)
+{
+	m_Length = original;
+	m_DeflatedLength = current;
+}
+void CSlider::SetCallback(void(*callback)(double))
+{
+	m_pCallback = callback;
+}
+void CSlider::SetDeflateCallback(void(*callback)(ULONG))
+{
+	m_pDeflateCallback = callback;
+}
+void CSlider::SetRatio(double ratio)
+{
+	ratio = min(ratio, 1.0);
+	if (ratio + m_Percentage > 1.0) {
+		// 更改比例防止溢出
+		m_Percentage = 1.0 - ratio;
+		m_pCallback(m_Percentage);
+	}
+	else {
+		// 更改比例以匹配原本比例
+		double original = m_Percentage / m_Ratio;
+		SetPercentage(original * ratio);
+	}
+	m_Ratio = ratio;
+}
 
 BEGIN_MESSAGE_MAP(CHSlider, CSlider)
 	ON_WM_CREATE()
@@ -15,6 +43,7 @@ BEGIN_MESSAGE_MAP(CHSlider, CSlider)
 	ON_WM_LBUTTONUP()
 	ON_WM_MOUSEMOVE()
 	ON_WM_MOUSELEAVE()
+	ON_WM_SETCURSOR()
 END_MESSAGE_MAP()
 CHSlider::CHSlider()
 {
@@ -23,6 +52,9 @@ CHSlider::CHSlider()
 	m_bHover = false;
 	m_Percentage = 0.0;
 	m_pCallback = nullptr;
+	m_pDeflateCallback = nullptr;
+	m_Length = 0;
+	m_DeflatedLength = 0;
 	m_Ratio = 1.0;
 }
 CHSlider::~CHSlider()
@@ -95,6 +127,13 @@ void CHSlider::OnSize(UINT nType, int cx, int cy)
 }
 void CHSlider::OnLButtonDown(UINT nFlags, CPoint point)
 {
+	if (m_DeflatedLength) {
+		// 保证位置不变
+		double part_length = m_Ratio * m_Length;
+		m_pDeflateCallback(m_DeflatedLength);
+		SetRatio(part_length / m_DeflatedLength);
+		m_DeflatedLength = m_Length = 0;
+	}
 	if (m_bHoverSlider) {
 		m_DragPosition = (double)point.x / m_Height - m_Percentage;
 		m_bDragSlider = true;
@@ -103,13 +142,11 @@ void CHSlider::OnLButtonDown(UINT nFlags, CPoint point)
 	else {
 		double hit_percentage = (double)point.x / m_Height - m_Ratio / 2;
 		if (hit_percentage > m_Ratio) {
-			m_Percentage = min(m_Percentage + m_Ratio, 1.0 - m_Ratio);
+			SetPercentage(min(m_Percentage + m_Ratio, 1.0 - m_Ratio));
 		}
 		else {
-			m_Percentage = max(m_Percentage - m_Ratio, 0.0);
+			SetPercentage(max(m_Percentage - m_Ratio, 0.0));
 		}
-		Invalidate(FALSE);
-		m_pCallback(m_Percentage);
 	}
 }
 void CHSlider::OnLButtonUp(UINT nFlags, CPoint point)
@@ -132,11 +169,8 @@ void CHSlider::OnMouseMove(UINT nFlags, CPoint point)
 {
 	if (m_bDragSlider) {
 		double hit_percentage = (double)point.x / m_Height;
-		m_Percentage = hit_percentage - m_DragPosition;
-		m_Percentage = min(1.0 - m_Ratio, max(m_Percentage, 0.0));
-		Invalidate(FALSE);
-		UpdateWindow();
-		m_pCallback(m_Percentage);
+		double raw_percentage = hit_percentage - m_DragPosition;
+		SetPercentage(min(1.0 - m_Ratio, max(raw_percentage, 0.0)));
 	}
 	else {
 		bool previous_state = m_bHoverSlider;
@@ -162,20 +196,16 @@ void CHSlider::OnMouseLeave()
 	m_bHoverSlider = false;
 	Invalidate(FALSE);
 }
-void CHSlider::SetCallback(void(*callback)(double))
+BOOL CHSlider::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 {
-	m_pCallback = callback;
+	SetCursor(LoadCursorW(NULL, IDC_ARROW));
+	return TRUE;
 }
 void CHSlider::SetRatio(double ratio)
 {
+	CSlider::SetRatio(ratio);
 	CDC* pWindowDC = GetDC();
 
-	ratio = min(ratio, 1.0);
-	if (ratio + m_Percentage > 1.0) {
-		m_Percentage = 1.0 - ratio;
-		m_pCallback(m_Percentage);
-	}
-	m_Ratio = ratio;
 	m_SliderHeight = (USHORT)max(m_Height * m_Ratio, 10); // 按钮最小是个圆
 	CBitmap* pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, m_SliderHeight, 10);
@@ -190,7 +220,6 @@ void CHSlider::SetRatio(double ratio)
 	m_Hover.RoundRect(&rect, CPoint(10, 10));
 }
 
-
 BEGIN_MESSAGE_MAP(CVSlider, CSlider)
 	ON_WM_CREATE()
 	ON_WM_ERASEBKGND()
@@ -200,6 +229,7 @@ BEGIN_MESSAGE_MAP(CVSlider, CSlider)
 	ON_WM_LBUTTONUP()
 	ON_WM_MOUSEMOVE()
 	ON_WM_MOUSELEAVE()
+	ON_WM_SETCURSOR()
 END_MESSAGE_MAP()
 CVSlider::CVSlider()
 {
@@ -208,6 +238,9 @@ CVSlider::CVSlider()
 	m_bHover = false;
 	m_Percentage = 0.0;
 	m_pCallback = nullptr;
+	m_pDeflateCallback = nullptr;
+	m_Length = 0;
+	m_DeflatedLength = 0;
 	m_Ratio = 1.0;
 }
 CVSlider::~CVSlider()
@@ -288,13 +321,11 @@ void CVSlider::OnLButtonDown(UINT nFlags, CPoint point)
 	else {
 		double hit_percentage = (double)point.y / m_Height - m_Ratio / 2;
 		if (hit_percentage > m_Ratio) {
-			m_Percentage = min(m_Percentage + m_Ratio, 1.0 - m_Ratio);
+			SetPercentage(min(m_Percentage + m_Ratio, 1.0 - m_Ratio));
 		}
 		else {
-			m_Percentage = max(m_Percentage - m_Ratio, 0.0);
+			SetPercentage(max(m_Percentage - m_Ratio, 0.0));
 		}
-		Invalidate(FALSE);
-		m_pCallback(m_Percentage);
 	}
 }
 void CVSlider::OnLButtonUp(UINT nFlags, CPoint point)
@@ -317,11 +348,8 @@ void CVSlider::OnMouseMove(UINT nFlags, CPoint point)
 {
 	if (m_bDragSlider) {
 		double hit_percentage = (double)point.y / m_Height;
-		m_Percentage = hit_percentage - m_DragPosition;
-		m_Percentage = min(1.0 - m_Ratio, max(m_Percentage, 0.0));
-		Invalidate(FALSE);
-		UpdateWindow();
-		m_pCallback(m_Percentage);
+		double raw_percentage = hit_percentage - m_DragPosition;
+		SetPercentage(min(1.0 - m_Ratio, max(raw_percentage, 0.0)));
 	}
 	else {
 		bool previous_state = m_bHoverSlider;
@@ -347,29 +375,29 @@ void CVSlider::OnMouseLeave()
 	m_bHoverSlider = false;
 	Invalidate(FALSE);
 }
-void CVSlider::SetCallback(void(*callback)(double))
+BOOL CVSlider::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 {
-	m_pCallback = callback;
+	SetCursor(LoadCursorW(NULL, IDC_ARROW));
+	return TRUE;
 }
 void CVSlider::SetRatio(double ratio)
 {
+	CSlider::SetRatio(ratio);
 	CDC* pWindowDC = GetDC();
-
-	ratio = min(ratio, 1.0);
-	if (ratio + m_Percentage > 1.0) {
-		m_Percentage = 1.0 - ratio;
-		m_pCallback(m_Percentage);
-	}
-	m_Ratio = ratio;
+	
 	m_SliderHeight = (USHORT)max(m_Height * m_Ratio, 10); // 按钮最小是个圆
 	CBitmap* pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, 10, m_SliderHeight);
 	CBitmap* pOldBitmap = m_Source.SelectObject(pBitmap);
-	pOldBitmap->DeleteObject();
+	if (pOldBitmap) {
+		pOldBitmap->DeleteObject();
+	}
 	pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, 10, m_SliderHeight);
 	pOldBitmap = m_Hover.SelectObject(pBitmap);
-	pOldBitmap->DeleteObject();
+	if (pOldBitmap) {
+		pOldBitmap->DeleteObject();
+	}
 	CRect rect(0, 0, 10, m_SliderHeight);
 	m_Source.RoundRect(&rect, CPoint(10, 10));
 	m_Hover.RoundRect(&rect, CPoint(10, 10));

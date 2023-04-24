@@ -42,6 +42,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Tip.Create(this, TTS_ALWAYSTIP);
 	m_Tip.SetTipBkColor(RGB(30, 30, 30));
 	m_Tip.SetTipTextColor(RGB(255, 255, 255));
+	m_Tip.SetMaxTipWidth(400);
 	static CRect rect(5, 5, 5, 5);
 	m_Tip.SetMargin(&rect);
 
@@ -96,6 +97,7 @@ void CMainFrame::OnDispatchCommand(UINT uID)
 		DISPATCH_CASE(ID_DEBUG_RUN, CConsole, OnDebugRun)
 		DISPATCH_CASE(ID_DEBUG_HALT, CConsole, OnDebugHalt)
 		DISPATCH_CASE(ID_DEBUG_DEBUG, CConsole, OnDebugDebug)
+		DISPATCH_CASE(ID_DEBUG_CONTINUE, CConsole, OnDebugContinue)
 		DISPATCH_CASE(ID_DEBUG_STEPIN, CConsole, OnDebugStepin)
 		DISPATCH_CASE(ID_DEBUG_STEPOVER, CConsole, OnDebugStepover)
 		DISPATCH_CASE(ID_DEBUG_STEPOUT, CConsole, OnDebugStepout)

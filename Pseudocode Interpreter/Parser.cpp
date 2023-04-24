@@ -1,5 +1,9 @@
 #include <Windowsx.h>
+#include <Windows.h>
+#include <cmath>
+#include <ctime>
 #include <list>
+#include "Definitions.h"
 #include "Debug.h"
 #include "SyntaxCheck.h"
 #include "Execution.h"
@@ -14,8 +18,10 @@ size_t& CII = current_instruction_index;
 
 // these are used for debugging mode
 bool debug = false;
-list<BREAKPOINT*> breakpoints;
+list<BREAKPOINT> breakpoints;
 HANDLE breakpoint_handled = CreateEvent(0, true, false, 0);
+DWORD step_type;
+HANDLE step_handled = CreateEvent(0, true, false, 0);
 
 // format codes in physical files
 wchar_t** FormatCode(wchar_t* code, _Out_ size_t* count_out) {
@@ -279,61 +285,10 @@ bool SyntaxCheck(size_t length, wchar_t** lines) {
 	return true;
 }
 
-// interprete and execute the code without debugging the code
-void ExecuteNormal(size_t length, wchar_t** lines) {
-	calling_ptr = 0;
-	if (not SyntaxCheck(length, lines)) {
-		return;
-	}
-	for (CII = 0; CII != length; CII++) {
-		try {
-			((FUNCTION_PTR)Execution::executions[parsed_code[CII].syntax_index])(parsed_code[CII].result);
-		}
-		catch (Error& error) {
-			if (globals->error_handling_ptr) {
-				globals->error_handling_ptr--;
-				current_instruction_index = globals->error_handling_indexes[globals->error_handling_ptr];
-			}
-			else {
-				FormatErrorMessage(error, lines);
-				return;
-			}
-		}
-	}
-}
-
-// interprete and execute the code in debugging mode
-void ExecuteDubug(size_t length, wchar_t** lines) {
-	calling_ptr = 0;
-	if (not SyntaxCheck(length, lines)) {
-		return;
-	}
-	for (CII = 0; CII != length; CII++) {
-		for (list<BREAKPOINT*>::iterator iter = breakpoints.begin(); iter != breakpoints.end(); iter++) {
-			if ((*iter)->line_index == CII) {
-				ResetEvent(breakpoint_handled);
-				WaitForSingleObject(breakpoint_handled, INFINITE);
-			}
-		}
-		try {
-			((FUNCTION_PTR)Execution::executions[parsed_code[CII].syntax_index])(parsed_code[CII].result);
-		}
-		catch (Error& error) {
-			if (globals->error_handling_ptr) {
-				globals->error_handling_ptr--;
-				current_instruction_index = globals->error_handling_indexes[globals->error_handling_ptr];
-			}
-			else {
-				FormatErrorMessage(error, lines);
-				return;
-			}
-		}
-	}
-}
-
-INT_PTR PipeProc(UINT message, WPARAM wParam, LPARAM lParam) {
+// process signal
+INT_PTR SignalProc(UINT message, WPARAM wParam, LPARAM lParam) {
 	switch (message) {
-	case PM_CONNECTION:
+	case SIGNAL_CONNECTION:
 	{
 		if (wParam == CONNECTION_PIPE) {
 			signal_out = (HANDLE)lParam;
@@ -341,46 +296,124 @@ INT_PTR PipeProc(UINT message, WPARAM wParam, LPARAM lParam) {
 		else {
 			SetEvent(breakpoint_handled);
 		}
-		return 0;
+		break;
 	}
-	case PM_BREAKPOINT:
+	case SIGNAL_BREAKPOINT:
 	{
 		switch (LOWORD(wParam)) {
 		case BREAKPOINT_ADD:
 			WORD type = HIWORD(wParam);
 			switch (type) {
 			case BREAKPOINT_TYPE_NORMAL:
-			{
-				breakpoints.push_back(new BREAKPOINT{ (size_t)lParam, type });
+				breakpoints.push_back(BREAKPOINT{ (size_t)lParam, type });
 				break;
 			}
-			}
-			return 0;
+			break;
 		}
 	}
+	case SIGNAL_EXECUTION:
+	{
+		step_type = wParam;
+		SetEvent(breakpoint_handled);
+		SetEvent(step_handled);
+		break;
 	}
+	}
+	return 0;
 }
 
-DWORD WINAPI PipeThread(LPVOID lpParameter) {
+// thread used to monitor signal pipe
+DWORD WINAPI SignalThread(LPVOID lpParameter) {
 	static char buffer[20];
 	DWORD content = 0;
 	while (true) {
 		PeekNamedPipe(signal_in, nullptr, 0, nullptr, &content, nullptr);
 		if (content) {
 			ReadFile(signal_in, buffer, 20, 0, 0);
-			if (PipeProc(*(UINT*)buffer, *(WPARAM*)(buffer + 4), *(LPARAM*)(buffer + 12))) {
+			if (SignalProc(*(UINT*)buffer, *(WPARAM*)(buffer + 4), *(LPARAM*)(buffer + 12))) {
 				return 0;
 			}
 		}
 	}
 }
 
-void PipeMessageSend(UINT message, WPARAM wParam, LPARAM lParam) {
+// send signal to the server
+void SendSignal(UINT message, WPARAM wParam, LPARAM lParam) {
 	static char buffer[20];
 	memcpy(buffer, &message, 4);
 	memcpy(buffer + 4, &wParam, 8);
 	memcpy(buffer + 12, &lParam, 8);
 	WriteFile(signal_out, buffer, 1024, 0, nullptr);
+}
+
+// check whether the current line of code contains a breakpoint
+inline bool CheckBreakpoint(ULONG64 line_index) {
+	for (list<BREAKPOINT>::iterator iter = breakpoints.begin(); iter != breakpoints.end(); iter++) {
+		if (iter->line_index == line_index) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// interprete and execute the code without debugging the code
+int ExecuteNormal(size_t length, wchar_t** lines) {
+	calling_ptr = 0;
+	if (not SyntaxCheck(length, lines)) {
+		return -1;
+	}
+	for (CII = 0; CII != length; CII++) {
+		try {
+			((FUNCTION_PTR)Execution::executions[parsed_code[CII].syntax_index])(parsed_code[CII].result);
+		}
+		catch (Error& error) {
+			if (globals->error_handling_ptr) {
+				globals->error_handling_ptr--;
+				current_instruction_index = globals->error_handling_indexes[globals->error_handling_ptr];
+			}
+			else {
+				FormatErrorMessage(error, lines);
+				return -1;
+			}
+		}
+	}
+	return 0;
+}
+
+// interprete and execute the code in debugging mode
+int ExecuteDubug(size_t length, wchar_t** lines) {
+	calling_ptr = 0;
+	if (not SyntaxCheck(length, lines)) {
+		return - 1;
+	}
+	for (CII = 0; CII != length; CII++) {
+		if (CheckBreakpoint(current_instruction_index)) {
+			ResetEvent(breakpoint_handled);
+			SendSignal(SIGNAL_BREAKPOINT, BREAKPOINT_HIT, CII);
+			WaitForSingleObject(breakpoint_handled, INFINITE);
+		}
+		else if (step_type == EXECUTION_STEPIN or step_type == EXECUTION_STEPOVER) {
+			ResetEvent(step_handled);
+			SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPPED, CII);
+			WaitForSingleObject(step_handled, INFINITE);
+		}
+		try {
+			((FUNCTION_PTR)Execution::executions[parsed_code[CII].syntax_index])(parsed_code[CII].result);
+		}
+		catch (Error& error) {
+			if (globals->error_handling_ptr) {
+				globals->error_handling_ptr--;
+				current_instruction_index = globals->error_handling_indexes[globals->error_handling_ptr];
+			}
+			else {
+				FormatErrorMessage(error, lines);
+				SendSignal(SIGNAL_CONNECTION, CONNECTION_EXIT, 0);
+				return -1;
+			}
+		}
+	}
+	SendSignal(SIGNAL_CONNECTION, CONNECTION_EXIT, 0);
+	return 0;
 }
 
 // program entry point
@@ -499,11 +532,11 @@ int wmain(int argc, wchar_t** args)
 		static char signal_handle[8];
 		ReadFile(standard_input, signal_handle, 8, nullptr, nullptr);
 		signal_in = *(HANDLE*)signal_handle;
-		CreateThread(0, 0, PipeThread, 0, 0, 0);
+		CreateThread(0, 0, SignalThread, 0, 0, 0);
 		WaitForSingleObject(breakpoint_handled, INFINITE);
-		ExecuteDubug(line_number, lines);
+		return ExecuteDubug(line_number, lines);
 	}
 	else {
-		ExecuteNormal(line_number, lines);
+		return ExecuteNormal(line_number, lines);
 	}
 }

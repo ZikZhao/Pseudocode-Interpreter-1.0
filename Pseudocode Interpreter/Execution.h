@@ -1,34 +1,18 @@
 #pragma once
 #pragma comment(linker, "/STACK:20971520")
-#include <ctime>
-#include "SyntaxCheck.h"
 #define WRITE_CONSOLE(handle, lpStr, cchStr) {int size = WideCharToMultiByte(CP_ACP, WC_ERR_INVALID_CHARS, lpStr, cchStr, nullptr, NULL, nullptr, nullptr); char* buffer = new char[size]; WideCharToMultiByte(CP_ACP, WC_ERR_INVALID_CHARS, lpStr, cchStr, buffer, size, nullptr, nullptr); WriteFile(handle, buffer, size, nullptr, nullptr);}
 
 extern HANDLE standard_input;
 extern HANDLE standard_output;
 extern HANDLE standard_error;
 extern unsigned settings;
+extern bool debug;
+extern HANDLE breakpoint_handled;
+extern DWORD step_type;
+extern HANDLE step_handled;
+void SendSignal(UINT message, WPARAM wParam, LPARAM lParam);
+bool CheckBreakpoint(ULONG64 line_index);
 typedef void (*FUNCTION_PTR)(Result*);
-
-enum ErrorType {
-	NoError,
-	SyntaxError,
-	VariableError,
-	EvaluationError,
-	TypeError,
-	ArgumentError,
-	ValueError,
-};
-
-class Error {
-public:
-	ErrorType error_type;
-	const wchar_t* error_message;
-	Error(ErrorType error_type_in, const wchar_t* error_message_in) {
-		this->error_type = error_type_in;
-		this->error_message = error_message_in;
-	}
-};
 
 MatchedSyntax* parsed_code = nullptr;
 BinaryTree* current_locals = nullptr;
@@ -37,7 +21,7 @@ BinaryTree* enumerations = new BinaryTree; // a binary tree storing all the enum
 bool define_record = false;
 wchar_t* record_name;
 BinaryTree record_fields; // data structure used to store declaration statements of record type
-CallFrame* call = new CallFrame[128]; // maximum calling depth: 128
+CallFrame* call = new CallFrame[128]; // maximum calling depth: 128 (defined in Debug.h)
 unsigned short calling_ptr = 0;
 Data* return_value = nullptr;
 
@@ -176,11 +160,11 @@ namespace Builtins {
 		if (not check_args(args, 5, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
 		}
-		long long ascii_value = ((DataType::Integer*)x->value)->value;
-		if (ascii_value >> 16) {
+		long long ascurrent_instruction_index_value = ((DataType::Integer*)x->value)->value;
+		if (ascurrent_instruction_index_value >> 16) {
 			throw Error(ArgumentError, L"整数过大无法转换（应介于0到65535之间）");
 		}
-		return new Data{ 2, new DataType::Char((wchar_t)ascii_value) };
+		return new Data{ 2, new DataType::Char((wchar_t)ascurrent_instruction_index_value) };
 	}
 	Data* MOD(Data** args) {
 		Data*& ThisNum = args[0];
@@ -329,7 +313,7 @@ namespace Builtins {
 					}
 				}
 				if (matched) {
-					return new Data{ 4, new DataType::boolean(files[file_index].eof) };
+					return new Data{ 4, new DataType::Boolean(files[file_index].eof) };
 				}
 			}
 		}
@@ -369,7 +353,7 @@ namespace Builtins {
 		}
 		case 4:
 		{
-			bool value = ((DataType::boolean*)x->value)->value;
+			bool value = ((DataType::Boolean*)x->value)->value;
 			hash_value = std::hash<bool>()(value);
 			break;
 		}
@@ -623,7 +607,7 @@ namespace Execution {
 			DataType::release_data(data);
 			throw Error(EvaluationError, L"表达式的结果必须为布尔值");
 		}
-		if (((DataType::boolean*)data->value)->value) { // THEN statements
+		if (((DataType::Boolean*)data->value)->value) { // THEN statements
 			current_instruction_index = ((Nesting*)result->args[0])->line_numbers[1];
 		}
 		else { // ELSE statements (if not defined, then ENDIF tag)
@@ -637,7 +621,7 @@ namespace Execution {
 			DataType::release_data(data);
 			throw Error(EvaluationError, L"表达式的结果必须为布尔值");
 		}
-		if (not ((DataType::boolean*)data->value)->value) { // ELSE statements (if not defined, then ENDIF tag)
+		if (not ((DataType::Boolean*)data->value)->value) { // ELSE statements (if not defined, then ENDIF tag)
 			current_instruction_index = ((Nesting*)result->args[0])->line_numbers[2];
 		}
 		DataType::release_data(data);
@@ -749,7 +733,7 @@ namespace Execution {
 			DataType::release_data(data);
 			throw Error(EvaluationError, L"表达式的结果必须为布尔值");
 		}
-		if (not ((DataType::boolean*)data->value)->value) { // ENDWHILE
+		if (not ((DataType::Boolean*)data->value)->value) { // ENDWHILE
 			current_instruction_index = ((Nesting*)result->args[0])->line_numbers[1];
 		}
 		DataType::release_data(data);
@@ -764,7 +748,7 @@ namespace Execution {
 			DataType::release_data(data);
 			throw Error(EvaluationError, L"表达式的结果必须为布尔值");
 		}
-		if (not ((DataType::boolean*)data->value)->value) {
+		if (not ((DataType::Boolean*)data->value)->value) {
 			current_instruction_index = ((Nesting*)result->args[0])->line_numbers[0] - 1;
 		}
 		DataType::release_data(data);
@@ -831,7 +815,7 @@ namespace Execution {
 	}
 	void return_statement(Result* result) {
 		if (*(bool*)result->args[0]) {
-			Data* data = evaluate((RPN_EXP*)result->args[1]);
+			Data* data = evaluate((RPN_EXP*)result->args[2]);
 			if (data->type == 7 or data->type == 9 or data->type == 11) {
 				throw Error(ValueError, L"类型不能作为函数返回值");
 			}
@@ -847,7 +831,7 @@ namespace Execution {
 		}
 	}
 	void try_header(Result* result) {
-		// if EXCEPT tag is defined then when error is detected CII is changed to that line
+		// if EXCEPT tag is defined then when error is detected current_instruction_index is changed to that line
 		// otherwise ENDTRY
 		BinaryTree*& scope = current_locals ? current_locals : globals;
 		scope->error_handling_indexes[scope->error_handling_ptr] = ((Nesting*)result->args[0])->line_numbers[1];
@@ -1172,10 +1156,10 @@ Data* evaluate_single_element(wchar_t* expr) {
 		return new Data{ 1, new DataType::Real(expr) };
 	}
 	else if (expr[0] == 7) {
-		return new Data{ 4, new DataType::boolean(false) };
+		return new Data{ 4, new DataType::Boolean(false) };
 	}
 	else if (expr[0] == 8) {
-		return new Data{ 4, new DataType::boolean(true) };
+		return new Data{ 4, new DataType::Boolean(true) };
 	}
 	else if (Element::date(expr)) {
 		return new Data{ 5, new DataType::Date(expr) };
@@ -1460,11 +1444,11 @@ Data* evaluate(RPN_EXP* rpn_in) {
 				}
 				if (operator_value == 6){
 					if (right_operand->type == 4) {
-						if (((DataType::boolean*)right_operand->value)->value) {
-							result = new Data{ 4, new DataType::boolean(false) };
+						if (((DataType::Boolean*)right_operand->value)->value) {
+							result = new Data{ 4, new DataType::Boolean(false) };
 						}
 						else {
-							result = new Data{ 4, new DataType::boolean(true) };
+							result = new Data{ 4, new DataType::Boolean(true) };
 						}
 					}
 					else if (right_operand->type == 65535) {
@@ -1581,7 +1565,7 @@ Data* evaluate(RPN_EXP* rpn_in) {
 					break;
 				}
 				if (operator_value == 61) {
-					result = new Data{ 4, new DataType::boolean(DataType::check_identical(left_operand, right_operand)) };
+					result = new Data{ 4, new DataType::Boolean(DataType::check_identical(left_operand, right_operand)) };
 				}
 				else {
 					switch ((left_operand->type << 8) + right_operand->type) {
@@ -1608,19 +1592,19 @@ Data* evaluate(RPN_EXP* rpn_in) {
 							result = new Data{ 1, new DataType::Real(left_number / right_number) };
 							break;
 						case 60:
-							result = new Data{ 4, new DataType::boolean(left_number < right_number) };
+							result = new Data{ 4, new DataType::Boolean(left_number < right_number) };
 							break;
 						case 62:
-							result = new Data{ 4, new DataType::boolean(left_number > right_number) };
+							result = new Data{ 4, new DataType::Boolean(left_number > right_number) };
 							break;
 						case 1:
-							result = new Data{ 4, new DataType::boolean(left_number <= right_number) };
+							result = new Data{ 4, new DataType::Boolean(left_number <= right_number) };
 							break;
 						case 2:
-							result = new Data{ 4, new DataType::boolean(left_number != right_number) };
+							result = new Data{ 4, new DataType::Boolean(left_number != right_number) };
 							break;
 						case 3:
-							result = new Data{ 4, new DataType::boolean(left_number >= right_number) };
+							result = new Data{ 4, new DataType::Boolean(left_number >= right_number) };
 							break;
 						default:
 							for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
@@ -1642,32 +1626,32 @@ Data* evaluate(RPN_EXP* rpn_in) {
 						{
 							bool identical_or_smaller = DataType::check_identical(left_operand, right_operand) or
 								((DataType::String*)left_operand->value)->smaller((DataType::String*)right_operand->value);
-							result = new Data{ 4, new DataType::boolean(identical_or_smaller) };
+							result = new Data{ 4, new DataType::Boolean(identical_or_smaller) };
 							break;
 						}
 						case 2:
 						{
 							bool identical = DataType::check_identical(left_operand, right_operand);
-							result = new Data{ 4, new DataType::boolean(not identical) };
+							result = new Data{ 4, new DataType::Boolean(not identical) };
 							break;
 						}
 						case 3:
 						{
 							bool identical_or_larger = DataType::check_identical(left_operand, right_operand) or
 								((DataType::String*)left_operand->value)->larger((DataType::String*)right_operand->value);
-							result = new Data{ 4, new DataType::boolean(identical_or_larger) };
+							result = new Data{ 4, new DataType::Boolean(identical_or_larger) };
 							break;
 						}
 						case 60:
 						{
 							bool smaller = ((DataType::String*)left_operand->value)->smaller((DataType::String*)right_operand->value);
-							result = new Data{ 4, new DataType::boolean(smaller) };
+							result = new Data{ 4, new DataType::Boolean(smaller) };
 							break;
 						}
 						case 62:
 						{
 							bool larger = ((DataType::String*)left_operand->value)->larger((DataType::String*)right_operand->value);
-							result = new Data{ 4, new DataType::boolean(larger) };
+							result = new Data{ 4, new DataType::Boolean(larger) };
 							break;
 						}
 						default:
@@ -1680,14 +1664,14 @@ Data* evaluate(RPN_EXP* rpn_in) {
 					}
 					case 1028: // boolean values
 					{
-						bool left_bool = ((DataType::boolean*)left_operand->value)->value;
-						bool right_bool = ((DataType::boolean*)right_operand->value)->value;
+						bool left_bool = ((DataType::Boolean*)left_operand->value)->value;
+						bool right_bool = ((DataType::Boolean*)right_operand->value)->value;
 						switch (operator_value) {
 						case 4:
-							result = left_bool and right_bool ? new Data{ 4, new DataType::boolean(true) } : new Data{ 4, new DataType::boolean(false) };
+							result = left_bool and right_bool ? new Data{ 4, new DataType::Boolean(true) } : new Data{ 4, new DataType::Boolean(false) };
 							break;
 						case 5:
-							result = left_bool or right_bool ? new Data{ 4, new DataType::boolean(true) } : new Data{ 4, new DataType::boolean(false) };
+							result = left_bool or right_bool ? new Data{ 4, new DataType::Boolean(true) } : new Data{ 4, new DataType::Boolean(false) };
 							break;
 						default:
 							for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
@@ -1797,7 +1781,24 @@ Data* function_calling(wchar_t* function_name, unsigned short number_of_args, Da
 				throw Error(ArgumentError, L"参数类型不匹配");
 			}
 			calling_ptr++;
+			if (step_type == EXECUTION_STEPIN) {
+				ResetEvent(step_handled);
+				SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPPED, current_instruction_index);
+				WaitForSingleObject(step_handled, INFINITE);
+			}
 			for (current_instruction_index = ((DataType::Function*)node->value->value)->start_line + 1;; current_instruction_index++) {
+				if (debug) {
+					if (CheckBreakpoint(current_instruction_index)) {
+						ResetEvent(breakpoint_handled);
+						SendSignal(SIGNAL_BREAKPOINT, BREAKPOINT_HIT, current_instruction_index);
+						WaitForSingleObject(breakpoint_handled, INFINITE);
+					}
+					else if (step_type == EXECUTION_STEPIN or step_type == EXECUTION_STEPOVER) {
+						ResetEvent(step_handled);
+						SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPPED, current_instruction_index);
+						WaitForSingleObject(step_handled, INFINITE);
+					}
+				}
 				try {
 					((FUNCTION_PTR)Execution::executions[parsed_code[current_instruction_index].syntax_index])(parsed_code[current_instruction_index].result);
 				}
@@ -1831,6 +1832,11 @@ Data* function_calling(wchar_t* function_name, unsigned short number_of_args, Da
 					current_locals = call[calling_ptr - 1].local_variables;
 					calling_ptr--;
 					// return value
+					if (step_type == EXECUTION_STEPOUT) {
+						ResetEvent(step_handled);
+						SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPPED, current_instruction_index);
+						WaitForSingleObject(step_handled, INFINITE);
+					}
 					if (return_value->type == 65535) {
 						if (((DataType::Function*)node->value->value)->return_type->type != 65535) {
 							throw Error(ValueError, L"必须提供返回值");

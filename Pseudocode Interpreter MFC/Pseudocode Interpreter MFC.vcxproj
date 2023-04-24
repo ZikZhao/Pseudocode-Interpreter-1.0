@@ -226,6 +226,7 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="images\bitmap1.bmp" />
+    <Image Include="images\debug_continue.bmp" />
     <Image Include="images\debug_stepin.bmp" />
     <Image Include="images\debug_stepout.bmp" />
     <Image Include="images\debug_stepover.bmp" />

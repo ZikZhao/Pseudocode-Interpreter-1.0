@@ -1,47 +1,34 @@
 #pragma once
-// Used as a protocol definition when the program is run in debug mode
+// used as a protocol definition when the program is run in debug mode
 
-// pipe messages
-#define PM_CONNECTION 1
-#define PM_BREAKPOINT 2
-#define PM_EXECUTION_SPEED 3
-#define PM_VARIABLE_TABLE 4
-#define PM_CALLING_STACK 5
-#define PM_FORCE_EXECUTION 6
-#define PM_STEP 7
+// signal types
+#define SIGNAL_CONNECTION 1 // used to establish a connection
+#define SIGNAL_BREAKPOINT 2 // used to manipulate breakpoints
+#define SIGNAL_EXECUTION 4 // used to control execution (by single step, or force executing to specific line)
+#define SIGNAL_INFOMATION 8 // used to transfer information of execution
 
 // sub-states
-#define CONNECTION_PIPE 1
+#define CONNECTION_PIPE 1 // LPARAM: handle to send signal back to parent process
 #define CONNECTION_START 2
-#define CONNECTION_EXIT 3
+#define CONNECTION_EXIT 1
 
-#define BREAKPOINT_ADD 1
-#define BREAKPOINT_UPDATE 2
-#define BREAKPOINT_DELETE 3
-#define BREAKPOINT_CLEAR 4
+#define BREAKPOINT_ADD 1 // LPARAM: line index
+#define BREAKPOINT_DELETE 2 // LPARAM: line index
+#define BREAKPOINT_HIT 4 // LPARAM: line index
 #define BREAKPOINT_TYPE_NORMAL 1
 #define BREAKPOINT_TYPE_CONDITION 2
-#define BREAKPOINT_TYPE_TRACE 3
-#define BREAKPOINT_TYPE_TEMPORARY 4
-#define BREAKPOINT_TYPE_DEPENDENT 5
+#define BREAKPOINT_TYPE_TRACE 4
+#define BREAKPOINT_TYPE_TEMPORARY 8
+#define BREAKPOINT_TYPE_DEPENDENT 16
 
-#define EXECUTION_SPEED_SET 1
-#define EXECUTION_SPEED_RESET 2
+#define EXECUTION_CONTINUE 1
+#define EXECUTION_STEPIN 2
+#define EXECUTION_STEPOVER 4
+#define EXECUTION_STEPOUT 8
+#define EXECUTION_FORCE_SET 16
+#define EXECUTION_STEPPED 1 // LPARAM: line index
 
-#define VARIABLE_TABLE_REQUEST 1
-
-#define CALLING_STACK_REQUEST 1
-
-#define FORCE_EXECUTION_SET 1
-
-#define STEP_BY_LINE 1
-#define STEP_BY_PROCEDURE 2
-#define STEP_OUT 3
-
-// breakpoint struct
-struct BREAKPOINT {
-	unsigned long long line_index = 0;
-	unsigned long type = 0;
-	BREAKPOINT* dependency = nullptr;
-	bool valid = true;
-};
+#define INFORMATION_VARIABLE_TABLE_REQUEST 1
+#define INFORMATION_CALLING_STACK_REQUEST 2
+#define INFORMATION_VARIABLE_TABLE_RESPONSE 1 // LPARAM: pointer to the binary tree representing variable table
+#define INFORMATION_CALLING_STACK_RESPONSE 2 // LPARAM: pointer to the calling stack struct

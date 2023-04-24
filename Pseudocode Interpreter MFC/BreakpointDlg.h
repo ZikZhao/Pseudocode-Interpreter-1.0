@@ -1,5 +1,4 @@
 ﻿#pragma once
-#include "..\Pseudocode Interpreter\Debug.h"
 
 class CBreakpointDlg : public CDialogEx
 {

@@ -1,6 +1,4 @@
 #pragma once
-#include <Windows.h>
-#include <cmath>
 
 extern size_t current_instruction_index;
 
@@ -18,29 +16,6 @@ DISCARD_CRLF_IN_READ | \
 AUTOMATIC_NEW_LINE_IN_WRITE;
 unsigned settings = default_settings;
 
-struct TUPLE {
-	size_t start;
-	size_t length;
-};
-
-struct Result {
-	bool matched = false;
-	void** args = nullptr; // arguments to be passed to execution functions
-	TUPLE* positions = nullptr; // positions of elements used to highlight grammar
-	const wchar_t* error_message = nullptr; // when syntax is matched but error may be caused, this field is used
-};
-
-struct Data {
-	unsigned short type = 65535;
-	void* value = nullptr;
-	bool variable_data = false;
-};
-
-struct RPN_EXP {
-	wchar_t* rpn = nullptr;
-	unsigned short number_of_element = 0;
-};
-
 void release_rpn(RPN_EXP* rpn) {
 	size_t offset = 0;
 	for (unsigned short element_index = 0; element_index != rpn->number_of_element; element_index++) {
@@ -50,374 +25,6 @@ void release_rpn(RPN_EXP* rpn) {
 	}
 	delete rpn;
 }
-
-struct Parameter {
-	wchar_t* name = nullptr;
-	union {
-		wchar_t* type_string = nullptr;
-		Data* type;
-	};
-	bool passed_by_ref = false;
-};
-
-struct MatchedSyntax {
-	unsigned short syntax_index;
-	Result* result;
-};
-
-class BinaryTree {
-public:
-	// remind:
-	// node						pointer of BinaryTree::Node struct
-	// node->value				pointer of Data struct
-	// node->value->value		pointer of instance of class in DataType namespace (naturally void pointer)
-	struct Node {
-		wchar_t* key = nullptr;
-		Data* value = nullptr;
-		bool constant = false;
-		Node* left = nullptr;
-		Node* right = nullptr;
-		Data* last_pointer = nullptr; // see DataType::Pointer
-	};
-	Node* root = nullptr;
-	unsigned short number = 0;
-	size_t error_handling_indexes[128] {};
-	unsigned short error_handling_ptr = 0;
-	BinaryTree() {};
-	void insert(wchar_t* key, Data* value, bool constant = false) {
-		Node* node = new Node{ key, value, constant };
-		if (this->root == nullptr) {
-			this->root = node;
-		}
-		else {
-			Node* previous = nullptr;
-			Node* current = root;
-			bool turnleft = false;
-			while (current != nullptr) {
-				unsigned short index = 0;
-				while ((*current).key[index] == key[index]) {
-					index++;
-				}
-				previous = current;
-				if ((*current).key[index] > key[index]) {
-					turnleft = true;
-					current = (*current).left;
-				}
-				else {
-					turnleft = false;
-					current = (*current).right;
-				}
-			}
-			if (turnleft) {
-				(*previous).left = node;
-			}
-			else {
-				(*previous).right = node;
-			}
-		}
-		this->number++;
-	}
-	Node* find(wchar_t* key) {
-		if (this->root == nullptr or key == nullptr) { return nullptr; }
-		Node* current = root;
-		while (current != nullptr) {
-			bool flag = false;
-			for (unsigned short index = 0; key[index] != 0 and current->key[index]; index++) {
-				if (key[index] != (*current).key[index]) {
-					if ((*current).key[index] > key[index]) {
-						current = (*current).left;
-					}
-					else {
-						current = (*current).right;
-					}
-					flag = true;
-					break;
-				}
-			}
-			if (flag == false) {
-				if (wcslen(key) == wcslen(current->key)) {
-					return current;
-				}
-				else if (wcslen(key) > wcslen(current->key)) {
-					current = (*current).right;
-				}
-				else {
-					current = (*current).left;
-				}
-			}
-		}
-		return nullptr;
-	}
-	Node* list_nodes(Node* current, unsigned short* out_number = nullptr) {
-		unsigned short left_number = 0;
-		unsigned short right_number = 0;
-		Node* left_nodes = nullptr;
-		Node* right_nodes = nullptr;
-		if (current->left) {
-			left_nodes = this->list_nodes(current->left, &left_number);
-		}
-		if (current->right) {
-			right_nodes = this->list_nodes(current->right, &right_number);
-		}
-		Node* result = new Node[left_number + right_number + 1];
-		memcpy(result, current, sizeof(Node));
-		memcpy(result + 1, left_nodes, sizeof(Node) * left_number);
-		memcpy(result + 1 + left_number, right_nodes, sizeof(Node) * right_number);
-		if (out_number) {
-			*out_number = 1 + left_number + right_number;
-		}
-		return result;
-	}
-protected:
-	void clear(Node* current) {
-		if (current->left) {
-			this->clear(current->left);
-		}
-		if (current->right) {
-			this->clear(current->right);
-		}
-		delete current;
-	}
-public:
-	void clear() {
-		if (this->root->left) {
-			this->clear(this->root->left);
-		}
-		if (this->root->right) {
-			this->clear(this->root->right);
-		}
-		delete this->root;
-		this->root = nullptr;
-		this->number = 0;
-	}
-};
-
-class Nesting {
-public:
-	enum NestType {
-		NotInitialised,
-		IF,
-		CASE,
-		WHILE,
-		FOR,
-		REPEAT,
-		TRY,
-		PROCEDURE,
-		FUNCTION,
-	} nest_type;
-	union Info{
-		struct { // used by CASE OF
-			unsigned short number_of_values;
-			RPN_EXP** values;
-		} case_of_info;
-		struct FOR_INFO { // used by FOR
-			bool init;
-			Data* upper_bound;
-			RPN_EXP* step;
-		} for_info;
-	};
-	unsigned short tag_number;
-	size_t* line_numbers;
-	Info* nest_info = nullptr;
-	Nesting() {
-		this->nest_type = NotInitialised;
-		this->tag_number = 0;
-		this->line_numbers = nullptr;
-	}
-	Nesting(NestType type, size_t first_tag_line_number) {
-		this->nest_type = type;
-		this->tag_number = 1;
-		this->line_numbers = new size_t[1]{ first_tag_line_number };
-		if (this->nest_type == CASE or this->nest_type == FOR or
-			this->nest_type == PROCEDURE or this->nest_type == FUNCTION) {
-			this->nest_info = new Info;
-		}
-	}
-	inline void add_tag(size_t new_tag_line_number) {
-		size_t* temp_line_numbers = new size_t[this->tag_number + 1];
-		memcpy(temp_line_numbers, this->line_numbers, sizeof(size_t) * this->tag_number);
-		temp_line_numbers[this->tag_number] = new_tag_line_number;
-		delete[] this->line_numbers;
-		this->line_numbers = temp_line_numbers;
-		this->tag_number++;
-	}
-};
-
-struct CallFrame {
-	size_t line_number;
-	wchar_t* name;
-	BinaryTree* local_variables;
-};
-
-class File {
-public:
-	HANDLE handle;
-	wchar_t* filename;
-	unsigned short mode;
-	bool eof = false;
-	DWORD size;
-	static inline const size_t size_of_record[] = {
-		sizeof(long long), sizeof(long double), sizeof(wchar_t), 0, sizeof(bool), sizeof(size_t) };
-	File() {
-		this->handle = nullptr;
-		this->filename = nullptr;
-		this->mode = 0;
-		this->size = 0;
-	}
-	File(HANDLE handle_in, wchar_t* filename_in, unsigned short mode_in){
-		this->handle = handle_in;
-		this->filename = filename_in;
-		this->mode = mode_in;
-		GetFileSize(this->handle, &this->size);
-	}
-	wchar_t* readline(bool retain_new_line) {
-		if (this->eof) {
-			return nullptr;
-		}
-		char* buffer = nullptr;
-		size_t offset = 0;
-		static const unsigned short part_size = 1024;
-		while (true) {
-			char* new_buffer = new char[part_size + offset];
-			if (buffer) {
-				memcpy(new_buffer, buffer, offset);
-			}
-			DWORD read = 0;
-			if (not ReadFile(this->handle, new_buffer + offset, part_size, &read, nullptr)) {
-				return nullptr;
-			}
-			else {
-				delete[] buffer;
-				for (size_t index = offset; index != offset + read; index++) {
-					if (new_buffer[index] == 10) {
-						buffer = new char[retain_new_line ? index + 2 : index];
-						memcpy(buffer, new_buffer, retain_new_line? index + 1 : index - 1);
-						buffer[retain_new_line ? index + 1 : index - 1] = 0;
-						if (retain_new_line) {
-							buffer[index - 1] = '\r';
-							buffer[index] = '\n';
-						}
-						delete[] new_buffer;
-						LARGE_INTEGER large_int{};
-						large_int.QuadPart = -(long long)read + index + 1;
-						SetFilePointerEx(this->handle, large_int, nullptr, FILE_CURRENT);
-						int tag_size = MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, buffer, -1, nullptr, 0);
-						wchar_t* wchar_buffer = new wchar_t[tag_size];
-						MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, buffer, -1, wchar_buffer, tag_size);
-						return wchar_buffer;
-					}
-				}
-				if (read != part_size) { // EOF
-					buffer = new char[read + 1];
-					memcpy(buffer, new_buffer, read);
-					buffer[read] = 0;
-					delete[] new_buffer;
-					int tag_size = MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, buffer, -1, nullptr, 0);
-					wchar_t* wchar_buffer = new wchar_t[tag_size];
-					MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, buffer, -1, wchar_buffer, tag_size);
-					this->eof = true;
-					return wchar_buffer;
-				}
-			}
-			buffer = new_buffer;
-			offset += read;
-		}
-	}
-	bool writeline(wchar_t* message, bool new_line, bool flush) {
-		int tag_size = WideCharToMultiByte(CP_UTF8, WC_COMPOSITECHECK, message, (int)wcslen(message), nullptr, 0, 0, nullptr);
-		char* buffer = new char[new_line ? tag_size + 2 : tag_size];
-		WideCharToMultiByte(CP_UTF8, WC_COMPOSITECHECK, message, (int)wcslen(message), buffer, tag_size, 0, nullptr);
-		if (new_line) {
-			buffer[tag_size] = '\r';
-			buffer[tag_size + 1] = '\n';
-		}
-		bool result = WriteFile(this->handle, buffer, new_line ? tag_size + 2 : tag_size, nullptr, nullptr);
-		if (flush) {
-			FlushFileBuffers(this->handle);
-		}
-		return result;
-	}
-	inline void putrecord(char* digest) {
-		if (digest[0] == 3) {
-			for (size_t tag_size = 1;; tag_size++) {
-				if (digest[tag_size] == 0) {
-					WriteFile(this->handle, digest, (DWORD)((tag_size + 1) * sizeof(char)), nullptr, nullptr);
-					return;
-				}
-			}
-		}
-		else {
-			WriteFile(this->handle, digest, (DWORD)size_of_record[digest[0]] + 1, nullptr, nullptr);
-		}
-	}
-	char* getrecord() {
-		char type = 0;
-		if (this->eof) {
-			return nullptr;
-		}
-		if (not ReadFile(this->handle, &type, 1, nullptr, nullptr)) {
-			return nullptr;
-		}
-		if (type >= 6) {
-			return nullptr;
-		}
-		if (type == 3) {
-			static const unsigned short part_size = 1024;
-			char* buffer = new char[part_size];
-			size_t offset = 0;
-			DWORD read = 0;
-			while (true) {
-				if (not ReadFile(this->handle, buffer + offset, part_size, &read, nullptr)) {
-					delete[] buffer;
-					return nullptr;
-				}
-				for (size_t index = offset; index != offset + read; index++) {
-					if (buffer[index] == 0) {
-						char* digest = new char[index + 2];
-						digest[0] = type;
-						memcpy(digest + 1, buffer, index + 1);
-						delete[] buffer;
-						LARGE_INTEGER large_int{};
-						large_int.QuadPart = -(long long)read + index + 1;
-						SetFilePointerEx(this->handle, large_int, nullptr, FILE_CURRENT);
-						return digest;
-					}
-				}
-				if (read != part_size) {
-					this->eof = true;
-					return nullptr;
-				}
-			}
-		}
-		else {
-			char* digest = new char[size_of_record[type] + 1];
-			digest[0] = type;
-			DWORD read = 0;
-			if (not ReadFile(this->handle, digest + 1, (DWORD)size_of_record[type], &read, nullptr)) {
-				delete[] digest;
-				return nullptr;
-			}
-			else if (read != size_of_record[type]) {
-				delete[] digest;
-				return nullptr;
-			}
-			return digest;
-		}
-	}
-	inline void closefile() {
-		delete[] this->filename;
-		CloseHandle(this->handle);
-	}
-	void seek(size_t address) {
-		LARGE_INTEGER offset{};
-		offset.QuadPart = address;
-		LARGE_INTEGER position{};
-		SetFilePointerEx(this->handle, offset, &position, FILE_BEGIN);
-		if ((size_t)position.QuadPart == (size_t)this->size - 1) {
-			this->eof = true;
-		}
-	}
-};
 
 Nesting** nesting = new Nesting*[128]; // maximum nesting depth : 128
 unsigned short nesting_ptr = 0;
@@ -549,9 +156,9 @@ size_t skip_string(wchar_t* expr) {
 long long match_keyword(wchar_t* expr, const wchar_t* keyword) {
 	if (wcslen(expr) < wcslen(keyword)) { return -1; }
 	size_t upper_bound = wcslen(expr) - wcslen(keyword) + 1;
+	size_t length = wcslen(keyword);
 	for (size_t index = 0; index != upper_bound; index++) {
 		if (expr[index] == keyword[0]) {
-			size_t length = wcslen(keyword);
 			bool matched = true;
 			for (size_t index2 = 0; index2 != length; index2++) {
 				if (keyword[index2] != expr[index + index2]) {
@@ -733,15 +340,15 @@ namespace DataType {
 			return not smaller(right_operand);
 		}
 	};
-	class boolean {
+	class Boolean {
 	public:
 		bool init;
 		bool value;
-		boolean() {
+		Boolean() {
 			this->init = false;
 			this->value = false;
 		}
-		boolean(bool value) {
+		Boolean(bool value) {
 			this->init = true;
 			this->value = value;
 		}
@@ -1178,6 +785,19 @@ namespace DataType {
 		}
 		bool push_args(BinaryTree* locals, Data** args) {
 			for (unsigned short index = 0; index != this->number_of_args; index++) {
+				if (not ((Any*)args[index]->value)->init) {
+					wchar_t* error_message = new wchar_t[18 + (USHORT)log10(index)];
+					memcpy(error_message, L"参数 ", 6);
+					unsigned short value = index + 1;
+					unsigned short offset = 0;
+					while (value >= 1) {
+						error_message[3 + offset] = value % 10 + 48;
+						value /= 10;
+						offset += 1;
+					}
+					memcpy(error_message + 4 + (USHORT)log10(index), L" 尚未初始化", 14);
+					throw Error(ValueError, error_message);
+				}
 				if (this->params[index].type->type < 7) {
 					Data* args_data = nullptr;
 					if (args[index]->type != this->params[index].type->type) {
@@ -1198,12 +818,11 @@ namespace DataType {
 						default:
 							return false;
 						}
-						args_data->variable_data = true;
 					}
 					else {
 						args_data = DataType::copy(args[index]);
-						args_data->variable_data = true;
 					}
+					args_data->variable_data = true;
 					locals->insert(this->params[index].name, args_data);
 				}
 				else {
@@ -1259,7 +878,7 @@ namespace DataType {
 			object = new DataType::String;
 			break;
 		case 4:
-			object = new DataType::boolean;
+			object = new DataType::Boolean;
 			break;
 		case 5:
 			object = new DataType::Date;
@@ -1305,7 +924,7 @@ namespace DataType {
 			break;
 		case 4:
 		{
-			result->value = new boolean(*(DataType::boolean*)original->value);
+			result->value = new Boolean(*(DataType::Boolean*)original->value);
 			break;
 		}
 		case 5:
@@ -1446,7 +1065,7 @@ namespace DataType {
 			delete (String*)data->value;
 			break;
 		case 4:
-			delete (boolean*)data->value;
+			delete (Boolean*)data->value;
 			break;
 		case 5:
 			delete (Date*)data->value;
@@ -1505,7 +1124,7 @@ namespace DataType {
 			}
 		}
 		case 4:
-			return ((boolean*)left->value)->value == ((boolean*)right->value)->value;
+			return ((Boolean*)left->value)->value == ((Boolean*)right->value)->value;
 		case 5:
 		{
 			Date* Ldate = (Date*)left->value;
@@ -1611,7 +1230,7 @@ namespace DataType {
 		}
 		case 4:
 		{
-			if (((DataType::boolean*)data->value)->value) {
+			if (((DataType::Boolean*)data->value)->value) {
 				*count_out = 4;
 				return new wchar_t[] { L"TRUE" };
 			}
@@ -1974,7 +1593,7 @@ namespace DataType {
 		{
 			digest = new char[1 + sizeof(bool)];
 			digest[0] = 4;
-			memcpy(digest + 1, &((boolean*)data->value)->value, sizeof(bool));
+			memcpy(digest + 1, &((Boolean*)data->value)->value, sizeof(bool));
 			break;
 		}
 		case 5:
@@ -2026,7 +1645,7 @@ namespace DataType {
 		{
 			bool value = 0;
 			memcpy(&value, digest + 1, sizeof(bool));
-			data = new Data{ 4, new boolean(value) };
+			data = new Data{ 4, new Boolean(value) };
 			break;
 		}
 		case 5:
@@ -3921,43 +3540,37 @@ namespace Construct {
 	}
 	Result* return_statement(wchar_t* expr) {
 		Result* result = new Result;
-		static const wchar_t* keyword = L"RETURN";
-		if (match_keyword(expr, keyword) == 0 and wcslen(expr) == 6) {
-			result->matched = true;
-			result->args = new void* [] {
-				new bool{ false },
-			};
-			return result;
-		}
-		if (match_keyword(expr, keyword) == 0 and expr[6] == 32) {
-			wchar_t* return_expr = new wchar_t[wcslen(expr) - 6];
-			memcpy(return_expr, expr + 7, (wcslen(expr) - 6) * 2);
-			RPN_EXP* rpn_out = nullptr;
-			if (Element::expression(return_expr, &rpn_out)) {
-				delete[] return_expr;
-				result->matched = true;
-				if (not nesting_ptr) {
-					result->error_message = L"未找到RETURN标签对应的PROCEDRUE或FUNCTION头";
+		if (match_keyword(expr, L"RETURN") == 0) {
+			if (wcslen(expr) > 6) {
+				if (expr[6] != L' ') {
+					return result;
 				}
-				else {
-					for (unsigned short depth = nesting_ptr - 1;; depth--) {
-						if (nesting[depth]->nest_type == Nesting::PROCEDURE or
-							nesting[depth]->nest_type == Nesting::FUNCTION) {
+			}
+			result->matched = true;
+			for (unsigned short depth = nesting_ptr - 1;; depth--) {
+				if (nesting[depth]->nest_type == Nesting::PROCEDURE or
+					nesting[depth]->nest_type == Nesting::FUNCTION) {
+					if (wcslen(expr) > 7) {
+						RPN_EXP* rpn_out = nullptr;
+						if (Element::expression(expr + 7, &rpn_out)) {
 							result->args = new void* [] {
-								nesting[nesting_ptr - 1],
 								new bool{ true },
+								nesting[nesting_ptr - 1],
 								rpn_out,
 							};
 							return result;
 						}
-						if (depth == 0) { break; }
 					}
-					result->error_message = L"未找到RETURN标签对应的PROCEDRUE或FUNCTION头";
+					else {
+						result->args = new void* [] {
+							new bool{ false },
+							nesting[nesting_ptr - 1],
+						};
+					}
 				}
+				if (depth == 0) { break; }
 			}
-			else {
-				delete[] return_expr;
-			}
+			result->error_message = L"未找到RETURN标签对应的PROCEDRUE或FUNCTION头";
 		}
 		return result;
 	}

@@ -2,13 +2,13 @@
 #include "TagPanel.h"
 #include "ControlPanel.h"
 #include "BreakpointDlg.h"
-#include "..\Pseudocode Interpreter\Debug.h"
 
 class CEditor : public CWnd
 {
 	DECLARE_MESSAGE_MAP()
 public:
 	static inline CEditor* pObject = nullptr;
+	static inline std::list<BREAKPOINT> m_Breakpoints; // 所有断点
 protected:
 	struct OPERATION {
 		CPoint start; // 插入/删除起始点
@@ -33,7 +33,7 @@ protected:
 	CPoint m_PointerPoint; // 文档指针字符位置
 	CPoint m_DragPointerPoint; // 选中起点
 	CPoint m_cPointer; //文档指针像素位置
-	CSize m_CharSize; // 单字符大小
+	CSize m_CharSize; // 单字符大小（宽度用于绘制换行符）
 	USHORT m_LineNumberWidth; // 行数信息所需像素宽度
 	UINT64 m_FullWidth, m_FullHeight; // 所有文字同时展示计算大小
 	CVSlider m_VSlider; // 垂直滚动条
@@ -41,7 +41,10 @@ protected:
 	std::list<OPERATION> m_Operations; // 操作撤销/还原列表
 	std::list<OPERATION>::iterator m_CurrentOperation; // 当前操作
 	CBreakpointDlg* m_Dialog; // 断点对话框
-	std::list<BREAKPOINT> m_Breakpoints; // 所有断点
+	LONG64 m_CurrentStepLineIndex; // 当前单步执行行数（包括断点）
+	CBrush m_BreakpointHitColor; // 断点命中颜色
+	bool m_bBackendEnabled; // 当前台任务结束时，允许后台任务恢复执行
+	CEvent* m_BackendPaused; // 当所有后台任务被暂停时，设定事件
 public:
 	// 构造
 	CEditor();
@@ -60,16 +63,19 @@ public:
 	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
 	afx_msg void OnKillFocus(CWnd* pNewWnd);
+	afx_msg void OnTimer(UINT_PTR nIDEvent); // 用于重启后台任务
 	// 命令
 	afx_msg void OnUndo();
 	afx_msg void OnRedo();
-	// 自定义
+	// 自定义消息
+	afx_msg LRESULT OnStep(WPARAM wParam, LPARAM lParam); // 单步执行消息
+	// 自定义函数
 	void LoadFile(CFileTag* tag); // 加载文档
-	static void VerticalCallback(double percentage); // 垂直滚动条回调函数
-	static void HorizontalCallback(double percentage); // 水平滚动条回调函数
+	static void CALLBACK VerticalCallback(double percentage); // 垂直滚动条回调函数
+	static void CALLBACK HorizontalCallback(double percentage); // 水平滚动条回调函数
+	static void CALLBACK DeflationCallback(ULONG new_width); // 水平长度削减时回调函数
 protected:
 	void ArrangeText(); // 计算渲染文字源
-	void ArrangeSingleLine(); // 计算渲染单行文字
 	void ArrangePointer(); // 计算文档指针源
 	void ArrangeSelection(); // 计算选区源
 	void ArrangeBreakpoints(); // 计算断点源
@@ -78,4 +84,8 @@ protected:
 	CPoint TranslatePointer(CPoint point); // 将逻辑坐标转换为字符单位（同时移动当前行指针）
 	void Insert(wchar_t* text); // 插入复杂文本
 	void Delete(); // 删除字符或选区
+	void MoveView(); // 移动垂直与水平进度来显示到当前指针
+	void CentralView(LONG64 line_index); // 移动视图到指定行并居中
+	static DWORD BackendTasking(LPVOID); // 后台处理程序（负责调用以下函数）
+	void RecalcWidth(); // 重新计算宽度（仅在空闲时进行）
 };

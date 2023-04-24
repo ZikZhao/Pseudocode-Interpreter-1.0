@@ -142,11 +142,15 @@ public:
 	afx_msg void OnDebugRun();
 	afx_msg void OnDebugHalt();
 	afx_msg void OnDebugDebug();
+	afx_msg void OnDebugContinue();
 	afx_msg void OnDebugStepin();
 	afx_msg void OnDebugStepover();
+	afx_msg void OnDebugStepout();
 	void InitSubprocess(bool debug_mode); // 准备监听新进程
 	void ExitSubprocess(UINT exit_code); // 解释器实例结束时运行
 	static DWORD Join(LPVOID lpParamter); // 进入管道监听循环
 	static DWORD JoinDebug(LPVOID lpParameter); // 进入管道监听循环（调试模式）
+	static void SendSignal(UINT message, WPARAM wParam, LPARAM lParam); // 生产通信信息
 	bool SendInput(wchar_t* input, DWORD count); // 发送输入到子进程
+	void SignalProc(UINT message, WPARAM wParam, LPARAM lParam); // 子进程信号处理
 };
