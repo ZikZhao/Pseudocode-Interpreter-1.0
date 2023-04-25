@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "pch.h"
 #define LASTING_TIME 5000
 
 

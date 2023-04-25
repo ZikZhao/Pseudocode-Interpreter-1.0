@@ -1,7 +1,10 @@
-#include "stdafx.h"
+#include "pch.h"
 #define LINE_NUMBER_OFFSET 27 // 展示行数所需的额外偏移量
 #define SCROLL_UNIT 3 // 每次鼠标滚轮滚动时移动的行数
 #define PAUSE_BACKEND() { m_bBackendEnabled = false; WaitForSingleObject(*m_BackendPaused, INFINITE); SetTimer(NULL, 100, nullptr); } // 停止后台任务以避免访问冲突
+#define GET_TEXT_WIDTH(string, length) LOWORD(GetTabbedTextExtentW(m_Source, string, length, 1, tab_positions))
+
+static const int* tab_positions;
 
 BEGIN_MESSAGE_MAP(CEditor, CWnd)
 	ON_WM_CREATE()
@@ -58,16 +61,17 @@ int CEditor::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		PROOF_QUALITY, DEFAULT_PITCH | FF_DONTCARE << 2, L"Consolas");
 	m_Source.SelectObject(m_Font);
 	m_Source.SetBkMode(TRANSPARENT);
-	CRect rect;
-	m_Source.DrawTextW(L" ", -1, &rect, DT_CALCRECT);
-	m_CharSize = CSize(rect.right, rect.bottom);
+	TEXTMETRICW tm;
+	GetTextMetricsW(m_Source, &tm);
+	m_CharSize = CSize(tm.tmAveCharWidth, tm.tmHeight);
+	tab_positions = new int[1] {m_CharSize.cx * 4};
 
 	// 准备文档指针源
 	m_Pointer.CreateCompatibleDC(pWindowDC);
 	CBitmap* pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, 1, m_CharSize.cy);
 	m_Pointer.SelectObject(pBitmap);
-	rect = CRect(0, 0, 1, m_CharSize.cy);
+	CRect rect(0, 0, 1, m_CharSize.cy);
 	CBrush brush(RGB(149, 149, 149));
 	m_Pointer.FillRect(&rect, &brush);
 
@@ -459,7 +463,7 @@ void CEditor::ArrangeText()
 		m_Width,
 		(long)((start_line_index - start_line + 1) * m_CharSize.cy));
 	for (; iter != m_CurrentTag->GetLines()->end(); iter++) {
-		m_Source.DrawTextW(*iter, -1, &rect, DT_LEFT | DT_TABSTOP | 4 << 8);
+		m_Source.DrawTextW(*iter, -1, &rect, DT_EXPANDTABS | DT_TABSTOP | 4 << 8);
 		rect.top = rect.bottom;
 		rect.bottom += m_CharSize.cy;
 		if (rect.top >= m_Height) {
@@ -478,7 +482,7 @@ void CEditor::ArrangeText()
 	size_t total_lines = m_CurrentTag->GetLines()->size();
 	for (size_t line_index = start_line_index; line_index != total_lines; line_index++) {
 		StringCchPrintfW(buffer, (size_t)digits + 1, L"%d", (int)line_index + 1);
-		m_Source.DrawTextW(buffer, -1, &rect, DT_SINGLELINE | DT_RIGHT);
+		m_Source.DrawTextW(buffer, -1, &rect, DT_RIGHT);
 		rect.top = rect.bottom;
 		rect.bottom += m_CharSize.cy;
 		if (rect.top > m_Height) { break; }
@@ -490,9 +494,8 @@ void CEditor::ArrangePointer()
 	if (not m_CurrentTag) { return; }
 	PAUSE_BACKEND()
 	double start_line = m_PercentageVertical * m_CurrentTag->GetLines()->size();
-	CRect rect;
-	m_Source.DrawTextW(*m_CurrentTag->GetCurrentLine(), m_PointerPoint.x, &rect, DT_CALCRECT);
-	m_cPointer.x = rect.right + m_LineNumberWidth + LINE_NUMBER_OFFSET - m_FullWidth * m_PercentageHorizontal;
+	LONG width = GET_TEXT_WIDTH(*m_CurrentTag->GetCurrentLine(), m_PointerPoint.x);
+	m_cPointer.x = width + m_LineNumberWidth + LINE_NUMBER_OFFSET - m_FullWidth * m_PercentageHorizontal;
 	m_cPointer.y = (m_PointerPoint.y - start_line) * m_CharSize.cy;
 }
 void CEditor::ArrangeSelection()
@@ -505,42 +508,41 @@ void CEditor::ArrangeSelection()
 	double difference = (double)m_PointerPoint.y - start_line;
 	LONG vertical_offset = difference * m_CharSize.cy;
 	LONG horizontal_offset = m_PercentageHorizontal * m_FullWidth;
-	CSize size;
 	if (m_PointerPoint.y == m_DragPointerPoint.y) {
-		if (m_PointerPoint.x == m_DragPointerPoint.x) {
-			rect = CRect(0, 0, m_LineNumberWidth + LINE_NUMBER_OFFSET, m_Height);
-			m_Selection.FillRect(&rect, pGreyBlackBrush);
-			return;
+		if (m_PointerPoint.x != m_DragPointerPoint.x) {
+			wchar_t* line = *m_CurrentTag->GetCurrentLine();
+			LONG smaller = min(m_PointerPoint.x, m_DragPointerPoint.x);
+			LONG larger = max(m_PointerPoint.x, m_DragPointerPoint.x);
+			LONG start = GET_TEXT_WIDTH(line, smaller) + m_LineNumberWidth + LINE_NUMBER_OFFSET;
+			LONG end = GET_TEXT_WIDTH(line, larger) + m_LineNumberWidth + LINE_NUMBER_OFFSET;
+			rect = CRect(
+				start - horizontal_offset,
+				vertical_offset,
+				end - horizontal_offset,
+				vertical_offset + m_CharSize.cy
+			);
+			m_Selection.FillRect(&rect, &m_SelectionColor);
 		}
-		wchar_t* line = *m_CurrentTag->GetCurrentLine();
-		LONG smaller = min(m_PointerPoint.x, m_DragPointerPoint.x);
-		LONG larger = max(m_PointerPoint.x, m_DragPointerPoint.x);
-		m_Source.DrawTextW(line, smaller, &rect, DT_CALCRECT);
-		LONG start = rect.right + m_LineNumberWidth + LINE_NUMBER_OFFSET;
-		m_Source.DrawTextW(line, larger, &rect, DT_CALCRECT);
-		rect = CRect(start - horizontal_offset, vertical_offset, rect.right + m_LineNumberWidth + LINE_NUMBER_OFFSET, vertical_offset + m_CharSize.cy);
-		m_Selection.FillRect(&rect, &m_SelectionColor);
 	}
 	else {
 		if (m_PointerPoint.y > m_DragPointerPoint.y) {
-			GetTextExtentPoint32W(m_Source, *m_CurrentTag->GetCurrentLine(), m_PointerPoint.x, &size);
+			LONG end = GET_TEXT_WIDTH(*m_CurrentTag->GetCurrentLine(), m_PointerPoint.x);
 			rect = CRect(
 				LINE_NUMBER_OFFSET + m_LineNumberWidth - horizontal_offset,
 				vertical_offset,
-				LINE_NUMBER_OFFSET + m_LineNumberWidth + rect.right - horizontal_offset,
+				LINE_NUMBER_OFFSET + m_LineNumberWidth + end - horizontal_offset,
 				vertical_offset + m_CharSize.cy
 			);
 			m_Selection.FillRect(&rect, &m_SelectionColor);
 			std::list<wchar_t*>::iterator current_line = m_CurrentTag->GetCurrentLine();
 			current_line--;
+			rect.left = LINE_NUMBER_OFFSET + m_LineNumberWidth - horizontal_offset;
 			for (size_t line_index = m_PointerPoint.y - 1; line_index != m_DragPointerPoint.y; line_index--) {
 				rect.top -= this->m_CharSize.cy;
 				rect.bottom -= this->m_CharSize.cy;
+				rect.right = rect.left;
 				if ((*current_line)[0]) {
-					m_Source.DrawTextW(*current_line, wcslen(*current_line), &rect, DT_CALCRECT);
-				}
-				else {
-					rect.right = rect.left;
+					rect.right += GET_TEXT_WIDTH(*current_line, wcslen(*current_line));
 				}
 				rect.right += m_CharSize.cx;
 				m_Selection.FillRect(&rect, &m_SelectionColor);
@@ -549,23 +551,17 @@ void CEditor::ArrangeSelection()
 			rect.top -= this->m_CharSize.cy;
 			rect.bottom -= this->m_CharSize.cy;
 			rect.right = rect.left;
-			m_Source.DrawTextW(*current_line, m_DragPointerPoint.x, &rect, DT_CALCRECT);
-			rect.left = rect.right; // left 此时为选区起点，计算剩余文本长度
-			if (*(*current_line + m_DragPointerPoint.x)) {
-				m_Source.DrawTextW(*current_line + m_DragPointerPoint.x, -1, &rect, DT_CALCRECT);
-			}
-			rect.right += m_CharSize.cx;
+			rect.left += GET_TEXT_WIDTH(*current_line, m_DragPointerPoint.x);
+			rect.right += GET_TEXT_WIDTH(*current_line, wcslen(*current_line)) + m_CharSize.cx;
 			m_Selection.FillRect(&rect, &m_SelectionColor);
 		}
 		else {
-			m_Source.DrawTextW(*m_CurrentTag->GetCurrentLine(), m_PointerPoint.x, &rect, DT_CALCRECT);
-			LONG start = rect.right;
-			m_Source.DrawTextW(*m_CurrentTag->GetCurrentLine() + m_PointerPoint.x, -1, &rect, DT_CALCRECT);
-			LONG length = rect.right;
+			LONG start = GET_TEXT_WIDTH(*m_CurrentTag->GetCurrentLine(), m_PointerPoint.x);
+			LONG end = GET_TEXT_WIDTH(*m_CurrentTag->GetCurrentLine(), wcslen(*m_CurrentTag->GetCurrentLine()));
 			rect = CRect(
 				LINE_NUMBER_OFFSET + m_LineNumberWidth + start - horizontal_offset,
 				vertical_offset,
-				LINE_NUMBER_OFFSET + m_LineNumberWidth + start + length + this->m_CharSize.cx - horizontal_offset,
+				LINE_NUMBER_OFFSET + m_LineNumberWidth + end + this->m_CharSize.cx - horizontal_offset,
 				vertical_offset + this->m_CharSize.cy
 			);
 			m_Selection.FillRect(&rect, &m_SelectionColor);
@@ -575,17 +571,12 @@ void CEditor::ArrangeSelection()
 			for (size_t line_index = m_PointerPoint.y + 1; line_index != m_DragPointerPoint.y; line_index++) {
 				rect.top += this->m_CharSize.cy;
 				rect.bottom += this->m_CharSize.cy;
-				if ((*current_line)[0]) {
-					m_Source.DrawTextW(*current_line, wcslen(*current_line), &rect, DT_CALCRECT);
-				}
-				else {
-					rect.right = rect.left;
-				}
-				rect.right += m_CharSize.cx;
+				rect.right = rect.left;
+				rect.right += GET_TEXT_WIDTH(*current_line, wcslen(*current_line)) + m_CharSize.cx;
 				m_Selection.FillRect(&rect, &m_SelectionColor);
 				current_line++;
 			}
-			m_Source.DrawTextW(*current_line, m_DragPointerPoint.x, &rect, DT_CALCRECT);
+			rect.right = rect.left + GET_TEXT_WIDTH(*current_line, m_DragPointerPoint.x);
 			rect.top += this->m_CharSize.cy;
 			rect.bottom += this->m_CharSize.cy;
 			m_Selection.FillRect(&rect, &m_SelectionColor);
@@ -661,18 +652,17 @@ CPoint CEditor::TranslatePointer(CPoint point)
 	point_out.y = new_pointer_vertical;
 	// 计算列指针
 	size_t total_length = 0;
-	CRect rect;
 	for (UINT index = 0; (*m_CurrentTag->GetCurrentLine())[index] != 0; index++) {
-		m_Source.DrawTextW((*m_CurrentTag->GetCurrentLine()) + index, 1, &rect, DT_CALCRECT);
-		size_t this_length = rect.right;
+		size_t this_length = GET_TEXT_WIDTH(*m_CurrentTag->GetCurrentLine(), index + 1) - total_length;
 		if (total_length + this_length > point.x) {
 			if (total_length + this_length / 2 < point.x) {
 				point_out.x = index + 1;
+				return point_out;
 			}
 			else {
 				point_out.x = index;
+				return point_out;
 			}
-			return point_out;
 		}
 		total_length += this_length;
 	}
@@ -722,8 +712,6 @@ void CEditor::Delete()
 				(wcslen(current_line) - m_PointerPoint.x + 1) * 2);
 			delete[] current_line;
 			*m_CurrentTag->GetCurrentLine() = buffer;
-			CRect rect;
-			m_Source.DrawTextW(buffer, -1, &rect, DT_CALCRECT);
 			m_PointerPoint.x--;
 		}
 		else {
@@ -811,13 +799,12 @@ void CEditor::MoveView()
 	}
 	double start_x = m_PercentageHorizontal * m_FullWidth;
 	double end_x = start_x + m_Width - m_LineNumberWidth - LINE_NUMBER_OFFSET - m_CharSize.cx;
-	CSize size;
-	GetTextExtentPoint32W(m_Source, *m_CurrentTag->GetCurrentLine(), m_PointerPoint.x, &size);
-	if (size.cx < start_x) {
-		m_HSlider.SetPercentage((double)size.cx / m_FullWidth);
+	LONG width = GET_TEXT_WIDTH(*m_CurrentTag->GetCurrentLine(), m_PointerPoint.x);
+	if (width < start_x) {
+		m_HSlider.SetPercentage((double)width / m_FullWidth);
 	}
-	else if (size.cx > end_x) {
-		m_HSlider.SetPercentage(((double)size.cx - m_Width + m_LineNumberWidth + LINE_NUMBER_OFFSET + m_CharSize.cx) / m_FullWidth);
+	else if (width > end_x) {
+		m_HSlider.SetPercentage(((double)width - m_Width + m_LineNumberWidth + LINE_NUMBER_OFFSET + m_CharSize.cx) / m_FullWidth);
 	}
 }
 inline void CEditor::CentralView(LONG64 line_index)

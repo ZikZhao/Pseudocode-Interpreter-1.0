@@ -9,6 +9,7 @@ extern unsigned settings;
 extern bool debug;
 extern HANDLE breakpoint_handled;
 extern DWORD step_type;
+extern USHORT step_depth;
 extern HANDLE step_handled;
 void SendSignal(UINT message, WPARAM wParam, LPARAM lParam);
 bool CheckBreakpoint(ULONG64 line_index);
@@ -1781,11 +1782,6 @@ Data* function_calling(wchar_t* function_name, unsigned short number_of_args, Da
 				throw Error(ArgumentError, L"参数类型不匹配");
 			}
 			calling_ptr++;
-			if (step_type == EXECUTION_STEPIN) {
-				ResetEvent(step_handled);
-				SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPPED, current_instruction_index);
-				WaitForSingleObject(step_handled, INFINITE);
-			}
 			for (current_instruction_index = ((DataType::Function*)node->value->value)->start_line + 1;; current_instruction_index++) {
 				if (debug) {
 					if (CheckBreakpoint(current_instruction_index)) {
@@ -1793,7 +1789,7 @@ Data* function_calling(wchar_t* function_name, unsigned short number_of_args, Da
 						SendSignal(SIGNAL_BREAKPOINT, BREAKPOINT_HIT, current_instruction_index);
 						WaitForSingleObject(breakpoint_handled, INFINITE);
 					}
-					else if (step_type == EXECUTION_STEPIN or step_type == EXECUTION_STEPOVER) {
+					else if ((step_type == EXECUTION_STEPIN or step_type == EXECUTION_STEPOVER) and step_depth >= calling_ptr) {
 						ResetEvent(step_handled);
 						SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPPED, current_instruction_index);
 						WaitForSingleObject(step_handled, INFINITE);
@@ -1832,7 +1828,7 @@ Data* function_calling(wchar_t* function_name, unsigned short number_of_args, Da
 					current_locals = call[calling_ptr - 1].local_variables;
 					calling_ptr--;
 					// return value
-					if (step_type == EXECUTION_STEPOUT) {
+					if (step_type == EXECUTION_STEPOUT and step_depth == calling_ptr) {
 						ResetEvent(step_handled);
 						SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPPED, current_instruction_index);
 						WaitForSingleObject(step_handled, INFINITE);

@@ -3,6 +3,7 @@
 #include <list>
 #include <mutex>
 #include <strsafe.h>
+#include <iso646.h>
 #include "resource.h"
 #include "framework.h"
 #include "afxwinappex.h"

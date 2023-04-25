@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "pch.h"
 #define PROCESS_HALTED 2
 
 BEGIN_MESSAGE_MAP(CConsoleOutput, CWnd)

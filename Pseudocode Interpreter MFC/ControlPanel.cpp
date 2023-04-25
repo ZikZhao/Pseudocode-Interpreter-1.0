@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "pch.h"
 #define BEGIN_GROUP(id) { UINT id_group = id;
 #define END_GROUP() }
 #define BUTTON(id, id_bitmap, button_text, x) { CControlPanelButton* button = new CControlPanelButton(id, id_bitmap, button_text); m_Components.push_back(button); button->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(x, 0, x + 68, 88), this, id); CMainFrame::pObject->m_Tip.AddTool(FIND_BUTTON(id_group, id), id); }

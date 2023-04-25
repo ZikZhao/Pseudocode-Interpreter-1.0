@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "pch.h"
 
 BEGIN_MESSAGE_MAP(CFileTag, CWnd)
 	ON_WM_CREATE()

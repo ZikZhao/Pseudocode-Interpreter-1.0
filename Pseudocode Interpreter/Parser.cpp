@@ -21,6 +21,7 @@ bool debug = false;
 list<BREAKPOINT> breakpoints;
 HANDLE breakpoint_handled = CreateEvent(0, true, false, 0);
 DWORD step_type;
+USHORT step_depth = 0; // in which call stepping is made (-1 means step in)
 HANDLE step_handled = CreateEvent(0, true, false, 0);
 
 // format codes in physical files
@@ -313,9 +314,20 @@ INT_PTR SignalProc(UINT message, WPARAM wParam, LPARAM lParam) {
 	}
 	case SIGNAL_EXECUTION:
 	{
-		step_type = wParam;
+		switch (wParam) {
+		case EXECUTION_STEPIN:
+			step_depth = (USHORT)-1;
+			break;
+		case EXECUTION_STEPOVER:
+			step_depth = calling_ptr;
+			break;
+		case EXECUTION_STEPOUT:
+			step_depth = calling_ptr - 1;
+			break;
+		}
 		SetEvent(breakpoint_handled);
 		SetEvent(step_handled);
+		step_type = wParam;
 		break;
 	}
 	}
@@ -392,7 +404,7 @@ int ExecuteDubug(size_t length, wchar_t** lines) {
 			SendSignal(SIGNAL_BREAKPOINT, BREAKPOINT_HIT, CII);
 			WaitForSingleObject(breakpoint_handled, INFINITE);
 		}
-		else if (step_type == EXECUTION_STEPIN or step_type == EXECUTION_STEPOVER) {
+		else if ((step_type == EXECUTION_STEPIN or step_type == EXECUTION_STEPOVER) and step_depth >= 0) {
 			ResetEvent(step_handled);
 			SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPPED, CII);
 			WaitForSingleObject(step_handled, INFINITE);
