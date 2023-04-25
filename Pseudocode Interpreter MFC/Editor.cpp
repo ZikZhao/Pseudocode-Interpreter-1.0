@@ -505,7 +505,7 @@ void CEditor::ArrangeSelection()
 	double difference = (double)m_PointerPoint.y - start_line;
 	LONG vertical_offset = difference * m_CharSize.cy;
 	LONG horizontal_offset = m_PercentageHorizontal * m_FullWidth;
-	rect.right = 0;
+	CSize size;
 	if (m_PointerPoint.y == m_DragPointerPoint.y) {
 		if (m_PointerPoint.x == m_DragPointerPoint.x) {
 			rect = CRect(0, 0, m_LineNumberWidth + LINE_NUMBER_OFFSET, m_Height);
@@ -523,7 +523,7 @@ void CEditor::ArrangeSelection()
 	}
 	else {
 		if (m_PointerPoint.y > m_DragPointerPoint.y) {
-			DrawTextW(m_Source, *m_CurrentTag->GetCurrentLine(), m_PointerPoint.x, &rect, DT_CALCRECT);
+			GetTextExtentPoint32W(m_Source, *m_CurrentTag->GetCurrentLine(), m_PointerPoint.x, &size);
 			rect = CRect(
 				LINE_NUMBER_OFFSET + m_LineNumberWidth - horizontal_offset,
 				vertical_offset,
