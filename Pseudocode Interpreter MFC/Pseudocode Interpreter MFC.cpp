@@ -44,7 +44,7 @@ BOOL App::InitInstance()
 	m_pMainWnd->ShowWindow(m_nCmdShow);
 	m_pMainWnd->UpdateWindow();
 	m_pMainWnd->DragAcceptFiles();
-	((CMainFrame*)m_pMainWnd)->LoadOpenedFiles();
+	CTagPanel::pObject->LoadOpenedFiles();
 	return TRUE;
 }
 int App::ExitInstance()

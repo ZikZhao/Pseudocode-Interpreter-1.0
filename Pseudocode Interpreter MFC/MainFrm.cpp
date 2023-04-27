@@ -92,6 +92,9 @@ void CMainFrame::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 void CMainFrame::OnDispatchCommand(UINT uID)
 {
 	switch (uID) {
+		DISPATCH_CASE(ID_FILE_NEW, CTagPanel, OnNew)
+		DISPATCH_CASE(ID_FILE_SAVE, CTagPanel, OnSave)
+		DISPATCH_CASE(ID_FILE_OPEN, CTagPanel, OnOpen)
 		DISPATCH_CASE(ID_EDIT_UNDO, CEditor, OnUndo)
 		DISPATCH_CASE(ID_EDIT_REDO, CEditor, OnRedo)
 		DISPATCH_CASE(ID_DEBUG_RUN, CConsole, OnDebugRun)
@@ -103,16 +106,12 @@ void CMainFrame::OnDispatchCommand(UINT uID)
 		DISPATCH_CASE(ID_DEBUG_STEPOUT, CConsole, OnDebugStepout)
 	}
 }
-inline void CMainFrame::OpenFile(const wchar_t* path)
-{
-	m_TagPanel.NewTag(path);
-	m_Editor.LoadFile(m_TagPanel.GetCurrentTag());
-}
-void CMainFrame::LoadOpenedFiles()
-{
-	OpenFile(const_cast<wchar_t*>(L"C:\\Users\\Zik\\OneDrive - 6666zik\\Desktop\\code.txt"));
-}
 void CMainFrame::UpdateStatus(bool state, const wchar_t* text)
+{
+	m_StatusBar.UpdateState(state);
+	m_StatusBar.UpdateMessage(const_cast<wchar_t*>(text));
+}
+void CMainFrame::UpdateStatus(bool state, wchar_t* text)
 {
 	m_StatusBar.UpdateState(state);
 	m_StatusBar.UpdateMessage(text);

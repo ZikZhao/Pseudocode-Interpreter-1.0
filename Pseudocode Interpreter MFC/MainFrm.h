@@ -28,7 +28,6 @@ public:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
 	afx_msg void OnDispatchCommand(UINT uID); // 命令消息分发（因为执行函数需要this指针）
-	void OpenFile(const wchar_t* path); // 打开文件
-	void LoadOpenedFiles(); // 打开上次未关闭的文件
+	void UpdateStatus(bool state, wchar_t* text); // 用于更新状态栏来指示子进程状态
 	void UpdateStatus(bool state, const wchar_t* text); // 用于更新状态栏来指示子进程状态
 };

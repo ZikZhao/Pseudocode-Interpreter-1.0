@@ -651,6 +651,10 @@ CPoint CEditor::TranslatePointer(CPoint point)
 	MovePointer(CPoint(0, new_pointer_vertical));
 	point_out.y = new_pointer_vertical;
 	// 计算列指针
+	if (point.x < 0) {
+		point_out.x = 0;
+		return point_out;
+	}
 	size_t total_length = 0;
 	for (UINT index = 0; (*m_CurrentTag->GetCurrentLine())[index] != 0; index++) {
 		size_t this_length = GET_TEXT_WIDTH(*m_CurrentTag->GetCurrentLine(), index + 1) - total_length;

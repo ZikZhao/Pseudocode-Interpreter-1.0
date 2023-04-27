@@ -272,7 +272,8 @@ int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	case 0:
 		BEGIN_GROUP(ID_FILE)
 			BUTTON(ID_FILE_NEW, IDB_FILE_NEW, L"新建", 0)
-			BUTTON(ID_FILE_SAVE, IDB_FILE_SAVE, L"保存", 80)
+			BUTTON(ID_FILE_OPEN, IDB_FILE_OPEN, L"打开", 80)
+			BUTTON(ID_FILE_SAVE, IDB_FILE_SAVE, L"保存", 160)
 		END_GROUP()
 		return 0;
 	case 1:

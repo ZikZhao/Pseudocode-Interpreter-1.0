@@ -7,7 +7,7 @@ BEGIN_MESSAGE_MAP(CFileTag, CWnd)
 	ON_WM_MOUSEMOVE()
 	ON_WM_MOUSELEAVE()
 END_MESSAGE_MAP()
-CFileTag::CFileTag(const wchar_t* path)
+CFileTag::CFileTag(wchar_t* path)
 {
 	m_Path = path;
 	int last = 0;
@@ -62,6 +62,14 @@ CFileTag::CFileTag(const wchar_t* path)
 	else {
 		throw L"文件无法访问";
 	}
+}
+CFileTag::CFileTag()
+{
+	m_Path = nullptr;
+	m_Directory = m_Filename = nullptr;
+	m_Handle = NULL;
+	m_bHover = false;
+	m_bSelected = false;
 }
 CFileTag::~CFileTag()
 {
@@ -133,16 +141,44 @@ inline void CFileTag::SetState(bool state) {
 	m_bSelected = state;
 	Invalidate(false);
 }
-const wchar_t* CFileTag::GetPath()
+const wchar_t* CFileTag::GetPath() const
 {
 	return m_Path;
 }
-std::list<wchar_t*>* CFileTag::GetLines() {
+std::list<wchar_t*>* CFileTag::GetLines()
+{
 	return &m_Lines;
 }
 std::list<wchar_t*>::iterator& CFileTag::GetCurrentLine()
 {
 	return m_CurrentLine;
+}
+void CFileTag::Save()
+{
+	if (m_Handle) {
+		SetFilePointer(m_Handle, 0, 0, FILE_BEGIN);
+		for (std::list<wchar_t*>::iterator iter = m_Lines.begin();;) {
+			int size = WideCharToMultiByte(CP_ACP, 0, *iter, -1, nullptr, 0, nullptr, nullptr);
+			char* buffer = new char[size - 1];
+			WideCharToMultiByte(CP_ACP, 0, *iter, -1, buffer, size - 1, nullptr, nullptr);
+			WriteFile(m_Handle, buffer, size - 1, nullptr, nullptr);
+			iter++;
+			if (iter == m_Lines.end()) {
+				break;
+			}
+			else {
+				WriteFile(m_Handle, "\r\n", 2, nullptr, nullptr);
+			}
+		}
+		SetEndOfFile(m_Handle);
+	}
+	else {
+		SaveAs();
+	}
+}
+void CFileTag::SaveAs()
+{
+
 }
 
 BEGIN_MESSAGE_MAP(CTagPanel, CWnd)
@@ -220,19 +256,59 @@ void CTagPanel::OnPaint()
 	CPaintDC dc(this);
 	dc.BitBlt(0, 0, 300, SCREEN_HEIGHT, &m_Source, 0, 0, SRCCOPY);
 }
-void CTagPanel::NewTag(const wchar_t* filename)
+void CTagPanel::OnNew()
 {
-	m_OpenedFiles[m_Ptr] = new CFileTag(filename);
-	m_OpenedFiles[m_Ptr]->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(20, 75 + m_Ptr * 75, 280, 120 + m_Ptr * 75), this, NULL);
+	m_Tags[m_Ptr] = new CFileTag;
+	m_Tags[m_Ptr]->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(20, 75 + m_Ptr * 75, 280, 120 + m_Ptr * 75), this, NULL);
 	ShiftTag(m_Ptr);
 	m_Ptr++;
 }
-void CTagPanel::ShiftTag(USHORT index) {
-	m_OpenedFiles[m_CurrentIndex]->SetState(false);
-	m_CurrentIndex = index;
-	m_OpenedFiles[m_CurrentIndex]->SetState(true);
+void CTagPanel::OnOpen()
+{
+	OPENFILENAMEW ofn{};
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = CMainFrame::pObject->GetSafeHwnd();
+	ofn.lpstrFilter = L"Text Files (.txt)\0.txt\0Pseudocode Files (.pc)\0.pc\0";
+	ofn.lpstrFile = new wchar_t[MAX_PATH] {0};
+	ofn.nMaxFile = MAX_PATH;
+	ofn.Flags = OFN_CREATEPROMPT | OFN_NOREADONLYRETURN;
+	GetOpenFileNameW(&ofn);
+	if (*ofn.lpstrFile) {
+		OpenFile(ofn.lpstrFile);
+	}
+}
+void CTagPanel::OnSave()
+{
+	size_t length = wcslen(m_Tags[m_CurrentIndex]->GetPath());
+	wchar_t* message = new wchar_t[8 + length];
+	StringCchPrintfW(message, 8 + length, L"正在保存文件 %s", m_Tags[m_CurrentIndex]->GetPath());
+	CCustomStatusBar::pObject->UpdateMessage(message);
+	delete[] message;
+	m_Tags[m_CurrentIndex]->Save();
+	message = new wchar_t[5 + length];
+	StringCchPrintfW(message, 5 + length, L"已保存 %s", m_Tags[m_CurrentIndex]->GetPath());
+	CCustomStatusBar::pObject->UpdateMessage(message);
+	delete[] message;
+}
+void CTagPanel::OpenFile(wchar_t* filename)
+{
+	m_Tags[m_Ptr] = new CFileTag(filename);
+	m_Tags[m_Ptr]->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(20, 75 + m_Ptr * 75, 280, 120 + m_Ptr * 75), this, NULL);
+	ShiftTag(m_Ptr);
+	m_Ptr++;
+	m_CurrentIndex = m_Ptr - 1;
+}
+void CTagPanel::LoadOpenedFiles()
+{
+	OpenFile(const_cast<wchar_t*>(L"C:\\Users\\Zik\\OneDrive - 6666zik\\Desktop\\code.txt"));
+	CEditor::pObject->LoadFile(GetCurrentTag());
 }
 CFileTag* CTagPanel::GetCurrentTag()
 {
-	return m_OpenedFiles[m_Ptr - 1];
+	return m_Tags[m_CurrentIndex];
+}
+inline void CTagPanel::ShiftTag(USHORT index) {
+	m_Tags[m_CurrentIndex]->SetState(false);
+	m_CurrentIndex = index;
+	m_Tags[m_CurrentIndex]->SetState(true);
 }

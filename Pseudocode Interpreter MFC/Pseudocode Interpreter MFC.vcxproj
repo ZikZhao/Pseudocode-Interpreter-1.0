@@ -222,13 +222,14 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Pseudocode Interpreter MFC.reg" />
+    <None Include="Pseudocode Interpreter.css" />
+    <None Include="Pseudocode Interpreter.html" />
     <None Include="res\PseudocodeInterpreterMFC.rc2" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PseudocodeInterpreterMFC.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="images\bitmap1.bmp" />
     <Image Include="images\debug_continue.bmp" />
     <Image Include="images\debug_stepin.bmp" />
     <Image Include="images\debug_stepout.bmp" />
@@ -239,6 +240,7 @@
     <Image Include="images\debug_halt.bmp" />
     <Image Include="images\debug_run.bmp" />
     <Image Include="images\file_newfile.bmp" />
+    <Image Include="images\file_open.bmp" />
     <Image Include="images\file_save.bmp" />
     <Image Include="images\edit_undo.bmp" />
     <Image Include="images\file_savefile.bmp" />

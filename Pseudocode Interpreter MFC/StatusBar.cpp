@@ -1,7 +1,6 @@
 #include "pch.h"
 #define LASTING_TIME 5000
 
-
 BEGIN_MESSAGE_MAP(CCustomStatusBar, CWnd)
 	ON_WM_CREATE()
 	ON_WM_ERASEBKGND()
@@ -13,7 +12,8 @@ CCustomStatusBar::CCustomStatusBar()
 {
 	m_Width = m_Height = 0;
 	m_bRun = false;
-	m_Text = m_DefaultText;
+	m_Text = const_cast<wchar_t*>(L"就绪");
+	pObject = this;
 }
 CCustomStatusBar::~CCustomStatusBar()
 {
@@ -54,21 +54,21 @@ void CCustomStatusBar::OnSize(UINT nType, int cx, int cy)
 	CWnd::OnSize(nType, cx, cy);
 	m_Width = cx;
 	m_Height = cy;
-	Invalidate(FALSE);
+	RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 void CCustomStatusBar::OnTimer(UINT_PTR nIDEvent)
 {
-	m_Text = m_DefaultText;
-	Invalidate(FALSE);
+	m_Text = const_cast<wchar_t*>(L"就绪");
+	RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }
 void CCustomStatusBar::UpdateState(bool bRun)
 {
 	m_bRun = bRun;
-	Invalidate(FALSE);
+	RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 }
-void CCustomStatusBar::UpdateMessage(const wchar_t* text)
+void CCustomStatusBar::UpdateMessage(wchar_t* text)
 {
 	m_Text = text;
+	RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
 	SetTimer(NULL, LASTING_TIME, nullptr);
-	Invalidate(FALSE);
 }
