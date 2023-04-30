@@ -57,6 +57,9 @@
     <ClInclude Include="pch.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="IndexedList.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Pseudocode Interpreter MFC.cpp">
@@ -154,6 +157,9 @@
       <Filter>资源文件</Filter>
     </Image>
     <Image Include="images\file_open.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\file_saveas.bmp">
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>

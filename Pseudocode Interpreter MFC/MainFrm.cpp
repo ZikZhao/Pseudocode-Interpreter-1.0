@@ -93,8 +93,9 @@ void CMainFrame::OnDispatchCommand(UINT uID)
 {
 	switch (uID) {
 		DISPATCH_CASE(ID_FILE_NEW, CTagPanel, OnNew)
-		DISPATCH_CASE(ID_FILE_SAVE, CTagPanel, OnSave)
 		DISPATCH_CASE(ID_FILE_OPEN, CTagPanel, OnOpen)
+		DISPATCH_CASE(ID_FILE_SAVE, CTagPanel, OnSave)
+		DISPATCH_CASE(ID_FILE_SAVEAS, CTagPanel, OnSaveAs)
 		DISPATCH_CASE(ID_EDIT_UNDO, CEditor, OnUndo)
 		DISPATCH_CASE(ID_EDIT_REDO, CEditor, OnRedo)
 		DISPATCH_CASE(ID_DEBUG_RUN, CConsole, OnDebugRun)

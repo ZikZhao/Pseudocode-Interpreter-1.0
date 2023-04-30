@@ -1,34 +1,44 @@
 body{
     background-color: #F0F0F0;
 }
-#main{
-    width: 1000px;
-    height: 100%;
+div#main{
+    width: 650px;
+    height: 1000px;
     position: absolute;
-    left: 50%;
+    left: 70%;
     transform: translate(-50%, 0);
+    background-color: #FFFFFF;
+    border-radius: 10px;
 }
-#icon_div{
+div#icon_div{
     width: 350px;
     height: auto;
+    position: fixed;
+    left: 30%;
+    top: 10px;
+    transform: translate(-50%, 0);
     border-radius: 10px;
     background-color: #FFFFFF;
     display: flex;
     align-items: center;
     justify-content: center;
 }
-#icon{
+img#icon{
     width: 48px;
     height: 48px;
     margin: 10px 10px 10px 10px;
 }
-#topic_div{
-    margin-top: 30px;
+div#topic_div{
     width: 350px;
+    height: auto;
+    position: fixed;
+    left: 30%;
+    top: 100px;
+    transform: translate(-50%, 0);
     border-radius: 10px;
     background-color: #FFFFFF;
 }
-.topic{
+div.topic{
     padding-top: 5px;
     padding-bottom: 5px;
     padding-left: 10px;

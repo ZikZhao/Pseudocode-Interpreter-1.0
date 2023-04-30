@@ -1,4 +1,5 @@
 #include "pch.h"
+#include "../Pseudocode Interpreter/SyntaxCheck.h"
 #define LINE_NUMBER_OFFSET 27 // 展示行数所需的额外偏移量
 #define SCROLL_UNIT 3 // 每次鼠标滚轮滚动时移动的行数
 #define PAUSE_BACKEND() { m_bBackendEnabled = false; WaitForSingleObject(*m_BackendPaused, INFINITE); SetTimer(NULL, 100, nullptr); } // 停止后台任务以避免访问冲突
@@ -184,6 +185,7 @@ void CEditor::OnLButtonUp(UINT nFlags, CPoint point)
 	if (not m_bDrag) {
 		double start_line = m_PercentageVertical * m_CurrentTag->GetLines()->size();
 		ULONG64 line_index = (ULONG64)((double)point.y / m_CharSize.cy + start_line);
+		if (line_index < 0 or line_index >= m_CurrentTag->GetLines()->size());
 		for (std::list<BREAKPOINT>::iterator iter = m_Breakpoints.begin(); iter != m_Breakpoints.end(); iter++) {
 			if (iter->line_index == line_index) {
 				// 删除断点
@@ -279,7 +281,7 @@ void CEditor::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 		m_PointerPoint.y++;
 		m_PointerPoint.x = 0;
 		m_DragPointerPoint = m_PointerPoint;
-		unsigned short digits = (unsigned short)log10(m_CurrentTag->GetLines()->size()) + 1;
+		USHORT digits = (USHORT)log10(m_CurrentTag->GetLines()->size()) + 1;
 		m_LineNumberWidth = m_CharSize.cx * digits;
 		m_FullHeight += m_CharSize.cy;
 		UpdateSlider();
@@ -411,7 +413,7 @@ void CEditor::LoadFile(CFileTag* tag)
 		m_FullWidth = max(m_FullWidth, size.cx);
 	}
 	m_FullWidth += m_CharSize.cx;
-	unsigned short digits = (unsigned short)log10(tag->GetLines()->size()) + 1;
+	USHORT digits = (USHORT)log10(tag->GetLines()->size()) + 1;
 	m_LineNumberWidth = m_CharSize.cx * digits;
 	m_PointerPoint = CPoint(0, 0);
 	m_DragPointerPoint = CPoint(0, 0);
@@ -472,7 +474,7 @@ void CEditor::ArrangeText()
 	}
 	// 绘制行号
 	m_Source.SetTextColor(RGB(150, 150, 150));
-	unsigned short digits = (unsigned short)log10(m_CurrentTag->GetLines()->size()) + 1;
+	USHORT digits = (USHORT)log10(m_CurrentTag->GetLines()->size()) + 1;
 	wchar_t* buffer = new wchar_t[digits + 1];
 	m_Source.PatBlt(0, 0, m_LineNumberWidth + LINE_NUMBER_OFFSET, m_Height, BLACKNESS);
 	rect = CRect(LINE_NUMBER_OFFSET - 12,
@@ -817,14 +819,23 @@ inline void CEditor::CentralView(LONG64 line_index)
 	m_VSlider.SetPercentage((double)line_index / m_CurrentTag->GetLines()->size() - half_height / m_FullHeight);
 	m_HSlider.SetPercentage(0);
 }
+void CEditor::ParseLine()
+{
+	CONSTRUCT construct = Construct::parse(*m_CurrentTag->GetCurrentLine());
+	if (construct.result) {
+
+	}
+}
 DWORD CEditor::BackendTasking(LPVOID)
 {
 	SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN);
 	HWND hWnd = pObject->GetSafeHwnd();
 	while (IsWindow(hWnd)) {
-		pObject->RecalcWidth();
 		if (not pObject->m_bBackendEnabled) {
 			pObject->m_BackendPaused->SetEvent();
+		}
+		else {
+			pObject->RecalcWidth();
 		}
 	}
 	return 0;
@@ -846,4 +857,28 @@ void CEditor::RecalcWidth()
 	if (m_FullWidth != temp + m_CharSize.cx) {
 		m_HSlider.DeflateLength(m_FullWidth, temp + m_CharSize.cx);
 	}
+}
+void CEditor::ParseAll()
+{
+	if (not m_CurrentTag->GetTokens()->size()) {
+		std::list<TOKEN*>* tokens = m_CurrentTag->GetTokens();
+		for (std::list<wchar_t*>::iterator this_line = m_CurrentTag->GetLines()->begin(); this_line != m_CurrentTag->GetLines()->end(); this_line++) {
+			CONSTRUCT construct = Construct::parse(*this_line);
+			if (construct.result) {
+				if (construct.result->error_message) {
+					tokens->push_back(new TOKEN[]{ 0 });
+				}
+				else {
+					tokens->push_back(construct.result->tokens);
+				}
+			}
+			else {
+				tokens->push_back(new TOKEN[]{ 0 });
+			}
+		}
+	}
+}
+void CEditor::UpdateCandidates()
+{
+
 }

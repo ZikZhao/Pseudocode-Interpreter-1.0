@@ -18,7 +18,7 @@ unsigned settings = default_settings;
 
 void release_rpn(RPN_EXP* rpn) {
 	size_t offset = 0;
-	for (unsigned short element_index = 0; element_index != rpn->number_of_element; element_index++) {
+	for (USHORT element_index = 0; element_index != rpn->number_of_element; element_index++) {
 		size_t this_size = wcslen(rpn->rpn + offset);
 		delete[] (wchar_t*)(rpn->rpn + offset);
 		offset += this_size;
@@ -27,9 +27,9 @@ void release_rpn(RPN_EXP* rpn) {
 }
 
 Nesting** nesting = new Nesting*[128]; // maximum nesting depth : 128
-unsigned short nesting_ptr = 0;
+USHORT nesting_ptr = 0;
 File* files = new File[8]; // maximum 8 files opened at the same time
-unsigned short file_ptr = 0;
+USHORT file_ptr = 0;
 
 size_t current_instruction_index = 0;
 
@@ -58,8 +58,8 @@ wchar_t* strip(wchar_t* line) {
 
 long double string_to_real(wchar_t* expr) {
 	double result = 0;
-	unsigned short start = expr[0] == 43 or expr[0] == 45 ? 1 : 0;
-	for (unsigned short index = start; expr[index] != 0; index++) {
+	USHORT start = expr[0] == 43 or expr[0] == 45 ? 1 : 0;
+	for (USHORT index = start; expr[index] != 0; index++) {
 		if (expr[index] >= 48 and expr[index] <= 57 or expr[index] == 46) {
 			if (expr[index] != 46) {
 				result *= 10;
@@ -67,7 +67,7 @@ long double string_to_real(wchar_t* expr) {
 			}
 			else {
 				double weight = 1;
-				for (unsigned short index2 = index + 1; expr[index2] != 0; index2++) {
+				for (USHORT index2 = index + 1; expr[index2] != 0; index2++) {
 					weight /= 10;
 					if (expr[index2] >= 48 and expr[index2] <= 57) {
 						result += (expr[index2] - 48) * weight;
@@ -127,7 +127,7 @@ wchar_t* length_limiting(wchar_t* expr, size_t length_target) {
 	}
 	else {
 		result = new wchar_t[length_target + 1];
-		for (unsigned short index = 0; index != length_target - length_now; index++) {
+		for (USHORT index = 0; index != length_target - length_now; index++) {
 			result[index] = 48;
 		}
 		memcpy(result + (length_target - length_now), expr, length_now * 2);
@@ -260,7 +260,7 @@ namespace DataType {
 		bool init;
 		size_t length;
 		wchar_t* string;
-		static inline unsigned short escape_character_in[3] = { 116, 110, 92 };
+		static inline USHORT escape_character_in[3] = { 116, 110, 92 };
 		static inline const wchar_t escape_character_out[3] = { L'\t', L'\n', L'\\' };
 		String() {
 			this->init = false;
@@ -285,7 +285,7 @@ namespace DataType {
 			this->string[wcslen(expr) - 2] = 0;
 			for (unsigned index = 0; this->string[index] != 0; index++) {
 				if (this->string[index] == 92) {
-					for (unsigned short index2 = 0; index2 != 3; index2++) {
+					for (USHORT index2 = 0; index2 != 3; index2++) {
 						if (this->string[index + 1] == escape_character_in[index2]) {
 							this->string[index] = escape_character_out[index2];
 							memcpy(this->string + index + 1, this->string + index + 2, (wcslen(this->string) - index - 1) * 2);
@@ -305,7 +305,7 @@ namespace DataType {
 			delete[] this->string;
 		}
 		void assign(unsigned index, Char character) {
-			unsigned short value = character.value;
+			USHORT value = character.value;
 			this->string[index] = value;
 		}
 		wchar_t* read(unsigned index) {
@@ -356,12 +356,12 @@ namespace DataType {
 	class Date {
 	public:
 		bool init;
-		unsigned short year;
-		unsigned short month;
-		unsigned short day;
-		unsigned short hour;
-		unsigned short minute;
-		unsigned short second;
+		USHORT year;
+		USHORT month;
+		USHORT day;
+		USHORT hour;
+		USHORT minute;
+		USHORT second;
 		Date() {
 			this->init = false;
 			this->year = this->month = this->day = this->hour = this->minute = this->second = 0;
@@ -369,17 +369,17 @@ namespace DataType {
 		Date(wchar_t* expr) {
 			this->init = true;
 			this->year = this->month = this->day = this->hour = this->minute = this->second = 0;
-			unsigned short* ptr[] = { &this->year, &this->month, &this->day,
+			USHORT* ptr[] = { &this->year, &this->month, &this->day,
 				&this->hour, &this->minute, &this->second };
 			int last_sign = -1;
-			unsigned short current = 0;
-			for (unsigned short index = 0; expr[index] != 0; index++) {
+			USHORT current = 0;
+			for (USHORT index = 0; expr[index] != 0; index++) {
 				if (expr[index] == 95) {
 					wchar_t* part = new wchar_t[index - last_sign];
 					memcpy(part, expr + last_sign + 1, (size_t)(index - last_sign - 1) * 2);
 					part[index - last_sign - 1] = 0;
 					last_sign = index;
-					*ptr[current] = (unsigned short)string_to_real(part);
+					*ptr[current] = (USHORT)string_to_real(part);
 					delete[] part;
 					current++;
 				}
@@ -389,7 +389,7 @@ namespace DataType {
 					memcpy(part, expr + last_sign + 1, (size_t)(index - last_sign - 1) * 2);
 					part[index - last_sign - 1] = 0;
 					last_sign = index;
-					*ptr[current] = (unsigned short)string_to_real(part);
+					*ptr[current] = (USHORT)string_to_real(part);
 					delete[] part;
 					current++;
 				}
@@ -397,11 +397,11 @@ namespace DataType {
 			wchar_t* part = new wchar_t[wcslen(expr) - last_sign];
 			memcpy(part, expr + last_sign + 1, (size_t)(wcslen(expr) - last_sign - 1) * 2);
 			part[wcslen(expr) - last_sign - 1] = 0;
-			*ptr[current] = (unsigned short)string_to_real(part);
+			*ptr[current] = (USHORT)string_to_real(part);
 			delete[] part;
 		}
-		Date(unsigned short second, unsigned short minute, unsigned short hour,
-			unsigned short day, unsigned short month, unsigned short year) {
+		Date(USHORT second, USHORT minute, USHORT hour,
+			USHORT day, USHORT month, USHORT year) {
 			this->init = true;
 			this->second = second;
 			this->minute = minute;
@@ -477,9 +477,9 @@ namespace DataType {
 			result[10] = 43;
 			result[13] = result[16] = 58;
 			result[19] = 0;
-			unsigned short* ptr[] = { &this->year, &this->month, &this->day,
+			USHORT* ptr[] = { &this->year, &this->month, &this->day,
 				&this->hour, &this->minute, &this->second };
-			for (unsigned short index = 0; index != 6; index++) {
+			for (USHORT index = 0; index != 6; index++) {
 				if (index == 0) {
 					wchar_t* string = length_limiting(unsigned_to_string(*ptr[index]), 4);
 					memcpy(result, string, 8);
@@ -498,10 +498,10 @@ namespace DataType {
 	public:
 		bool init;
 		Data** memory;
-		unsigned short* size;
+		USHORT* size;
 		Data* type;
-		unsigned short* start_indexes;
-		unsigned short dimension;
+		USHORT* start_indexes;
+		USHORT dimension;
 		size_t total_size;
 		Array() {
 			this->init = false;
@@ -512,19 +512,19 @@ namespace DataType {
 			this->dimension = 0;
 			this->memory = nullptr;
 		}
-		Array(Data* type_data, unsigned short* boundaries) {
+		Array(Data* type_data, USHORT* boundaries) {
 			this->init = true;
-			this->size = new unsigned short[10];
+			this->size = new USHORT[10];
 			this->type = type_data;
-			this->start_indexes = new unsigned short[10];
+			this->start_indexes = new USHORT[10];
 			this->total_size = 1;
 			this->dimension = 0;
-			for (unsigned short index = 0; index != 20; index += 2) {
+			for (USHORT index = 0; index != 20; index += 2) {
 				if (boundaries[index] != 0 or boundaries[index + 1] != 0) {
-					unsigned short range = boundaries[index + 1] - boundaries[index] + 1;
-					this->size[(unsigned short)(index / 2)] = range;
+					USHORT range = boundaries[index + 1] - boundaries[index] + 1;
+					this->size[(USHORT)(index / 2)] = range;
 					this->total_size *= range;
-					this->start_indexes[(unsigned short)(index/2)] = boundaries[index];
+					this->start_indexes[(USHORT)(index/2)] = boundaries[index];
 					this->dimension++;
 				}
 				else {
@@ -532,14 +532,14 @@ namespace DataType {
 				}
 			}
 			this->memory = new Data* [this->total_size];
-			for (unsigned short index = 0; index != this->total_size; index++) {
+			for (USHORT index = 0; index != this->total_size; index++) {
 				this->memory[index] = new_empty_data(type_data);
 				this->memory[index]->variable_data = true;
 			}
 		}
-		Data* read(unsigned short* indexes) {
+		Data* read(USHORT* indexes) {
 			size_t offset = 0;
-			for (unsigned short index = 0; index != this->dimension; index++) {
+			for (USHORT index = 0; index != this->dimension; index++) {
 				if (indexes[index] < this->start_indexes[index] or
 					indexes[index] > this->start_indexes[index] + this->size[index]) {
 					return new Data{ 65535, (void*)L"下标超出可接受范围" };
@@ -558,7 +558,7 @@ namespace DataType {
 	class RecordType {
 	public:
 		bool init = true;
-		unsigned short number_of_fields;
+		USHORT number_of_fields;
 		wchar_t** fields;
 		Data* types;
 		RecordType(BinaryTree* field_info) {
@@ -566,7 +566,7 @@ namespace DataType {
 			BinaryTree::Node* all_fields = field_info->list_nodes(field_info->root, &this->number_of_fields);
 			this->fields = new wchar_t* [this->number_of_fields];
 			this->types = new Data[this->number_of_fields];
-			for (unsigned short index = 0; index != this->number_of_fields; index++) {
+			for (USHORT index = 0; index != this->number_of_fields; index++) {
 				this->fields[index] = all_fields[index].key;
 				memcpy(this->types + index, all_fields[index].value, sizeof(Data));
 			}
@@ -584,18 +584,18 @@ namespace DataType {
 		}
 		Record(RecordType* source) {
 			this->source = source;
-			unsigned short number = source->number_of_fields;
+			USHORT number = source->number_of_fields;
 			this->values = new Data* [number];
-			for (unsigned short index = 0; index != number; index++) {
+			for (USHORT index = 0; index != number; index++) {
 				this->values[index] = new_empty_data(this->source->types + index);
 				this->values[index]->variable_data = true;
 			}
 		}
 		inline int find(wchar_t* key) {
-			for (unsigned short index = 0; index != this->source->number_of_fields; index++) {
+			for (USHORT index = 0; index != this->source->number_of_fields; index++) {
 				if (wcslen(key) == wcslen(this->source->fields[index])) {
 					bool matched = true;
-					for (unsigned short index2 = 0; key[index2] != 0; index2++) {
+					for (USHORT index2 = 0; key[index2] != 0; index2++) {
 						if (key[index2] != this->source->fields[index][index2]) {
 							matched = false;
 							break;
@@ -608,7 +608,7 @@ namespace DataType {
 			}
 			return -1;
 		}
-		inline Data* read(unsigned short index) {
+		inline Data* read(USHORT index) {
 			return this->values[index];
 		}
 	};
@@ -696,12 +696,12 @@ namespace DataType {
 	class EnumeratedType {
 	public:
 		bool init = true;
-		unsigned short length;
+		USHORT length;
 		wchar_t** values = nullptr;
 		EnumeratedType(wchar_t* expr) {
-			unsigned short last_sign = 0;
+			USHORT last_sign = 0;
 			this->length = 0;
-			for (unsigned short index = 1; expr[index] != 41; index++) {
+			for (USHORT index = 1; expr[index] != 41; index++) {
 				if (expr[index] == 44) {
 					this->length++;
 				}
@@ -712,8 +712,8 @@ namespace DataType {
 			wchar_t* tag_expr = new wchar_t[wcslen(expr) + 1];
 			memcpy(tag_expr, expr, (wcslen(expr) + 1) * 2);
 			tag_expr[wcslen(expr) - 1] = 44;
-			unsigned short count = 0;
-			for (unsigned short index = 1; tag_expr[index] != 0; index++) {
+			USHORT count = 0;
+			for (USHORT index = 1; tag_expr[index] != 0; index++) {
 				if (tag_expr[index] == 44) {
 					wchar_t* new_value = new wchar_t[index - last_sign];
 					memcpy(new_value, tag_expr + last_sign + 1, (size_t)(index - last_sign - 1) * 2);
@@ -727,7 +727,7 @@ namespace DataType {
 			delete[] tag_expr;
 		}
 		static inline void add_constants(EnumeratedType* type, BinaryTree* enumerations) {
-			for (unsigned short index = 0; index != type->length; index++) {
+			for (USHORT index = 0; index != type->length; index++) {
 				BinaryTree::Node* node = enumerations->find(type->values[index]);
 				if (node) {
 					delete node->value->value;
@@ -765,7 +765,7 @@ namespace DataType {
 	public:
 		bool init;
 		size_t start_line;
-		unsigned short number_of_args;
+		USHORT number_of_args;
 		Parameter* params;
 		Data* return_type; // if it does not return, then return_type->type = 65535
 		Function() {
@@ -775,7 +775,7 @@ namespace DataType {
 			this->params = nullptr;
 			this->return_type = nullptr;
 		}
-		Function(size_t start_line_in, unsigned short number_of_args_in, Parameter* params_in,
+		Function(size_t start_line_in, USHORT number_of_args_in, Parameter* params_in,
 			Data* return_type_in = new Data{ 65535, nullptr }) {
 			this->init = true;
 			this->start_line = start_line_in;
@@ -784,12 +784,12 @@ namespace DataType {
 			this->return_type = return_type_in;
 		}
 		bool push_args(BinaryTree* locals, Data** args) {
-			for (unsigned short index = 0; index != this->number_of_args; index++) {
+			for (USHORT index = 0; index != this->number_of_args; index++) {
 				if (not ((Any*)args[index]->value)->init) {
 					wchar_t* error_message = new wchar_t[18 + (USHORT)log10(index)];
 					memcpy(error_message, L"参数 ", 6);
-					unsigned short value = index + 1;
-					unsigned short offset = 0;
+					USHORT value = index + 1;
+					USHORT offset = 0;
 					while (value >= 1) {
 						error_message[3 + offset] = value % 10 + 48;
 						value /= 10;
@@ -834,14 +834,17 @@ namespace DataType {
 						if (((DataType::Record*)args[index]->value)->source != this->params[index].type->value) {
 							return false;
 						}
+						break;
 					case 10:
 						if (((DataType::Pointer*)args[index]->value)->source != this->params[index].type->value) {
 							return false;
 						}
+						break;
 					case 12:
 						if (((DataType::Enumerated*)args[index]->value)->source != this->params[index].type->value) {
 							return false;
 						}
+						break;
 					}
 					Data* args_data = DataType::copy(args[index]);
 					args_data->variable_data = true;
@@ -897,7 +900,7 @@ namespace DataType {
 			return new Data{ type_data->type, object };
 		}
 		else {
-			return new Data{ (unsigned short)(type_data->type + 1), object };
+			return new Data{ (USHORT)(type_data->type + 1), object };
 		}
 	}
 	Data* copy(Data* original) {
@@ -933,10 +936,10 @@ namespace DataType {
 			break;
 		case 6:
 		{
-			unsigned short* start = new unsigned short[10];
-			memcpy(start, ((Array*)original->value)->start_indexes, sizeof(unsigned short) * 10);
-			unsigned short* size = new unsigned short[10];
-			memcpy(size, ((Array*)original->value)->size, sizeof(unsigned short) * 10);
+			USHORT* start = new USHORT[10];
+			memcpy(start, ((Array*)original->value)->start_indexes, sizeof(USHORT) * 10);
+			USHORT* size = new USHORT[10];
+			memcpy(size, ((Array*)original->value)->size, sizeof(USHORT) * 10);
 			result->value = new Array;
 			memcpy(result->value, original->value, sizeof(Array));
 			((Array*)result->value)->start_indexes = start;
@@ -955,7 +958,7 @@ namespace DataType {
 			result->value = new Record;
 			memcpy(result->value, original->value, sizeof(Record));
 			((Record*)result->value)->values = new Data* [((Record*)result->value)->source->number_of_fields];
-			for (unsigned short index = 0; index != ((Record*)result->value)->source->number_of_fields; index++) {
+			for (USHORT index = 0; index != ((Record*)result->value)->source->number_of_fields; index++) {
 				((Record*)result->value)->values[index] = copy(((Record*)original->value)->values[index]);
 				((Record*)result->value)->values[index]->variable_data = true;
 			}
@@ -1001,8 +1004,8 @@ namespace DataType {
 	}
 	Data* type_adaptation(Data* data_in, Data* target_type) {
 		// original data structure is not being released
-		unsigned short& type_in = data_in->type;
-		unsigned short& type_out = target_type->type;
+		USHORT& type_in = data_in->type;
+		USHORT& type_out = target_type->type;
 		if (type_in == type_out or type_in == 14 and type_out == 10) {
 			return copy(data_in);
 		}
@@ -1206,8 +1209,8 @@ namespace DataType {
 				whole_part /= 10;
 			}
 			string[length] = 46;
-			for (unsigned short index = 0; index != 6; index++) {
-				unsigned short this_value = (unsigned short)(fraction_part * 10) % 10;
+			for (USHORT index = 0; index != 6; index++) {
+				USHORT this_value = (USHORT)(fraction_part * 10) % 10;
 				string[length + index + 1] = (char)(this_value + 48);
 				fraction_part = fraction_part * 10 - this_value;
 			}
@@ -1371,16 +1374,16 @@ namespace DataType {
 		}
 		case 7:
 		{
-			unsigned short length = ((DataType::RecordType*)data->value)->number_of_fields;
+			USHORT length = ((DataType::RecordType*)data->value)->number_of_fields;
 			DWORD total_count = 5;
-			for (unsigned short index = 0; index != length; index++) {
+			for (USHORT index = 0; index != length; index++) {
 				total_count += wcslen(((DataType::RecordType*)data->value)->fields[index]) + 2;
 			}
 			wchar_t* result_message = new wchar_t[total_count + 2];
 			static const wchar_t* head = L"结构体类型(";
 			memcpy(result_message, head, 12);
 			DWORD offset = 6;
-			for (unsigned short index = 0; index != length; index++) {
+			for (USHORT index = 0; index != length; index++) {
 				size_t length = wcslen(((DataType::RecordType*)data->value)->fields[index]);
 				memcpy(
 					result_message + offset,
@@ -1398,11 +1401,11 @@ namespace DataType {
 		}
 		case 8:
 		{
-			unsigned short length = ((DataType::RecordType*)((DataType::Record*)data->value)->source)->number_of_fields;
+			USHORT length = ((DataType::RecordType*)((DataType::Record*)data->value)->source)->number_of_fields;
 			wchar_t** value_ptr = new wchar_t* [length];
 			DWORD* value_lengths = new DWORD[length];
 			size_t total_count = 4;
-			for (unsigned short index = 0; index != length; index++) {
+			for (USHORT index = 0; index != length; index++) {
 				Data* value_data = ((DataType::Record*)data->value)->read(index);
 				value_ptr[index] = output_data_as_object(value_data, value_lengths + index);
 				total_count += wcslen(((DataType::RecordType*)((DataType::Record*)data->value)->source)->fields[index]) + value_lengths[index] + 3;
@@ -1411,7 +1414,7 @@ namespace DataType {
 			static const wchar_t* head = L"结构体{";
 			memcpy(result_message, head, 8);
 			size_t offset = 4;
-			for (unsigned short index = 0; index != length; index++) {
+			for (USHORT index = 0; index != length; index++) {
 				wchar_t*& field = ((DataType::RecordType*)((DataType::Record*)data->value)->source)->fields[index];
 				size_t field_length = wcslen(field);
 				memcpy(result_message + offset, field, field_length * 2);
@@ -1652,13 +1655,13 @@ namespace DataType {
 		{
 			size_t timestamp = 0;
 			memcpy(&timestamp, digest + 1, sizeof(size_t));
-			unsigned short second = 0, minute = 0, hour = 0, day = 0, month = 0, year = 0;
-			year = (unsigned short)((timestamp >> 26) & 0b11111111111111111111111111111111111111);
-			month = (unsigned short)(timestamp >> 22) & 0b1111;
-			day = (unsigned short)(timestamp >> 17) & 0b11111;
-			hour = (unsigned short)(timestamp >> 12) & 0b11111;
-			minute = (unsigned short)(timestamp >> 6) & 0b111111;
-			second = (unsigned short)timestamp & 0b111111;
+			USHORT second = 0, minute = 0, hour = 0, day = 0, month = 0, year = 0;
+			year = (USHORT)((timestamp >> 26) & 0b11111111111111111111111111111111111111);
+			month = (USHORT)(timestamp >> 22) & 0b1111;
+			day = (USHORT)(timestamp >> 17) & 0b11111;
+			hour = (USHORT)(timestamp >> 12) & 0b11111;
+			minute = (USHORT)(timestamp >> 6) & 0b111111;
+			second = (USHORT)timestamp & 0b111111;
 			data = new Data{ 5, new Date(second, minute, hour, day, month, year) };
 			break;
 		}
@@ -1687,7 +1690,7 @@ namespace Element {
 	}
 	bool integer(wchar_t* expr) {
 		if (not wcslen(expr)) { return false; }
-		unsigned short start = expr[0] == 43 or expr[0] == 45 ? 1 : 0;
+		USHORT start = expr[0] == 43 or expr[0] == 45 ? 1 : 0;
 		for (size_t index = start; expr[index] != 0; index++) {
 			if (not (expr[index] >= 48 and expr[index] <= 57)) {
 				return false;
@@ -1698,7 +1701,7 @@ namespace Element {
 	bool float_point_number(wchar_t* expr) {
 		// format1: floating-point number
 		bool point = false;
-		unsigned short start = expr[0] == 43 or expr[0] == 45 ? 1 : 0;
+		USHORT start = expr[0] == 43 or expr[0] == 45 ? 1 : 0;
 		for (size_t index = start; expr[index] != 0; index++) {
 			if (not (expr[index] >= 48 and expr[index] <= 57 or expr[index] == 46)) {
 				return false;
@@ -1725,7 +1728,7 @@ namespace Element {
 				wchar_t* mantissa = new wchar_t[index + 1];
 				memcpy(mantissa, expr, index * 2);
 				mantissa[index] = 0;
-				unsigned short exponent_length = (unsigned short)(wcslen(expr) - 1 - index);
+				USHORT exponent_length = (USHORT)(wcslen(expr) - 1 - index);
 				wchar_t* exponent = new wchar_t[exponent_length + 1];
 				memcpy(exponent, expr + (index + 1), (size_t)exponent_length * 2);
 				exponent[exponent_length] = 0;
@@ -1786,7 +1789,7 @@ namespace Element {
 		bool leap_year = false;
 		size_t current = 0;
 		size_t last_sign = 0;
-		unsigned short month = 0;
+		USHORT month = 0;
 		for (size_t index = 0; expr[index] != 0; index++) {
 			if (expr[index] == 95) { // date expression : xxxx_xx_xx
 				if (is_time or current == 3) { return false; }
@@ -1801,7 +1804,7 @@ namespace Element {
 				}
 				else {
 					is_date = true;
-					unsigned short result = (unsigned short)string_to_real(part);
+					USHORT result = (USHORT)string_to_real(part);
 					delete[] part;
 					switch (current) {
 					case 0:
@@ -1836,7 +1839,7 @@ namespace Element {
 				}
 				else {
 					is_time = true;
-					unsigned short result = (unsigned short)string_to_real(part);
+					USHORT result = (USHORT)string_to_real(part);
 					delete[] part;
 					switch (current) {
 					case 3:
@@ -1861,14 +1864,14 @@ namespace Element {
 		if (!integer(expr + last_sign)) {
 			return false;
 		}
-		unsigned short last_part = (unsigned short)string_to_real(expr + last_sign);
+		USHORT last_part = (USHORT)string_to_real(expr + last_sign);
 		if (is_time) {
 			if (last_part < 0 or last_part >= 60) {
 				return false;
 			}
 		}
 		else {
-			unsigned short upper_limit = 0;
+			USHORT upper_limit = 0;
 			switch (month) {
 			case 1: case 3: case 5: case 7: case 8: case 10: case 12:
 				upper_limit = 31;
@@ -2019,11 +2022,11 @@ namespace Element {
 		}
 		return false;
 	}
-	bool valid_operator(wchar_t character, unsigned short* precedence_out = nullptr) {
+	bool valid_operator(wchar_t character, USHORT* precedence_out = nullptr) {
 		// @ and ^ are special operators because their mechanism so we do not process it in an expression
 		// for ^, see valid_variable_path
 		// for @, see addressing
-		unsigned short precedence = 0;
+		USHORT precedence = 0;
 		switch (character) {
 		case 42: case 47: // * /
 			precedence = 1;
@@ -2134,8 +2137,8 @@ namespace Element {
 		}
 		// phase two: convert to RPN expression
 		size_t operator_index = 0;
-		unsigned short precedence = 0;
-		unsigned short tag_precedence = 0;
+		USHORT precedence = 0;
+		USHORT tag_precedence = 0;
 		int bracket = 0;
 		int braces = 0;
 		bool bracket_exist = false;
@@ -2192,8 +2195,8 @@ namespace Element {
 				}
 				else { // function calling
 					size_t last_spliter = 0;
-					unsigned short number_of_bracket = 0;
-					unsigned short number_of_args = 0; // number of arguments passed to the function called
+					USHORT number_of_bracket = 0;
+					USHORT number_of_args = 0; // number of arguments passed to the function called
 					RPN_EXP* final_rpn = new RPN_EXP; // storing RPN for final result
 					size_t total_args_length = 0; // counting of every single character in combined rpn, including \0
 					wchar_t* function_name = nullptr; // in the final stage it will be in a form of f/x, where x is the number of args
@@ -2241,7 +2244,7 @@ namespace Element {
 								return false;
 							}
 							size_t this_args_length = 0;
-							for (unsigned short element_index = 0; element_index != arg_rpn->number_of_element; element_index++) {
+							for (USHORT element_index = 0; element_index != arg_rpn->number_of_element; element_index++) {
 								this_args_length += wcslen(arg_rpn->rpn + this_args_length) + 1;
 							}
 							wchar_t* combined_rpn_string = new wchar_t[total_args_length + this_args_length];
@@ -2366,10 +2369,10 @@ namespace Element {
 		}
 		return false;
 	}
-	bool fundamental_type(wchar_t* expr, unsigned short* type = nullptr) {
+	bool fundamental_type(wchar_t* expr, USHORT* type = nullptr) {
 		static const wchar_t* fundamentals[] = {L"INTEGER", L"REAL", L"CHAR", L"STRING", L"boolEAN", L"DATE"};
 		size_t length = wcslen(expr);
-		for (unsigned short index = 0; index != 6; index++) {
+		for (USHORT index = 0; index != 6; index++) {
 			if (length == wcslen(fundamentals[index])) {
 				if (match_keyword(expr, fundamentals[index]) == 0) {
 					if (type) { *type = index; }
@@ -2379,19 +2382,19 @@ namespace Element {
 		}
 		return false;
 	}
-	bool array_type(wchar_t* expr, unsigned short** boundaries_out = nullptr, wchar_t** type = nullptr) {
+	bool array_type(wchar_t* expr, USHORT** boundaries_out = nullptr, wchar_t** type = nullptr) {
 		static const wchar_t* keyword = L"ARRAY";
 		static const wchar_t* keyword2 = L" OF ";
 		if (match_keyword(expr, keyword) == 0) {
 			if (expr[5] != 91) { return false; }
 			size_t last_comma = 0;
 			size_t last_colon = 0;
-			unsigned short lower_bound = 0;
-			unsigned short upper_bound = 0;
+			USHORT lower_bound = 0;
+			USHORT upper_bound = 0;
 			bool sum_lower = true;
-			unsigned short dimension = 0;
-			unsigned short* boundaries = new unsigned short[20]; // maximum dimensions: 10
-			memset(boundaries, 0, sizeof(unsigned short) * 20);
+			USHORT dimension = 0;
+			USHORT* boundaries = new USHORT[20]; // maximum dimensions: 10
+			memset(boundaries, 0, sizeof(USHORT) * 20);
 			for (size_t index = 6; expr[index] != 0; index++) {
 				switch (expr[index]) {
 				case 93:
@@ -2498,7 +2501,7 @@ namespace Element {
 		}
 		return true;
 	}
-	bool parameter_list(wchar_t* expr, Parameter** param_out = nullptr, unsigned short* count_out = nullptr) {
+	bool parameter_list(wchar_t* expr, Parameter** param_out = nullptr, USHORT* count_out = nullptr) {
 		if (wcslen(expr) == 2) {
 			if (expr[0] == 40 and expr[1] == 41) {
 				if (param_out) { *param_out = new Parameter[0]; }
@@ -2508,7 +2511,7 @@ namespace Element {
 		}
 		wchar_t* tag_expr = new wchar_t[wcslen(expr) + 1];
 		memcpy(tag_expr, expr, (wcslen(expr) + 1) * 2);
-		unsigned short count = 1;
+		USHORT count = 1;
 		for (size_t index = 0; tag_expr[index] != 0; index++) {
 			if (tag_expr[index] == 44) {
 				count++;
@@ -2524,7 +2527,7 @@ namespace Element {
 		for (size_t index = 0; tag_expr[index] != 0; index++) {
 			if (tag_expr[index] == 44 or tag_expr[index] == 41) {
 				if (last_spliter == last_colon or last_spliter > last_colon) {
-					for (unsigned short arg_index = 0; arg_index != count; arg_index++) {
+					for (USHORT arg_index = 0; arg_index != count; arg_index++) {
 						delete[] params[arg_index].name;
 						delete[] params[arg_index].type;
 					}
@@ -2566,7 +2569,7 @@ namespace Element {
 					valid = valid and (byref or match_keyword(keyword, keyword_value) == 0 and wcslen(keyword) == wcslen(keyword_value));
 				}
 				if (not valid) {
-					for (unsigned short arg_index = 0; arg_index != count; arg_index++) {
+					for (USHORT arg_index = 0; arg_index != count; arg_index++) {
 						delete[] params[arg_index].name;
 						delete[] params[arg_index].type;
 					}
@@ -2593,9 +2596,12 @@ namespace Element {
 
 namespace Construct {
 	// enders can not be combined, see sequence_check
-	Result* empty_line(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* empty_line(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		result->matched = true;
+		result->tokens = new TOKEN[]{
+			ENDTOKEN,
+		};
 		if (wcslen(expr) == 0) { return result; }
 		for (size_t index = 0; expr[index] != 0; index++) {
 			if (expr[index] != 32 and expr[index] != 9) {
@@ -2604,11 +2610,10 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* declaration(wchar_t* expr) {
-		Result* result = new Result;
-		static const wchar_t* keyword = L"DECLARE ";
-		if (match_keyword(expr, keyword) == 0) {
-			unsigned short count = 1;
+	RESULT* declaration(wchar_t* expr) {
+		RESULT* result = new RESULT;
+		if (match_keyword(expr, L"DECLARE") == 0) {
+			USHORT count = 1;
 			for (size_t index = 7; expr[index] != 0; index++) {
 				if (expr[index] == 44) {
 					count++;
@@ -2619,6 +2624,7 @@ namespace Construct {
 			}
 			size_t last_spliter = 7;
 			wchar_t** variables = new wchar_t* [count];
+			TOKEN* variable_tokens = new TOKEN[count * 2];
 			count = 0;
 			for (size_t index = 7; expr[index] != 0; index++) {
 				if (expr[index] == 44 or expr[index] == 58) {
@@ -2628,39 +2634,44 @@ namespace Construct {
 					strip(this_variable);
 					if (Element::variable(this_variable)) {
 						variables[count] = this_variable;
+						variable_tokens[count * 2] = TOKEN{ (USHORT)(index - last_spliter - 1), VARIABLE };
+						variable_tokens[count * 2 + 1] = TOKEN{ 1, PUNCTUATION };
 						count++;
 					}
 					else {
 						delete[] this_variable;
-						for (unsigned short variable_index = 0; variable_index != count; variable_index++) {
+						for (USHORT variable_index = 0; variable_index != count; variable_index++) {
 							delete[] variables[variable_index];
 						}
 						return result;
 					}
 					last_spliter = index;
-					if (expr[index] == 58) {
+					if (expr[index] == L':') {
 						wchar_t* type_part = new wchar_t[wcslen(expr) - index];
 						memcpy(type_part, expr + index + 1, (wcslen(expr) - index) * 2);
 						strip(type_part);
-						unsigned short* boundaries_out = nullptr;
+						USHORT* boundaries_out = nullptr;
 						wchar_t* type_out = nullptr;
 						if (Element::variable(type_part)) {
 							result->matched = true;
-							static const wchar_t key = L'V';
 							result->args = new void* [] {
-								(void*)&key,
-								new unsigned short{ count },
+								(void*)L"V",
+								new USHORT{ count },
 								variables,
 								type_part,
 							};
+							result->tokens = new TOKEN[2 + count * 2];
+							result->tokens[0] = TOKEN{ 8, KEYWORD };
+							memcpy(result->tokens + 1, variable_tokens, sizeof(TOKEN) * (count * 2));
+							result->tokens[1 + count * 2] = TOKEN{ (USHORT)wcslen(type_part), TYPE };
+							delete[] variable_tokens;
 						}
 						else if (Element::array_type(type_part, &boundaries_out, &type_out)) {
 							result->matched = true;
 							delete[] type_part;
-							static const wchar_t key = L'A';
 							result->args = new void* [] {
-								(void*)&key,
-								new unsigned short{ count },
+								(void*)L"A",
+								new USHORT{ count },
 								variables,
 								boundaries_out,
 								type_out,
@@ -2668,7 +2679,7 @@ namespace Construct {
 							
 						}
 						else {
-							for (unsigned short variable_index = 0; variable_index != count; variable_index++) {
+							for (USHORT variable_index = 0; variable_index != count; variable_index++) {
 								delete[] variables[variable_index];
 							}
 							delete[] type_part;
@@ -2680,8 +2691,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* constant(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* constant(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"CONSTANT ";
 		if (match_keyword(expr, keyword) == 0) {
 			for (size_t index = 9; expr[index] != 0; index++) {
@@ -2699,12 +2710,12 @@ namespace Construct {
 						delete[] expression_part;
 						result->matched = true;
 						result->args = new void* [] {variable_part, rpn_out};
-						result->positions = new TUPLE[]{
-							TUPLE{ 0, 8 },
-							TUPLE{ 9, (size_t)index - 9 },
-							TUPLE{ index, 1 },
-							TUPLE{ index + 1, wcslen(expr) - index - 1 },
-							TUPLE{ 0, 0 },
+						result->tokens = new TOKEN[] {
+							{ 8ui16, KEYWORD },
+							{ (USHORT)(index - 9ui16), VARIABLE },
+							{ 1, OPERATOR },
+							{ (USHORT)(wcslen(expr) - index - 1), EXPRESSION },
+							ENDTOKEN,
 						};
 						return result;
 					}
@@ -2718,8 +2729,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* type_header(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* type_header(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"TYPE ";
 		if (match_keyword(expr, keyword) == 0) {
 			wchar_t* type_part = new wchar_t[wcslen(expr) - 4];
@@ -2729,10 +2740,6 @@ namespace Construct {
 			if (Element::variable(type_part)) {
 				result->matched = true;
 				result->args = new void* [] { type_part };
-				result->positions = new TUPLE[]{
-					TUPLE{ 0, 5 },
-					TUPLE{ 5, wcslen(expr) - 5 },
-				};
 			}
 			else {
 				delete[] type_part;
@@ -2740,8 +2747,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* type_ender(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* type_ender(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		if (wcslen(expr) != 7) { return result; }
 		static const wchar_t* keyword = L"ENDTYPE";
 		if (match_keyword(expr, keyword) == 0) {
@@ -2749,8 +2756,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* pointer_type_header(wchar_t* expr){
-		Result* result = new Result;
+	RESULT* pointer_type_header(wchar_t* expr){
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"TYPE ";
 		if (match_keyword(expr, keyword) == 0) {
 			for (size_t index = 5; expr[index] != 0; index++) {
@@ -2769,12 +2776,6 @@ namespace Construct {
 							type_part,
 							pointer_part,
 						};
-						result->positions = new TUPLE[]{
-							TUPLE{ 0, 4 },
-							TUPLE{ 5, index - 5 },
-							TUPLE{ index, 1 },
-							TUPLE{ index + 1, wcslen(expr) - index - 1},
-						};
 					}
 					else {
 						delete[] type_part;
@@ -2786,8 +2787,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* enumerated_type_header(wchar_t* expr){
-		Result* result = new Result;
+	RESULT* enumerated_type_header(wchar_t* expr){
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"TYPE ";
 		if (match_keyword(expr, keyword) == 0) {
 			for (size_t index = 5; expr[index] != 0; index++) {
@@ -2817,8 +2818,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* assignment(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* assignment(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		for (size_t index = 0; expr[index] != 0; index++) {
 			if (expr[index] == 8592) {
 				wchar_t* variable_part = new wchar_t[index + 1];
@@ -2837,12 +2838,6 @@ namespace Construct {
 						variable_part,
 						rpn_out,
 					};
-					result->positions = new TUPLE[]{
-						TUPLE{ 0, index },
-						TUPLE{ index, 1 },
-						TUPLE{ index + 1, wcslen(expr) - index - 1 },
-						TUPLE{ 0, 0 },
-					};
 				}
 				else {
 					delete[] variable_part;
@@ -2853,13 +2848,13 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* output(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* output(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		if (wcslen(expr) < 7) {
 			return result;
 		}
 		static const wchar_t* keyword = L"OUTPUT";
-		for (unsigned short index = 0; index != 6; index++) {
+		for (USHORT index = 0; index != 6; index++) {
 			if (keyword[index] != expr[index]) {
 				return result;
 			}
@@ -2872,19 +2867,14 @@ namespace Construct {
 			delete[] expr_part;
 			result->matched = true;
 			result->args = new void* [1] { rpn_out };
-			result->positions = new TUPLE[3]{
-				TUPLE{0, 6},
-				TUPLE{7, wcslen(expr) - 7},
-				TUPLE{0, 0},
-			};
 		}
 		else {
 			delete[] expr_part;
 		}
 		return result;
 	}
-	Result* input(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* input(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"INPUT ";
 		if (match_keyword(expr, keyword) == 0) {
 			if (Element::valid_variable_path(expr + 6)) {
@@ -2899,10 +2889,10 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* if_header_1(wchar_t* expr) {
+	RESULT* if_header_1(wchar_t* expr) {
 		// IF <condition>
 		//    THEN ...
-		Result* result = new Result;
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"IF ";
 		if (match_keyword(expr, keyword) == 0) {
 			RPN_EXP* rpn_out = nullptr;
@@ -2924,17 +2914,17 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* if_header_2(wchar_t* expr) {
+	RESULT* if_header_2(wchar_t* expr) {
 		// IF <condition> THEN
 		//     ...
-		Result* result = new Result;
+		RESULT* result = new RESULT;
 		static const wchar_t* keywords[] = { L"IF ", L" THEN" };
-		for (unsigned short index = 0; index != 3; index++) {
+		for (USHORT index = 0; index != 3; index++) {
 			if (keywords[0][index] != expr[index]) {
 				return result;
 			}
 		}
-		for (unsigned short index = 0; index != 5; index++) {
+		for (USHORT index = 0; index != 5; index++) {
 			if (keywords[1][index] != expr[wcslen(expr) - 5 + index]) {
 				return result;
 			}
@@ -2963,10 +2953,10 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* then_tag(wchar_t* expr) {
+	RESULT* then_tag(wchar_t* expr) {
 		// THEN
 		//     <statements>
-		Result* result = new Result;
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"THEN";
 		if (match_keyword(expr, keyword) == 0) {
 			result->matched = true;
@@ -2988,10 +2978,10 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* else_tag(wchar_t* expr) {
+	RESULT* else_tag(wchar_t* expr) {
 		// ELSE
 		//     <statements>
-		Result* result = new Result;
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"ELSE";
 		if (match_keyword(expr, keyword) == 0) {
 			result->matched = true;
@@ -3013,8 +3003,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* case_of_header(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* case_of_header(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"CASE OF ";
 		if (match_keyword(expr, keyword) == 0) {
 			RPN_EXP* rpn_out = nullptr;
@@ -3036,8 +3026,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* case_tag(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* case_tag(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		if (expr[wcslen(expr) - 1] == 58) {
 			expr[wcslen(expr) - 1] = 0;
 			RPN_EXP* rpn_out = nullptr;
@@ -3068,8 +3058,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* otherwise_tag(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* otherwise_tag(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		if (wcslen(expr) != 9) { return result; }
 		static const wchar_t* keyword = L"OTHERWISE";
 		if (match_keyword(expr, keyword) == 0) {
@@ -3092,12 +3082,12 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* for_header_1(wchar_t* expr) {
+	RESULT* for_header_1(wchar_t* expr) {
 		// FOR <variable> ← <lower_bound> TO <upper_bound>
-		Result* result = new Result;
+		RESULT* result = new RESULT;
 		static const wchar_t* keywords[] = { L"FOR ", L"←", L" TO " };
 		long long positions[3] = {};
-		for (unsigned short index = 0; index != 3; index++) {
+		for (USHORT index = 0; index != 3; index++) {
 			positions[index] = match_keyword(expr, keywords[index]);
 			if (positions[index] == -1) {
 				return result;
@@ -3149,9 +3139,9 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* for_header_2(wchar_t* expr) {
+	RESULT* for_header_2(wchar_t* expr) {
 		// FOR <variable> ← <lower_bound> TO <upper_bound> STEP <step>
-		Result* result = new Result;
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L" STEP ";
 		long long position = match_keyword(expr, keyword);
 		if (position != -1) {
@@ -3163,7 +3153,7 @@ namespace Construct {
 				delete[] former_part;
 				return result;
 			}
-			Result* former_result = for_header_1(former_part);
+			RESULT* former_result = for_header_1(former_part);
 			if (not former_result->matched) {
 				delete[] former_part;
 				delete rpn_out;
@@ -3177,8 +3167,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* for_ender(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* for_ender(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"NEXT ";
 		if (match_keyword(expr, keyword) == 0) {
 			if (Element::valid_variable_path(expr + 5)) {
@@ -3201,8 +3191,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* while_header(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* while_header(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keywords[] = { L"WHILE ", L" DO" };
 		long long positions[2] = {};
 		positions[0] = match_keyword(expr, keywords[0]);
@@ -3230,8 +3220,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* repeat_header(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* repeat_header(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"REPEAT";
 		if (match_keyword(expr, keyword) == 0) {
 			result->matched = true;
@@ -3247,8 +3237,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* repeat_ender(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* repeat_ender(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"UNTIL ";
 		if (match_keyword(expr, keyword) == 0) {
 			RPN_EXP* rpn_out = nullptr;
@@ -3272,10 +3262,10 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* ender(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* ender(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keywords[] = { L"ENDIF", L"ENDCASE", L"ENDWHILE", L"ENDTRY"};
-		for (unsigned short index = 0; index != 4; index++) {
+		for (USHORT index = 0; index != 4; index++) {
 			if (match_keyword(expr, keywords[index]) == 0){
 				result->matched = true;
 				switch (index) {
@@ -3330,7 +3320,7 @@ namespace Construct {
 				}
 				nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
 				result->args = new void* [] {
-					new unsigned short{index},
+					new USHORT{index},
 					nesting[nesting_ptr - 1]
 				};
 				nesting_ptr--;
@@ -3338,8 +3328,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* procedure_header(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* procedure_header(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"PROCEDURE ";
 		if (match_keyword(expr, keyword) == 0 and expr[wcslen(expr) - 1] == 41) {
 			for (size_t index = 0; expr[index] != 0; index++) {
@@ -3356,7 +3346,7 @@ namespace Construct {
 					memcpy(parameter_string, expr + index, (wcslen(expr) - index) * 2);
 					parameter_string[wcslen(expr) - index] = 0;
 					Parameter* params = nullptr;
-					unsigned short number_of_args = 0;
+					USHORT number_of_args = 0;
 					bool valid_parameter_list = Element::parameter_list(parameter_string, &params, &number_of_args);
 					delete[] parameter_string;
 					if (not valid_parameter_list) {
@@ -3367,7 +3357,7 @@ namespace Construct {
 					if (nesting_ptr == 128) {
 						result->error_message = L"嵌套深度达到上限";
 						delete[] function_name;
-						for (unsigned short arg_index = 0; arg_index != number_of_args; arg_index++) {
+						for (USHORT arg_index = 0; arg_index != number_of_args; arg_index++) {
 							delete[] params[arg_index].name;
 							delete[] params[arg_index].type;
 						}
@@ -3377,7 +3367,7 @@ namespace Construct {
 					result->args = new void* [] {
 						nesting[nesting_ptr],
 						function_name,
-						new unsigned short{ number_of_args },
+						new USHORT{ number_of_args },
 						params,
 					};
 					nesting_ptr++;
@@ -3387,8 +3377,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* procedure_ender(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* procedure_ender(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"ENDPROCEDURE";
 		if (match_keyword(expr, keyword) == 0) {
 			result->matched = true;
@@ -3408,8 +3398,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* function_header(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* function_header(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"FUNCTION ";
 		if (match_keyword(expr, keyword) == 0) {
 			static const wchar_t* return_keyword = L" RETURNS ";
@@ -3426,7 +3416,7 @@ namespace Construct {
 					parameter_part[position - index] = 0;
 					return_type[wcslen(expr) - position - 9] = 0;
 					Parameter* params = nullptr;
-					unsigned short number_of_args = 0;
+					USHORT number_of_args = 0;
 					bool valid_name = Element::variable(function_name) and Element::variable(return_type);
 					if (not valid_name) {
 						delete[] function_name;
@@ -3441,7 +3431,7 @@ namespace Construct {
 						if (nesting_ptr == 128) {
 							result->error_message = L"嵌套深度达到上限";
 							delete[] function_name;
-							for (unsigned short arg_index = 0; arg_index != number_of_args; arg_index++) {
+							for (USHORT arg_index = 0; arg_index != number_of_args; arg_index++) {
 								delete[] params[arg_index].name;
 								delete[] params[arg_index].type;
 							}
@@ -3451,7 +3441,7 @@ namespace Construct {
 						result->args = new void* [] {
 							nesting[nesting_ptr],
 							function_name,
-							new unsigned short{ number_of_args },
+							new USHORT{ number_of_args },
 							params,
 							return_type,
 						};
@@ -3467,8 +3457,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* function_ender(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* function_ender(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"ENDFUNCTION";
 		if (match_keyword(expr, keyword) == 0) {
 			result->matched = true;
@@ -3488,8 +3478,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* continue_tag(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* continue_tag(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"CONTINUE";
 		if (match_keyword(expr, keyword) == 0) {
 			result->matched = true;
@@ -3497,7 +3487,7 @@ namespace Construct {
 				result->error_message = L"未找到CONTINUE标签对应的FOR, WHILE或REPEAT头";
 			}
 			else {
-				for (unsigned short depth = nesting_ptr - 1;; depth--) {
+				for (USHORT depth = nesting_ptr - 1;; depth--) {
 					if (nesting[depth]->nest_type == Nesting::FOR or
 						nesting[depth]->nest_type == Nesting::WHILE or
 						nesting[depth]->nest_type == Nesting::REPEAT) {
@@ -3513,8 +3503,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* break_tag(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* break_tag(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"BREAK";
 		if (match_keyword(expr, keyword) == 0) {
 			result->matched = true;
@@ -3522,7 +3512,7 @@ namespace Construct {
 				result->error_message = L"未找到BREAK标签对应的FOR, WHILE或REPEAT头";
 			}
 			else {
-				for (unsigned short depth = nesting_ptr - 1;; depth--) {
+				for (USHORT depth = nesting_ptr - 1;; depth--) {
 					if (nesting[depth]->nest_type == Nesting::FOR or
 						nesting[depth]->nest_type == Nesting::WHILE or
 						nesting[depth]->nest_type == Nesting::REPEAT) {
@@ -3538,8 +3528,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* return_statement(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* return_statement(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		if (match_keyword(expr, L"RETURN") == 0) {
 			if (wcslen(expr) > 6) {
 				if (expr[6] != L' ') {
@@ -3547,7 +3537,7 @@ namespace Construct {
 				}
 			}
 			result->matched = true;
-			for (unsigned short depth = nesting_ptr - 1;; depth--) {
+			for (USHORT depth = nesting_ptr - 1;; depth--) {
 				if (nesting[depth]->nest_type == Nesting::PROCEDURE or
 					nesting[depth]->nest_type == Nesting::FUNCTION) {
 					if (wcslen(expr) > 7) {
@@ -3574,8 +3564,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* try_header(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* try_header(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"TRY";
 		if (match_keyword(expr, keyword) == 0) {
 			result->matched = true;
@@ -3592,8 +3582,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* except_tag(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* except_tag(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"EXCEPT";
 		if (match_keyword(expr, keyword) == 0) {
 			result->matched = true;
@@ -3615,8 +3605,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* openfile_statement(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* openfile_statement(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword_openfile = L"OPENFILE ";
 		if (match_keyword(expr, keyword_openfile) == 0) {
 			static const wchar_t* keyword_for = L" FOR ";
@@ -3633,12 +3623,12 @@ namespace Construct {
 				delete[] filename_string;
 				if (match_result) {
 					static const wchar_t* modes[] = { L"READ", L"WRITE", L"APPEND" };
-					for (unsigned short mode_index = 0; mode_index != 3; mode_index++) {
+					for (USHORT mode_index = 0; mode_index != 3; mode_index++) {
 						if (match_keyword(expr + position + 5, modes[mode_index])) {
 							result->matched = true;
 							result->args = new void* [] {
 								rpn_out,
-								new unsigned short{mode_index},
+								new USHORT{mode_index},
 							};
 							return result;
 						}
@@ -3648,8 +3638,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* readfile_statement(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* readfile_statement(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"READFILE ";
 		if (match_keyword(expr, keyword) == 0) {
 			for (size_t index = 9; expr[index] != 0; index++) {
@@ -3684,8 +3674,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* writefile_statement(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* writefile_statement(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"WRITEFILE ";
 		if (match_keyword(expr, keyword) == 0) {
 			for (size_t index = 10; expr[index] != 0; index++) {
@@ -3725,8 +3715,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* closefile_statement(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* closefile_statement(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"CLOSEFILE";
 		if (match_keyword(expr, keyword) == 0) {
 			RPN_EXP* rpn_out = nullptr;
@@ -3739,8 +3729,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* seek_statement(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* seek_statement(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"SEEK ";
 		if (match_keyword(expr, keyword) == 0) {
 			for (size_t index = 5; expr[index] != 0; index++) {
@@ -3779,8 +3769,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* getrecord_statement(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* getrecord_statement(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"GETRECORD ";
 		if (match_keyword(expr, keyword) == 0) {
 			for (size_t index = 10; expr[index] != 0; index++) {
@@ -3815,8 +3805,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* putrecord_statement(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* putrecord_statement(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		static const wchar_t* keyword = L"PUTRECORD ";
 		if (match_keyword(expr, keyword) == 0) {
 			for (size_t index = 10; expr[index] != 0; index++) {
@@ -3856,8 +3846,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	Result* single_expression(wchar_t* expr) {
-		Result* result = new Result;
+	RESULT* single_expression(wchar_t* expr) {
+		RESULT* result = new RESULT;
 		RPN_EXP* rpn_out = nullptr;
 		if (Element::expression(expr, &rpn_out)) {
 			result->matched = true;
@@ -3874,5 +3864,17 @@ namespace Construct {
 		function_header, function_ender, continue_tag, break_tag, return_statement, try_header,
 		except_tag, openfile_statement, readfile_statement, writefile_statement, closefile_statement,
 		seek_statement, getrecord_statement, putrecord_statement, single_expression };
-	unsigned short number_of_constructs = sizeof(constructs) / sizeof(void*);
+	USHORT number_of_constructs = sizeof(constructs) / sizeof(void*);
+	CONSTRUCT parse(wchar_t* line) {
+		for (USHORT index = 0; index != number_of_constructs; index++) {
+			RESULT* result = ((RESULT* (*)(wchar_t*))constructs[index])(line);
+			if (result->matched) {
+				return CONSTRUCT{ index, result };
+			}
+			else {
+				delete result;
+			}
+		}
+		return CONSTRUCT{ NULL, nullptr };
+	}
 }

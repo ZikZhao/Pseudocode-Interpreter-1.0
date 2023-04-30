@@ -19,12 +19,4 @@
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="test.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <Font Include="..\Pseudocode Interpreter MFC\YAHEI CONSOLAS HYBRID.TTF" />
-  </ItemGroup>
 </Project>

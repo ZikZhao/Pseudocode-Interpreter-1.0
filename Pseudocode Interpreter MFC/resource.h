@@ -36,10 +36,12 @@
 #define IDB_DEBUG_CONTINUE              141
 #define ID_SETTINGS                     142
 #define IDB_FILE_OPEN                   142
+#define IDB_FILE_SAVEAS                 143
 #define ID_DEBUG_STEPIN                 144
 #define ID_DEBUG_STEPOVER               145
 #define ID_DEBUG_STEPOUT                146
 #define ID_DEBUG_CONTINUE               147
+#define ID_FILE_SAVEAS                  148
 #define ID_32771                        32771
 #define ID_32772                        32772
 #define ID_32773                        32773
@@ -56,9 +58,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        143
+#define _APS_NEXT_RESOURCE_VALUE        144
 #define _APS_NEXT_COMMAND_VALUE         32784
 #define _APS_NEXT_CONTROL_VALUE         141
-#define _APS_NEXT_SYMED_VALUE           148
+#define _APS_NEXT_SYMED_VALUE           149
 #endif
 #endif

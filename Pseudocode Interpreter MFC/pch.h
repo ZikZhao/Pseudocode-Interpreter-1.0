@@ -8,6 +8,7 @@
 #include "framework.h"
 #include "afxwinappex.h"
 #include "afxdialogex.h"
+#include "IndexedList.h"
 #include "Pseudocode Interpreter MFC.h"
 #include "Slider.h"
 #include "../Pseudocode Interpreter/Definitions.h"

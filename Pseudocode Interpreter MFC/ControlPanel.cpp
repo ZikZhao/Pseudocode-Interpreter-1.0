@@ -231,7 +231,7 @@ void CControlPanelButton::OnLButtonUp(UINT nFlags, CPoint point)
 {
 	ReleaseCapture();
 	if (point.x < 68 and point.y < 88) {
-		CMainFrame::pObject->SendMessageW(WM_COMMAND, MAKEWPARAM(m_CommandID, 0), NULL);
+		CMainFrame::pObject->SendMessageW(WM_COMMAND, m_CommandID, NULL);
 	}
 }
 void CControlPanelButton::SetState(bool state)
@@ -274,6 +274,7 @@ int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			BUTTON(ID_FILE_NEW, IDB_FILE_NEW, L"新建", 0)
 			BUTTON(ID_FILE_OPEN, IDB_FILE_OPEN, L"打开", 80)
 			BUTTON(ID_FILE_SAVE, IDB_FILE_SAVE, L"保存", 160)
+			BUTTON(ID_FILE_SAVEAS, IDB_FILE_SAVEAS, L"另存为", 240)
 		END_GROUP()
 		return 0;
 	case 1:

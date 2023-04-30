@@ -1,5 +1,8 @@
 #pragma once
 #pragma comment(linker, "/STACK:20971520")
+#ifdef EOF
+#undef EOF
+#endif
 #define WRITE_CONSOLE(handle, lpStr, cchStr) {int size = WideCharToMultiByte(CP_ACP, WC_ERR_INVALID_CHARS, lpStr, cchStr, nullptr, NULL, nullptr, nullptr); char* buffer = new char[size]; WideCharToMultiByte(CP_ACP, WC_ERR_INVALID_CHARS, lpStr, cchStr, buffer, size, nullptr, nullptr); WriteFile(handle, buffer, size, nullptr, nullptr);}
 
 extern HANDLE standard_input;
@@ -13,23 +16,23 @@ extern USHORT step_depth;
 extern HANDLE step_handled;
 void SendSignal(UINT message, WPARAM wParam, LPARAM lParam);
 bool CheckBreakpoint(ULONG64 line_index);
-typedef void (*FUNCTION_PTR)(Result*);
+typedef void (*FUNCTION_PTR)(RESULT*);
 
-MatchedSyntax* parsed_code = nullptr;
+CONSTRUCT* parsed_code = nullptr;
 BinaryTree* current_locals = nullptr;
 BinaryTree* globals = new BinaryTree;
 BinaryTree* enumerations = new BinaryTree; // a binary tree storing all the enumerated constants
 bool define_record = false;
 wchar_t* record_name;
 BinaryTree record_fields; // data structure used to store declaration statements of record type
-CallFrame* call = new CallFrame[128]; // maximum calling depth: 128 (defined in Debug.h)
-unsigned short calling_ptr = 0;
+CALLFRAME* call = new CALLFRAME[128]; // maximum calling depth: 128 (defined in Debug.h)
+USHORT calling_ptr = 0;
 Data* return_value = nullptr;
 
 Data* evaluate(RPN_EXP* expr); // forward declaration
 Data* evaluate_variable(wchar_t* path, bool* constant = nullptr); // forward declaration
 Data* evaluate_variable(Data* current, wchar_t* expr); // forward declaration
-Data* function_calling(wchar_t* function_name, unsigned short number_of_args, Data** args); // forward declaration
+Data* function_calling(wchar_t* function_name, USHORT number_of_args, Data** args); // forward declaration
 
 inline BinaryTree::Node* find_variable(wchar_t* variable_name) {
 	BinaryTree::Node* local_node = nullptr;
@@ -41,7 +44,7 @@ inline BinaryTree::Node* find_variable(wchar_t* variable_name) {
 }
 
 Data* evaluate_type(wchar_t* expr) {
-	unsigned short type = 0;
+	USHORT type = 0;
 	if (Element::fundamental_type(expr, &type)) {
 		Data* type_data = new Data{ type, nullptr };
 		return type_data;
@@ -65,13 +68,13 @@ Data* evaluate_type(wchar_t* expr) {
 }
 
 namespace Builtins {
-	unsigned short number_of_args_list[] = { 3, 1, 2, 2, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1 };
+	USHORT number_of_args_list[] = { 3, 1, 2, 2, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1 };
 	const wchar_t* function_name_list[] = { L"MID", L"LENGTH", L"LEFT", L"RIGHT", L"ASC", L"CHR", L"MOD",
 		L"DIV", L"LCASE", L"UCASE", L"TO_LOWER", L"TO_UPPER", L"INT", L"STRING_TO_NUM", L"RANDINT", L"EOF", L"HASH"};
-	bool check_args(Data** args, unsigned short function_index, const unsigned short* types, wchar_t** error_message_out = nullptr) {
-		unsigned short& number_of_args = number_of_args_list[function_index];
+	bool check_args(Data** args, USHORT function_index, const USHORT* types, wchar_t** error_message_out = nullptr) {
+		USHORT& number_of_args = number_of_args_list[function_index];
 		static wchar_t* function_name = const_cast<wchar_t*>(function_name_list[function_index]);
-		for (unsigned short index = 0; index != number_of_args; index++) {
+		for (USHORT index = 0; index != number_of_args; index++) {
 			if (args[index]->type != types[index]) {
 				if (error_message_out) {
 					static wchar_t const* message_template = L"函数：第参数与定义时的数据类型不符";
@@ -94,7 +97,7 @@ namespace Builtins {
 		Data*& ThisString = args[0];
 		Data*& x = args[1];
 		Data*& y = args[2];
-		static unsigned short types[] = { 3, 0, 0 };
+		static USHORT types[] = { 3, 0, 0 };
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 0, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
@@ -110,7 +113,7 @@ namespace Builtins {
 	}
 	Data* LENGTH(Data** args) {
 		Data*& ThisString = args[0];
-		static unsigned short types[] = { 3 };
+		static USHORT types[] = { 3 };
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 1, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
@@ -122,7 +125,7 @@ namespace Builtins {
 	Data* LEFT(Data** args) {
 		Data*& ThisString = args[0];
 		Data*& x = args[1];
-		static unsigned short types[] = { 3, 0 };
+		static USHORT types[] = { 3, 0 };
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 2, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
@@ -134,7 +137,7 @@ namespace Builtins {
 	Data* RIGHT(Data** args) {
 		Data*& ThisString = args[0];
 		Data*& x = args[1];
-		static unsigned short types[] = { 3, 0 };
+		static USHORT types[] = { 3, 0 };
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 3, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
@@ -146,7 +149,7 @@ namespace Builtins {
 	}
 	Data* ASC(Data** args) {
 		Data*& ThisString = args[0];
-		static unsigned short types[] = { 2 };
+		static USHORT types[] = { 2 };
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 4, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
@@ -156,7 +159,7 @@ namespace Builtins {
 	}
 	Data* CHR(Data** args) {
 		Data*& x = args[0];
-		static unsigned short types[] = { 0 };
+		static USHORT types[] = { 0 };
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 5, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
@@ -170,7 +173,7 @@ namespace Builtins {
 	Data* MOD(Data** args) {
 		Data*& ThisNum = args[0];
 		Data*& ThisDiv = args[1];
-		static unsigned short types[] = { 0, 0 };
+		static USHORT types[] = { 0, 0 };
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 6, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
@@ -185,7 +188,7 @@ namespace Builtins {
 	Data* DIV(Data** args) {
 		Data*& ThisNum = args[0];
 		Data*& ThisDiv = args[1];
-		static unsigned short types[] = { 0, 0 };
+		static USHORT types[] = { 0, 0 };
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 7, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
@@ -199,7 +202,7 @@ namespace Builtins {
 	}
 	Data* LCASE(Data** args) {
 		Data*& x = args[0];
-		static unsigned short types[] = { 2 };
+		static USHORT types[] = { 2 };
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 8, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
@@ -214,7 +217,7 @@ namespace Builtins {
 	}
 	Data* UCASE(Data** args) {
 		Data*& x = args[0];
-		static unsigned short types[] = { 2 };
+		static USHORT types[] = { 2 };
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 9, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
@@ -229,7 +232,7 @@ namespace Builtins {
 	}
 	Data* TO_LOWER(Data** args) {
 		Data*& x = args[0];
-		static unsigned short types[] = { 3 };
+		static USHORT types[] = { 3 };
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 10, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
@@ -246,7 +249,7 @@ namespace Builtins {
 	}
 	Data* TO_UPPER(Data** args) {
 		Data*& x = args[0];
-		static unsigned short types[] = { 3 };
+		static USHORT types[] = { 3 };
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 11, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
@@ -263,7 +266,7 @@ namespace Builtins {
 	}
 	Data* INT(Data** args) {
 		Data*& x = args[0];
-		static unsigned short types[] = { 1 };
+		static USHORT types[] = { 1 };
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 12, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
@@ -273,7 +276,7 @@ namespace Builtins {
 	}
 	Data* STRING_TO_NUM(Data** args) {
 		Data*& x = args[0];
-		static unsigned short types[] = { 3 };
+		static USHORT types[] = { 3 };
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 13, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
@@ -285,7 +288,7 @@ namespace Builtins {
 	Data* RANDINT(Data** args) {
 		Data*& lower = args[0];
 		Data*& upper = args[1];
-		static unsigned short types[] = { 0, 0 };
+		static USHORT types[] = { 0, 0 };
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 14, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
@@ -295,16 +298,16 @@ namespace Builtins {
 		srand((unsigned int)time(0));
 		return new Data{ 0, new DataType::Integer(rand() % (upper_bound - lower_bound + 1) + lower_bound) };
 	}
-	Data* _EOF(Data** args) {
+	Data* EOF(Data** args) {
 		// EOF is defined as a macro in stdio.h
 		Data*& filename = args[0];
-		static unsigned short types[] = { 3 };
+		static USHORT types[] = { 3 };
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 15, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
 		}
 		wchar_t*& string = ((DataType::String*)filename->value)->string;
-		for (unsigned short file_index = 0; file_index != file_ptr; file_index++) {
+		for (USHORT file_index = 0; file_index != file_ptr; file_index++) {
 			if (wcslen(string) == wcslen(files[file_index].filename)) {
 				bool matched = true;
 				for (size_t index = 0; string[index] != 0; index++) {
@@ -372,16 +375,16 @@ namespace Builtins {
 		}
 		return new Data{ 0, new DataType::Integer(hash_value) };
 	}
-	void* find(wchar_t* function_name, unsigned short* args_number_out = nullptr) {
+	void* find(wchar_t* function_name, USHORT* args_number_out = nullptr) {
 		static void* functions[] = {
 			MID, LENGTH, LEFT, RIGHT, ASC, CHR, MOD, DIV, LCASE, UCASE, TO_LOWER, TO_UPPER,
-			INT, STRING_TO_NUM, RANDINT, _EOF, HASH
+			INT, STRING_TO_NUM, RANDINT, EOF, HASH
 		};
-		static unsigned short number_of_functions = sizeof(functions) / sizeof(void*);
-		for (unsigned short index = 0; index != number_of_functions; index++) {
+		static USHORT number_of_functions = sizeof(functions) / sizeof(void*);
+		for (USHORT index = 0; index != number_of_functions; index++) {
 			if (function_name_list[index][0] == function_name[0] and wcslen(function_name) == wcslen(function_name_list[index])) {
 				bool matched = true;
-				for (unsigned short index2 = 0; function_name[index2] != 0; index2++) {
+				for (USHORT index2 = 0; function_name[index2] != 0; index2++) {
 					if (function_name_list[index][index2] != function_name[index2]) {
 						matched = false;
 						break;
@@ -398,13 +401,13 @@ namespace Builtins {
 }
 
 namespace Execution {
-	void empty_line(Result* result) {
+	void empty_line(RESULT* result) {
 		UNREFERENCED_PARAMETER(result);
 	}
-	void declaration(Result* result) {
-		unsigned short count = *(unsigned short*)result->args[1];
+	void declaration(RESULT* result) {
+		USHORT count = *(USHORT*)result->args[1];
 		BinaryTree& scope = current_locals ? *current_locals : *globals;
-		for (unsigned short variable_index = 0; variable_index != count; variable_index++) {
+		for (USHORT variable_index = 0; variable_index != count; variable_index++) {
 			if (define_record) {
 				if (record_fields.find(((wchar_t**)result->args[2])[variable_index])) {
 					throw Error(TypeError, L"字段已在记录类型中声明");
@@ -424,7 +427,7 @@ namespace Execution {
 			}
 			else { // array type
 				Data* type_data = evaluate_type((wchar_t*)result->args[4]);
-				DataType::Array* object = new DataType::Array{ type_data, (unsigned short*)result->args[3] };
+				DataType::Array* object = new DataType::Array{ type_data, (USHORT*)result->args[3] };
 				data = new Data{ 6, object, true };
 			}
 			if (define_record) {
@@ -435,7 +438,7 @@ namespace Execution {
 			}
 		}
 	}
-	void assignment(Result* result) {
+	void assignment(RESULT* result) {
 		bool is_constant = false;
 		Data* assignment_point = evaluate_variable((wchar_t*)result->args[0], &is_constant);
 		if (is_constant) {
@@ -469,7 +472,7 @@ namespace Execution {
 			}
 		}
 	}
-	void constant(Result* result) {
+	void constant(RESULT* result) {
 		BinaryTree* scope = current_locals ? current_locals : globals;
 		BinaryTree::Node* target_node = find_variable((wchar_t*)result->args[0]);
 		if (target_node) {
@@ -480,7 +483,7 @@ namespace Execution {
 		scope->insert((wchar_t*)result->args[0], eval_result, true);
 		return;
 	}
-	void type_header(Result* result) {
+	void type_header(RESULT* result) {
 		if (current_locals) {
 			throw Error(SyntaxError, L"在局部域中定义结构体是非法的");
 		}
@@ -492,7 +495,7 @@ namespace Execution {
 			record_name = (wchar_t*)result->args[0];
 		}
 	}
-	void type_ender(Result* result) {
+	void type_ender(RESULT* result) {
 		UNREFERENCED_PARAMETER(result);
 		if (define_record == false) {
 			throw Error(SyntaxError, L"未找到ENDTYPE标签对应的TYPE头");
@@ -503,7 +506,7 @@ namespace Execution {
 		define_record = false;
 		record_name = nullptr;
 	}
-	void pointer_type_header(Result* result) {
+	void pointer_type_header(RESULT* result) {
 		if (current_locals) {
 			throw Error(SyntaxError, L"在局部域中定义指针类型是非法的");
 		}
@@ -520,10 +523,10 @@ namespace Execution {
 			wchar_t* type_expr = ((wchar_t*)result->args[1]) + 1; // skip pointer sign
 			// fundamental data types
 			static const wchar_t* fundamentals[] = { L"INTEGER", L"REAL", L"CHAR", L"STRING", L"boolEAN", L"DATE" };
-			for (unsigned short index = 0; index != 6; index++) {
+			for (USHORT index = 0; index != 6; index++) {
 				if (type_expr[0] == fundamentals[index][0] and wcslen(type_expr) == wcslen(fundamentals[index])) {
 					bool matched = true;
-					for (unsigned short index2 = 1; type_expr[index2] != 0; index2++) {
+					for (USHORT index2 = 1; type_expr[index2] != 0; index2++) {
 						if (type_expr[index2] != fundamentals[index][index2]) {
 							matched = false;
 							break;
@@ -548,7 +551,7 @@ namespace Execution {
 			}
 		}
 	}
-	void enumerated_type_header(Result* result){
+	void enumerated_type_header(RESULT* result){
 		if (current_locals) {
 			throw Error(SyntaxError, L"在局部域中定义枚举类型是非法的");
 		}
@@ -561,7 +564,7 @@ namespace Execution {
 		Data* data = new Data{ 11, new_type };
 		globals->insert((wchar_t*)result->args[0], data);
 	}
-	void output(Result* result) {
+	void output(RESULT* result) {
 		Data* data = evaluate((RPN_EXP*)result->args[0]);
 		if (not data) {
 			throw Error(EvaluationError, L"调用的子程序返回值为空，无法完成输出操作");
@@ -576,7 +579,7 @@ namespace Execution {
 		delete[] message;
 		DataType::release_data(data);
 	}
-	void input(Result* result) {
+	void input(RESULT* result) {
 		bool is_constant = false;
 		Data* variable_data = evaluate_variable((wchar_t*)result->args[0], &is_constant);
 		if (is_constant) {
@@ -602,7 +605,7 @@ namespace Execution {
 		variable_data->variable_data = true;
 		delete[] wchar_buffer;
 	}
-	void if_header_1(Result* result) {
+	void if_header_1(RESULT* result) {
 		Data* data = evaluate((RPN_EXP*)result->args[1]);
 		if (data->type != 4) {
 			DataType::release_data(data);
@@ -616,7 +619,7 @@ namespace Execution {
 		}
 		DataType::release_data(data);
 	}
-	void if_header_2(Result* result) {
+	void if_header_2(RESULT* result) {
 		Data* data = evaluate((RPN_EXP*)result->args[1]);
 		if (data->type != 4) {
 			DataType::release_data(data);
@@ -627,16 +630,16 @@ namespace Execution {
 		}
 		DataType::release_data(data);
 	}
-	void then_tag(Result* result) {
+	void then_tag(RESULT* result) {
 		UNREFERENCED_PARAMETER(result);
 		return; // nothing to do
 	}
-	void else_tag(Result* result) {
+	void else_tag(RESULT* result) {
 		current_instruction_index = ((Nesting*)result->args[0])->line_numbers[3];
 	}
-	void case_of_header(Result* result) {
+	void case_of_header(RESULT* result) {
 		Data* data = evaluate((RPN_EXP*)result->args[1]);
-		for (unsigned short tag_index = 0; tag_index != ((Nesting*)result->args[0])->nest_info->case_of_info.number_of_values; tag_index++) {
+		for (USHORT tag_index = 0; tag_index != ((Nesting*)result->args[0])->nest_info->case_of_info.number_of_values; tag_index++) {
 			Data* match_data = evaluate((RPN_EXP*)((Nesting*)result->args[0])->nest_info->case_of_info.values[tag_index]);
 			bool match_result = DataType::check_identical(data, match_data);
 			DataType::release_data(match_data);
@@ -654,13 +657,13 @@ namespace Execution {
 			current_instruction_index = ((Nesting*)result->args[0])->line_numbers[((Nesting*)result->args[0])->tag_number - 1];
 		}
 	}
-	void case_tag(Result* result) {
+	void case_tag(RESULT* result) {
 		current_instruction_index = ((Nesting*)result->args[0])->line_numbers[((Nesting*)result->args[0])->tag_number - 1]; // ENDCASE
 	}
-	void otherwise_tag(Result* result) {
+	void otherwise_tag(RESULT* result) {
 		current_instruction_index = ((Nesting*)result->args[0])->line_numbers[((Nesting*)result->args[0])->tag_number - 1]; // ENDCASE
 	}
-	void for_header_1(Result* result) {
+	void for_header_1(RESULT* result) {
 		// only run in first loop as ender does not return to this statement
 		BinaryTree::Node* node = find_variable((wchar_t*)result->args[1]);
 		Data* lower_bound = evaluate((RPN_EXP*)result->args[2]);
@@ -699,10 +702,10 @@ namespace Execution {
 		}
 		((Nesting*)result->args[0])->nest_info->for_info.init = true;
 	}
-	void for_header_2(Result* result) {
+	void for_header_2(RESULT* result) {
 		for_header_1(result);
 	}
-	void for_ender(Result* result) {
+	void for_ender(RESULT* result) {
 		BinaryTree::Node* node = find_variable((wchar_t*)result->args[1]);
 		if (not node) {
 			throw Error(VariableError, L"变量不存在");
@@ -728,7 +731,7 @@ namespace Execution {
 			current_instruction_index = ((Nesting*)result->args[0])->line_numbers[0];
 		}
 	}
-	void while_header(Result* result) {
+	void while_header(RESULT* result) {
 		Data* data = evaluate((RPN_EXP*)result->args[1]);
 		if (data->type != 4) {
 			DataType::release_data(data);
@@ -739,11 +742,11 @@ namespace Execution {
 		}
 		DataType::release_data(data);
 	}
-	void repeat_header(Result* result) {
+	void repeat_header(RESULT* result) {
 		UNREFERENCED_PARAMETER(result);
 		return;
 	}
-	void repeat_ender(Result* result) {
+	void repeat_ender(RESULT* result) {
 		Data* data = evaluate((RPN_EXP*)result->args[1]);
 		if (data->type != 4) {
 			DataType::release_data(data);
@@ -754,8 +757,8 @@ namespace Execution {
 		}
 		DataType::release_data(data);
 	}
-	void ender(Result* result) {
-		switch (*(unsigned short*)result->args[0]) {
+	void ender(RESULT* result) {
+		switch (*(USHORT*)result->args[0]) {
 		case 0: case 1: case 3:
 			return;
 		case 2: // ENDWHILE
@@ -763,34 +766,34 @@ namespace Execution {
 			break;
 		}
 	}
-	void procedure_header(Result* result) {
+	void procedure_header(RESULT* result) {
 		BinaryTree::Node* node = find_variable((wchar_t*)result->args[1]);
 		if (node) {
 			throw Error(VariableError, L"过程名已被占用");
 		}
-		unsigned short& number_of_args = (*(unsigned short*)result->args[2]);
+		USHORT& number_of_args = (*(USHORT*)result->args[2]);
 		Parameter*& params = (Parameter*&)result->args[3];
-		for (unsigned short index = 0; index != number_of_args; index++) {
+		for (USHORT index = 0; index != number_of_args; index++) {
 			params[index].type = evaluate_type(params[index].type_string);
 		}
 		Data* data = new Data{ 13, new DataType::Function(current_instruction_index, number_of_args, params) };
 		globals->insert((wchar_t*)result->args[1], data);
 		current_instruction_index = ((Nesting*)result->args[0])->line_numbers[1];
 	}
-	void procedure_ender(Result* result) {
+	void procedure_ender(RESULT* result) {
 		UNREFERENCED_PARAMETER(result);
 		return_value = new Data{ 65535, nullptr };
 	}
-	void function_header(Result* result) {
+	void function_header(RESULT* result) {
 		BinaryTree::Node* node = find_variable((wchar_t*)result->args[1]);
 		if (node) {
 			throw Error(VariableError, L"函数名已被占用");
 		}
-		unsigned short& number_of_args = (*(unsigned short*)result->args[2]);
+		USHORT& number_of_args = (*(USHORT*)result->args[2]);
 		Parameter*& params = (Parameter*&)result->args[3];
 		Data* return_type = evaluate_type((wchar_t*)result->args[4]);
-		for (unsigned short index = 0; index != number_of_args; index++) {
-			unsigned short bulitin_type = 0;
+		for (USHORT index = 0; index != number_of_args; index++) {
+			USHORT bulitin_type = 0;
 			if (Element::fundamental_type(params[index].type_string, &bulitin_type)) {
 				params[index].type = new Data{ bulitin_type, nullptr };
 			}
@@ -805,16 +808,16 @@ namespace Execution {
 		globals->insert((wchar_t*)result->args[1], data);
 		current_instruction_index = ((Nesting*)result->args[0])->line_numbers[1];
 	}
-	void function_ender(Result* result) {
+	void function_ender(RESULT* result) {
 		procedure_ender(result);
 	}
-	void continue_tag(Result* result) {
+	void continue_tag(RESULT* result) {
 		current_instruction_index = ((Nesting*)result->args[0])->line_numbers[1] - 1;
 	}
-	void break_tag(Result* result) {
+	void break_tag(RESULT* result) {
 		current_instruction_index = ((Nesting*)result->args[0])->line_numbers[1];
 	}
-	void return_statement(Result* result) {
+	void return_statement(RESULT* result) {
 		if (*(bool*)result->args[0]) {
 			Data* data = evaluate((RPN_EXP*)result->args[2]);
 			if (data->type == 7 or data->type == 9 or data->type == 11) {
@@ -831,19 +834,19 @@ namespace Execution {
 			return_value = new Data{ 65535, nullptr };
 		}
 	}
-	void try_header(Result* result) {
+	void try_header(RESULT* result) {
 		// if EXCEPT tag is defined then when error is detected current_instruction_index is changed to that line
 		// otherwise ENDTRY
 		BinaryTree*& scope = current_locals ? current_locals : globals;
 		scope->error_handling_indexes[scope->error_handling_ptr] = ((Nesting*)result->args[0])->line_numbers[1];
 		scope->error_handling_ptr++;
 	}
-	void except_tag(Result* result) {
+	void except_tag(RESULT* result) {
 		BinaryTree*& scope = current_locals ? current_locals : globals;
 		scope->error_handling_ptr--;
 		current_instruction_index = ((Nesting*)result->args[0])->line_numbers[2];
 	}
-	void openfile_statement(Result* result) {
+	void openfile_statement(RESULT* result) {
 		Data* filename_data = evaluate((RPN_EXP*)result->args[0]);
 		if (filename_data->type != 3) {
 			DataType::release_data(filename_data);
@@ -854,7 +857,7 @@ namespace Execution {
 				DataType::release_data(filename_data);
 				throw Error(ValueError, L"至多同时打开8个文件");
 			}
-			unsigned short mode = *(unsigned short*)result->args[1];
+			USHORT mode = *(USHORT*)result->args[1];
 			wchar_t* filename = new wchar_t[wcslen(((DataType::String*)filename_data->value)->string) + 1];
 			memcpy(filename, ((DataType::String*)filename_data->value)->string, (wcslen(((DataType::String*)filename_data->value)->string) + 1) * 2);
 			DataType::release_data(filename_data);
@@ -877,7 +880,7 @@ namespace Execution {
 			file_ptr++;
 		}
 	}
-	void readfile_statement(Result* result) {
+	void readfile_statement(RESULT* result) {
 		Data* filename_data = evaluate((RPN_EXP*)result->args[0]);
 		if (filename_data->type != 3) {
 			DataType::release_data(filename_data);
@@ -885,7 +888,7 @@ namespace Execution {
 		}
 		else {
 			wchar_t*& filename = ((DataType::String*)filename_data->value)->string;
-			for (unsigned short file_index = 0; file_index != file_ptr; file_index++) {
+			for (USHORT file_index = 0; file_index != file_ptr; file_index++) {
 				if (wcslen(filename) == wcslen(files[file_index].filename)) {
 					bool matched = true;
 					for (size_t index = 0; filename[index] != 0; index++) {
@@ -923,7 +926,7 @@ namespace Execution {
 			throw Error(ValueError, L"文件未打开");
 		}
 	}
-	void writefile_statement(Result* result) {
+	void writefile_statement(RESULT* result) {
 		Data* filename_data = evaluate((RPN_EXP*)result->args[0]);
 		Data* message_data = evaluate((RPN_EXP*)result->args[1]);
 		if (filename_data->type != 3) {
@@ -933,7 +936,7 @@ namespace Execution {
 			throw Error(ValueError, L"写入的数据必须为字符串");
 		}
 		wchar_t*& string = ((DataType::String*)filename_data->value)->string;
-		for (unsigned short file_index = 0; file_index != file_ptr; file_index++) {
+		for (USHORT file_index = 0; file_index != file_ptr; file_index++) {
 			if (wcslen(string) == wcslen(files[file_index].filename)) {
 				bool matched = true;
 				for (size_t index = 0; string[index] != 0; index++) {
@@ -958,7 +961,7 @@ namespace Execution {
 		DataType::release_data(message_data);
 		throw Error(ValueError, L"文件未打开");
 	}
-	void closefile_statement(Result* result) {
+	void closefile_statement(RESULT* result) {
 		Data* filename_data = evaluate((RPN_EXP*)result->args[0]);
 		if (filename_data->type != 3) {
 			DataType::release_data(filename_data);
@@ -966,7 +969,7 @@ namespace Execution {
 		}
 		else {
 			wchar_t*& string = ((DataType::String*)filename_data->value)->string;
-			for (unsigned short file_index = 0; file_index != file_ptr; file_index++) {
+			for (USHORT file_index = 0; file_index != file_ptr; file_index++) {
 				if (wcslen(string) == wcslen(files[file_index].filename)) {
 					bool matched = true;
 					for (size_t index = 0; string[index] != 0; index++) {
@@ -988,7 +991,7 @@ namespace Execution {
 		DataType::release_data(filename_data);
 		throw Error(ValueError, L"文件未打开");
 	}
-	void seek_statement(Result* result) {
+	void seek_statement(RESULT* result) {
 		Data* filename_data = evaluate((RPN_EXP*)result->args[0]);
 		Data* address_data = evaluate((RPN_EXP*)result->args[1]);
 		if (filename_data->type != 3) {
@@ -1005,7 +1008,7 @@ namespace Execution {
 			throw Error(ValueError, L"地址必须为数字类型");
 		}
 		wchar_t*& string = ((DataType::String*)filename_data->value)->string;
-		for (unsigned short file_index = 0; file_index != file_ptr; file_index++) {
+		for (USHORT file_index = 0; file_index != file_ptr; file_index++) {
 			if (wcslen(string) == wcslen(files[file_index].filename)) {
 				bool matched = true;
 				for (size_t index = 0; string[index] != 0; index++) {
@@ -1026,7 +1029,7 @@ namespace Execution {
 		DataType::release_data(address_data);
 		throw Error(ValueError, L"文件未打开");
 	}
-	void getrecord_statement(Result* result) {
+	void getrecord_statement(RESULT* result) {
 		Data* filename_data = evaluate((RPN_EXP*)result->args[0]);
 		if (filename_data->type != 3) {
 			DataType::release_data(filename_data);
@@ -1034,7 +1037,7 @@ namespace Execution {
 		}
 		else {
 			wchar_t*& filename = ((DataType::String*)filename_data->value)->string;
-			for (unsigned short file_index = 0; file_index != file_ptr; file_index++) {
+			for (USHORT file_index = 0; file_index != file_ptr; file_index++) {
 				if (wcslen(filename) == wcslen(files[file_index].filename)) {
 					bool matched = true;
 					for (size_t index = 0; filename[index] != 0; index++) {
@@ -1073,14 +1076,14 @@ namespace Execution {
 			throw Error(ValueError, L"文件未打开");
 		}
 	}
-	void putrecord_statement(Result* result) {
+	void putrecord_statement(RESULT* result) {
 		Data* filename_data = evaluate((RPN_EXP*)result->args[0]);
 		Data* record_data = evaluate((RPN_EXP*)result->args[1]);
 		if (filename_data->type != 3) {
 			throw Error(ValueError, L"文件名必须为字符串");
 		}
 		wchar_t*& string = ((DataType::String*)filename_data->value)->string;
-		for (unsigned short file_index = 0; file_index != file_ptr; file_index++) {
+		for (USHORT file_index = 0; file_index != file_ptr; file_index++) {
 			if (wcslen(string) == wcslen(files[file_index].filename)) {
 				bool matched = true;
 				for (size_t index = 0; string[index] != 0; index++) {
@@ -1107,7 +1110,7 @@ namespace Execution {
 		DataType::release_data(record_data);
 		throw Error(ValueError, L"文件未打开");
 	}
-	void single_expression(Result* result) {
+	void single_expression(RESULT* result) {
 		Data* data = evaluate((RPN_EXP*)result->args[0]);
 		if (data) {
 			if (not data->variable_data) {
@@ -1122,7 +1125,7 @@ namespace Execution {
 		function_header, function_ender, continue_tag, break_tag, return_statement, try_header,
 		except_tag, openfile_statement, readfile_statement, writefile_statement, closefile_statement,
 		seek_statement, getrecord_statement, putrecord_statement, single_expression };
-	const unsigned short instructions = sizeof(executions) / sizeof(void*);
+	const USHORT instructions = sizeof(executions) / sizeof(void*);
 }
 
 Data* addressing(wchar_t* expr) {
@@ -1169,11 +1172,11 @@ Data* evaluate_single_element(wchar_t* expr) {
 }
 
 Data* array_access(Data* array_data, wchar_t* expr) {
-	unsigned short last_comma = 0;
-	unsigned short brackets = 1;
-	unsigned short* indexes = new unsigned short[10];
-	unsigned short dimension = 0;
-	for (unsigned short index = 1; expr[index] != 0; index++) {
+	USHORT last_comma = 0;
+	USHORT brackets = 1;
+	USHORT* indexes = new USHORT[10];
+	USHORT dimension = 0;
+	for (USHORT index = 1; expr[index] != 0; index++) {
 		if (expr[index] == 91) {
 			brackets++;
 		}
@@ -1186,17 +1189,17 @@ Data* array_access(Data* array_data, wchar_t* expr) {
 			memcpy(new_index, expr + last_comma + 1, ((size_t)index - last_comma - 1) * 2);
 			new_index[index - last_comma - 1] = 0;
 			if (Element::integer(new_index)) {
-				indexes[dimension] = (unsigned short)string_to_real(new_index);
+				indexes[dimension] = (USHORT)string_to_real(new_index);
 			}
 			else {
 				RPN_EXP* rpn_out = nullptr;
 				Element::expression(new_index, &rpn_out);
 				Data* data = evaluate(rpn_out);
 				if (data->type == 0) {
-					indexes[dimension] = (unsigned short)((DataType::Integer*)data->value)->value;
+					indexes[dimension] = (USHORT)((DataType::Integer*)data->value)->value;
 				}
 				else if (data->type == 1) {
-					indexes[dimension] = (unsigned short)((DataType::Real*)data->value)->value; // force casting to integer
+					indexes[dimension] = (USHORT)((DataType::Real*)data->value)->value; // force casting to integer
 				}
 				else {
 					throw Error(EvaluationError, L"下标必须为数字类型");
@@ -1221,8 +1224,8 @@ Data* evaluate_variable(wchar_t* path, bool* constant) { // starting with a vari
 	if (constant) { *constant = false; }
 	if (path[0] == L'^') { // dereference a pointer
 		if (path[1] == L'(') { // in the form of ^(x.x).x
-			unsigned short nesting_level = 1;
-			for (unsigned short index = 0; path[index] != 0; index++) {
+			USHORT nesting_level = 1;
+			for (USHORT index = 0; path[index] != 0; index++) {
 				if (path[index] == 40) { // nested brackets
 					nesting_level++;
 				}
@@ -1251,7 +1254,7 @@ Data* evaluate_variable(wchar_t* path, bool* constant) { // starting with a vari
 			}
 		}
 		else { // in the form of ^x.x
-			for (unsigned short index = 0; path[index] != 0; index++) {
+			for (USHORT index = 0; path[index] != 0; index++) {
 				if (path[index] == 46) {
 					wchar_t* pointer_expr = new wchar_t[index - 1];
 					wchar_t* path_part = new wchar_t[wcslen(path) - index];
@@ -1284,7 +1287,7 @@ Data* evaluate_variable(wchar_t* path, bool* constant) { // starting with a vari
 			return node->value;
 		}
 	}
-	for (unsigned short index = 0; path[index] != 0; index++) {
+	for (USHORT index = 0; path[index] != 0; index++) {
 		if (path[index] == 46) { 
 			wchar_t* variable_part = new wchar_t[index + 1];
 			memcpy(variable_part, path, (size_t)index * 2);
@@ -1356,20 +1359,20 @@ Data* evaluate_variable(Data* current, wchar_t* path) { // based on previous eva
 	if (current->type != 8) {
 		throw Error(EvaluationError, L"非结构体不能进行字段访问");
 	}
-	for (unsigned short index = 1; path[index] != 0; index++) {
+	for (USHORT index = 1; path[index] != 0; index++) {
 		if (path[index] == 46) {
 			wchar_t* this_path = new wchar_t[index];
 			memcpy(this_path, path + 1, (size_t)(index - 1) * 2);
 			this_path[index - 1] = 0;
 			if (Element::valid_array_element_access(this_path)) {
-				for (unsigned short index2 = 0; this_path[index2] != 0; index2++) {
+				for (USHORT index2 = 0; this_path[index2] != 0; index2++) {
 					if (this_path[index2] == 91) {
 						this_path[index2] = 0;
 						int offset = ((DataType::Record*)(current->value))->find(this_path);
 						if (offset == -1) {
 							throw Error(EvaluationError, L"结构体内不包含该字段");
 						}
-						Data* current_point = ((DataType::Record*)(current->value))->read((unsigned short)offset);
+						Data* current_point = ((DataType::Record*)(current->value))->read((USHORT)offset);
 						this_path[index2] = 91;
 						if (current_point->type != 6) {
 							throw Error(EvaluationError, L"下标访问仅可用于数组");
@@ -1390,7 +1393,7 @@ Data* evaluate_variable(Data* current, wchar_t* path) { // based on previous eva
 				if (offset == -1) {
 					throw Error(EvaluationError, L"结构体内不包含该字段");
 				}
-				Data* current_point = ((DataType::Record*)(current->value))->read((unsigned short)offset);
+				Data* current_point = ((DataType::Record*)(current->value))->read((USHORT)offset);
 				Data* result_point = evaluate_variable(current_point, path + index);
 				return result_point;
 			}
@@ -1398,14 +1401,14 @@ Data* evaluate_variable(Data* current, wchar_t* path) { // based on previous eva
 	}
 	// last path
 	if (Element::valid_array_element_access(path)) {
-		for (unsigned short index2 = 0; path[index2] != 0; index2++) {
+		for (USHORT index2 = 0; path[index2] != 0; index2++) {
 			if (path[index2] == 91) {
 				path[index2] = 0;
 				int offset = ((DataType::Record*)(current->value))->find(path);
 				if (offset == -1) {
 					throw Error(EvaluationError, L"结构体内不包含该字段");
 				}
-				Data* last_point = ((DataType::Record*)(current->value))->read((unsigned short)offset);
+				Data* last_point = ((DataType::Record*)(current->value))->read((USHORT)offset);
 				path[index2] = 91;
 				last_point = array_access(last_point, path + index2);
 				return last_point;
@@ -1418,18 +1421,18 @@ Data* evaluate_variable(Data* current, wchar_t* path) { // based on previous eva
 		if (offset == -1) {
 			throw Error(EvaluationError, L"结构体内不包含该字段");
 		}
-		Data* last_point = ((DataType::Record*)(current->value))->read((unsigned short)offset);
+		Data* last_point = ((DataType::Record*)(current->value))->read((USHORT)offset);
 		return last_point;
 	}
 }
 
 Data* evaluate(RPN_EXP* rpn_in) {
 	wchar_t*& expr = rpn_in->rpn;
-	unsigned short& number_of_element = rpn_in->number_of_element;
+	USHORT& number_of_element = rpn_in->number_of_element;
 	size_t total_offset = 0;
 	Data** stack = new Data* [128] {0};
-	unsigned short ptr = 0;
-	for (unsigned short element_index = 0; element_index != number_of_element; element_index++) {
+	USHORT ptr = 0;
+	for (USHORT element_index = 0; element_index != number_of_element; element_index++) {
 		if (Element::valid_operator(expr[total_offset]) and wcslen(expr + total_offset) == 1) { // operator
 			wchar_t& operator_value = expr[total_offset];
 			Data* result = nullptr;
@@ -1439,7 +1442,7 @@ Data* evaluate(RPN_EXP* rpn_in) {
 				ptr--;
 				Data* right_operand = stack[ptr];
 				if (not ((DataType::Any*)right_operand->value)->init) {
-					for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+					for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 					delete[] stack;
 					throw Error(EvaluationError, L"右操作数尚未初始化");
 				}
@@ -1453,17 +1456,17 @@ Data* evaluate(RPN_EXP* rpn_in) {
 						}
 					}
 					else if (right_operand->type == 65535) {
-						for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+						for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 						delete[] stack;
 						throw Error(EvaluationError, L"不具有返回值的子程序不能用于运算");
 					}
 					else if (right_operand->type == 7 or right_operand->type == 9 or right_operand->type == 11) {
-						for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+						for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 						delete[] stack;
 						throw Error(EvaluationError, L"自定义类型不能用于运算");
 					}
 					else {
-						for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+						for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 						delete[] stack;
 						throw Error(EvaluationError, L"NOT操作符的操作数必须是布尔值");
 					}
@@ -1480,14 +1483,14 @@ Data* evaluate(RPN_EXP* rpn_in) {
 				ptr--;
 				Data* right_operand = stack[ptr];
 				if (not ((DataType::Any*)right_operand->value)->init) {
-					for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+					for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 					delete[] stack;
 					throw Error(EvaluationError, L"右操作数尚未初始化");
 				}
 				ptr--;
 				Data* left_operand = stack[ptr];
 				if (not ((DataType::Any*)left_operand->value)->init) {
-					for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+					for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 					delete[] stack;
 					throw Error(EvaluationError, L"左操作数尚未初始化");
 				}
@@ -1515,11 +1518,11 @@ Data* evaluate(RPN_EXP* rpn_in) {
 					break;
 				}
 				case 65535:
-					for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+					for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 					delete[] stack;
 					throw Error(EvaluationError, L"不具有返回值的子程序不能用于运算");
 				case 7: case 9: case 11:
-					for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+					for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 					delete[] stack;
 					throw Error(EvaluationError, L"自定义类型不能用于运算");
 				default:
@@ -1552,11 +1555,11 @@ Data* evaluate(RPN_EXP* rpn_in) {
 					break;
 				}
 				case 65535:
-					for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+					for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 					delete[] stack;
 					throw Error(EvaluationError, L"不具有返回值的子程序不能用于运算");
 				case 7: case 9: case 11:
-					for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+					for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 					delete[] stack;
 					throw Error(EvaluationError, L"自定义类型不能用于运算");
 				default:
@@ -1586,7 +1589,7 @@ Data* evaluate(RPN_EXP* rpn_in) {
 							break;
 						case 47:
 							if (right_number == 0) {
-								for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+								for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 								delete[] stack;
 								throw Error(EvaluationError, L"被除数不能为0");
 							}
@@ -1608,7 +1611,7 @@ Data* evaluate(RPN_EXP* rpn_in) {
 							result = new Data{ 4, new DataType::Boolean(left_number >= right_number) };
 							break;
 						default:
-							for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+							for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 							delete[] stack;
 							throw Error(EvaluationError, L"该运算符不能用于数值数据");
 						}
@@ -1656,7 +1659,7 @@ Data* evaluate(RPN_EXP* rpn_in) {
 							break;
 						}
 						default:
-							for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+							for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 							delete[] stack;
 							throw Error(EvaluationError, L"该运算符不能用于字符串数据");
 							break;
@@ -1675,7 +1678,7 @@ Data* evaluate(RPN_EXP* rpn_in) {
 							result = left_bool or right_bool ? new Data{ 4, new DataType::Boolean(true) } : new Data{ 4, new DataType::Boolean(false) };
 							break;
 						default:
-							for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+							for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 							delete[] stack;
 							throw Error(EvaluationError, L"该运算符不能用于布尔值数据");
 						}
@@ -1688,14 +1691,14 @@ Data* evaluate(RPN_EXP* rpn_in) {
 							result = new Data{ 5, result_date };
 						}
 						else {
-							for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+							for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 							delete[] stack;
 							throw Error(EvaluationError, L"该运算符不能用于日期与时间数据");
 						}
 						break;
 					}
 					default:
-						for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+						for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 						delete[] stack;
 						throw Error(EvaluationError, L"运算不合法");
 					}
@@ -1715,7 +1718,7 @@ Data* evaluate(RPN_EXP* rpn_in) {
 		}
 		else {
 			bool is_function = false;
-			for (unsigned short index = 0; (expr + total_offset)[index] != 0; index++) {
+			for (USHORT index = 0; (expr + total_offset)[index] != 0; index++) {
 				if ((expr + total_offset)[index] == 9) { // function calling
 					wchar_t* function_name = new wchar_t[index + 1];
 					wchar_t* number_of_args_string = new wchar_t[wcslen(expr + total_offset) - index];
@@ -1723,10 +1726,10 @@ Data* evaluate(RPN_EXP* rpn_in) {
 					memcpy(number_of_args_string, expr + total_offset + index + 1, (wcslen(expr + total_offset) - index - 1) * 2);
 					function_name[index] = 0;
 					number_of_args_string[wcslen(expr + total_offset) - index - 1] = 0;
-					unsigned short number_of_args = (unsigned short)string_to_real(number_of_args_string);
+					USHORT number_of_args = (USHORT)string_to_real(number_of_args_string);
 					delete[] number_of_args_string;
 					Data** data_ptr = new Data* [number_of_args];
-					for (unsigned short data_index = 0; data_index != number_of_args; data_index++) {
+					for (USHORT data_index = 0; data_index != number_of_args; data_index++) {
 						ptr--;
 						data_ptr[number_of_args - data_index - 1] = stack[ptr];
 					}
@@ -1742,7 +1745,7 @@ Data* evaluate(RPN_EXP* rpn_in) {
 			if (is_function) { continue; }
 			// operand
 			if (ptr == 128) {
-				for (unsigned short index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
+				for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 				delete[] stack;
 				throw Error(EvaluationError, L"求值栈已满（请简化表达式）");
 			}
@@ -1765,7 +1768,7 @@ Data* evaluate(RPN_EXP* rpn_in) {
 	}
 }
 
-Data* function_calling(wchar_t* function_name, unsigned short number_of_args, Data** args) {
+Data* function_calling(wchar_t* function_name, USHORT number_of_args, Data** args) {
 	// user-defined function calling
 	BinaryTree::Node* node = find_variable(function_name);
 	if (node) {
@@ -1776,7 +1779,7 @@ Data* function_calling(wchar_t* function_name, unsigned short number_of_args, Da
 			if (((DataType::Function*)node->value->value)->number_of_args != number_of_args) {
 				throw Error(ArgumentError, L"参数个数不匹配");
 			}
-			call[calling_ptr] = CallFrame{ current_instruction_index, function_name, current_locals };
+			call[calling_ptr] = CALLFRAME{ current_instruction_index, function_name, current_locals };
 			current_locals = new BinaryTree;
 			if (not ((DataType::Function*)node->value->value)->push_args(current_locals, args)) {
 				throw Error(ArgumentError, L"参数类型不匹配");
@@ -1809,13 +1812,13 @@ Data* function_calling(wchar_t* function_name, unsigned short number_of_args, Da
 				}
 				if (return_value) {
 					// invalidate pointers
-					unsigned short number_of_nodes = 0;
+					USHORT number_of_nodes = 0;
 					BinaryTree::Node* node_list = current_locals->list_nodes(current_locals->root, &number_of_nodes);
-					for (unsigned short index = 0; index != number_of_nodes; index++) {
+					for (USHORT index = 0; index != number_of_nodes; index++) {
 						DataType::Pointer::invalidate(node_list + index);
 					}
 					// update variables passed by reference
-					for (unsigned short index = 0; index != number_of_args; index++) {
+					for (USHORT index = 0; index != number_of_args; index++) {
 						if (((DataType::Function*)node->value->value)->params[index].passed_by_ref and args[index]->variable_data) {
 							BinaryTree::Node* local_variable = current_locals->find(((DataType::Function*)node->value->value)->params[index].name);
 							memcpy(args[index], local_variable->value, sizeof(Data));
@@ -1862,7 +1865,7 @@ Data* function_calling(wchar_t* function_name, unsigned short number_of_args, Da
 		}
 	}
 	// builtin function calling
-	unsigned short args_number_out = 0;
+	USHORT args_number_out = 0;
 	void* function_ptr = Builtins::find(function_name, &args_number_out);
 	if (function_ptr) {
 		if (number_of_args != args_number_out) {
@@ -1870,7 +1873,7 @@ Data* function_calling(wchar_t* function_name, unsigned short number_of_args, Da
 		}
 		else {
 			Data* data = ((Data* (*)(Data**))function_ptr)(args);
-			for (unsigned short data_index = 0; data_index != number_of_args; data_index++) {
+			for (USHORT data_index = 0; data_index != number_of_args; data_index++) {
 				if (not args[data_index]->variable_data) {
 					DataType::release_data(args[data_index]);
 				}

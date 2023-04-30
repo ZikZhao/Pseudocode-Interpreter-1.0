@@ -3,28 +3,39 @@
 #ifdef TRY
 #undef TRY
 #endif
+#define ENDTOKEN { 0, PUNCTUATION }
 
-struct TUPLE {
-	size_t start;
-	size_t length;
+enum TOKENTYPE {
+	PUNCTUATION,
+	KEYWORD,
+	VARIABLE,
+	TYPE,
+	OPERATOR,
+	SUBROUTINE,
+	EXPRESSION,
 };
 
-struct Result {
+struct TOKEN {
+	USHORT length;
+	TOKENTYPE type;
+};
+
+struct RESULT { // result of a construct matching
 	bool matched = false;
 	void** args = nullptr; // arguments to be passed to execution functions
-	TUPLE* positions = nullptr; // positions of elements used to highlight grammar
+	TOKEN* tokens = nullptr; // positions of elements used to highlight grammar
 	const wchar_t* error_message = nullptr; // when syntax is matched but error may be caused, this field is used
 };
 
 struct Data {
-	unsigned short type = 65535;
+	USHORT type = 65535;
 	void* value = nullptr;
 	bool variable_data = false;
 };
 
 struct RPN_EXP {
 	wchar_t* rpn = nullptr;
-	unsigned short number_of_element = 0;
+	USHORT number_of_element = 0;
 };
 
 struct Parameter {
@@ -36,9 +47,9 @@ struct Parameter {
 	bool passed_by_ref = false;
 };
 
-struct MatchedSyntax {
-	unsigned short syntax_index;
-	Result* result;
+struct CONSTRUCT {
+	USHORT syntax_index;
+	RESULT* result;
 };
 
 class BinaryTree {
@@ -56,9 +67,9 @@ public:
 		Data* last_pointer = nullptr; // see DataType::Pointer
 	};
 	Node* root = nullptr;
-	unsigned short number = 0;
+	USHORT number = 0;
 	size_t error_handling_indexes[128]{};
-	unsigned short error_handling_ptr = 0;
+	USHORT error_handling_ptr = 0;
 	BinaryTree() {};
 	void insert(wchar_t* key, Data* value, bool constant = false) {
 		Node* node = new Node{ key, value, constant };
@@ -70,7 +81,7 @@ public:
 			Node* current = root;
 			bool turnleft = false;
 			while (current != nullptr) {
-				unsigned short index = 0;
+				USHORT index = 0;
 				while ((*current).key[index] == key[index]) {
 					index++;
 				}
@@ -98,7 +109,7 @@ public:
 		Node* current = root;
 		while (current != nullptr) {
 			bool flag = false;
-			for (unsigned short index = 0; key[index] != 0 and current->key[index]; index++) {
+			for (USHORT index = 0; key[index] != 0 and current->key[index]; index++) {
 				if (key[index] != (*current).key[index]) {
 					if ((*current).key[index] > key[index]) {
 						current = (*current).left;
@@ -124,9 +135,9 @@ public:
 		}
 		return nullptr;
 	}
-	Node* list_nodes(Node* current, unsigned short* out_number = nullptr) {
-		unsigned short left_number = 0;
-		unsigned short right_number = 0;
+	Node* list_nodes(Node* current, USHORT* out_number = nullptr) {
+		USHORT left_number = 0;
+		USHORT right_number = 0;
 		Node* left_nodes = nullptr;
 		Node* right_nodes = nullptr;
 		if (current->left) {
@@ -183,7 +194,7 @@ public:
 	} nest_type;
 	union Info {
 		struct { // used by CASE OF
-			unsigned short number_of_values;
+			USHORT number_of_values;
 			RPN_EXP** values;
 		} case_of_info;
 		struct FOR_INFO { // used by FOR
@@ -192,7 +203,7 @@ public:
 			RPN_EXP* step;
 		} for_info;
 	};
-	unsigned short tag_number;
+	USHORT tag_number;
 	size_t* line_numbers;
 	Info* nest_info = nullptr;
 	Nesting() {
@@ -223,7 +234,7 @@ class File {
 public:
 	HANDLE handle;
 	wchar_t* filename;
-	unsigned short mode;
+	USHORT mode;
 	bool eof = false;
 	DWORD size;
 	static inline const size_t size_of_record[] = {
@@ -234,7 +245,7 @@ public:
 		this->mode = 0;
 		this->size = 0;
 	}
-	File(HANDLE handle_in, wchar_t* filename_in, unsigned short mode_in) {
+	File(HANDLE handle_in, wchar_t* filename_in, USHORT mode_in) {
 		this->handle = handle_in;
 		this->filename = filename_in;
 		this->mode = mode_in;
@@ -246,7 +257,7 @@ public:
 		}
 		char* buffer = nullptr;
 		size_t offset = 0;
-		static const unsigned short part_size = 1024;
+		static const USHORT part_size = 1024;
 		while (true) {
 			char* new_buffer = new char[part_size + offset];
 			if (buffer) {
@@ -332,7 +343,7 @@ public:
 			return nullptr;
 		}
 		if (type == 3) {
-			static const unsigned short part_size = 1024;
+			static const USHORT part_size = 1024;
 			char* buffer = new char[part_size];
 			size_t offset = 0;
 			DWORD read = 0;
@@ -396,14 +407,14 @@ struct BREAKPOINT {
 	bool valid = true;
 };
 
-struct CallFrame {
+struct CALLFRAME {
 	size_t line_number;
 	wchar_t* name;
 	BinaryTree* local_variables;
 };
 
 struct CallStack {
-	CallFrame* call;
+	CALLFRAME* call;
 	USHORT ptr;
 };
 

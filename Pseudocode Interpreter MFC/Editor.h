@@ -86,6 +86,10 @@ protected:
 	void Delete(); // 删除字符或选区
 	void MoveView(); // 移动垂直与水平进度来显示到当前指针
 	void CentralView(LONG64 line_index); // 移动视图到指定行并居中
+	void ParseLine(); // 解析一行语法
+	// 以下函数用于后台
 	static DWORD BackendTasking(LPVOID); // 后台处理程序（负责调用以下函数）
 	void RecalcWidth(); // 重新计算宽度（仅在空闲时进行）
+	void ParseAll(); // 解析整个代码文件
+	void UpdateCandidates(); // 更新自动填充候选项
 };

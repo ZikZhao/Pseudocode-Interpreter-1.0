@@ -1,65 +1,58 @@
-#include "test.h"
+#include <Windows.h>
+#include <cmath>
+#include <mutex>
+#include "..\Pseudocode Interpreter MFC\IndexedList.h"
+#include "iostream"
+#include <random>
+#include <ctime>
+using namespace std;
 
-CBrush* pGreyBlackBrush = new CBrush(RGB(30, 30, 30));
-namespace CConsole {
-	CFont font;
-	CBrush selectionColor;
-}
-
-BEGIN_MESSAGE_MAP(CTestWnd, CFrameWnd)
-	ON_WM_CREATE()
-	ON_WM_SIZE()
-	ON_WM_NCCALCSIZE()
-END_MESSAGE_MAP()
-CTestWnd::CTestWnd() noexcept
-{
-}
-CTestWnd::~CTestWnd()
-{
-}
-int CTestWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
-{
-	if (CFrameWnd::OnCreate(lpCreateStruct) == -1)
-		return -1;
-
-	return 0;
-}
-void CTestWnd::OnSize(UINT nType, int cx, int cy)
-{
-	CFrameWnd::OnSize(nType, cx, cy);
-	CRect rect(0, 0, cx, cy);
-	//m_Component.MoveWindow(&rect);
+void test1() {
+	LARGE_INTEGER li, t1, t2, t3, t4;
+	QueryPerformanceFrequency(&li);
+	IndexedList<int> list1;
+	for (int i = 0; i != 100000; i++) {
+		list1.append(i);
+	}
+	IndexedList<int> list2(list1);
+	QueryPerformanceCounter(&t1);
+	list1[50000];
+	QueryPerformanceCounter(&t2);
+	cout << "普通链表查找：" << (double)(t2.QuadPart - t1.QuadPart) / li.QuadPart * 10e6 << "μs" << endl;
+	QueryPerformanceCounter(&t3);
+	list2[50000];
+	QueryPerformanceCounter(&t4);
+	cout << "跳跃式链表查找：" << (double)(t4.QuadPart - t3.QuadPart) / li.QuadPart * 10e6 << "μs" << endl;
 }
 
-App::App() noexcept
-{
-	AddFontResourceW(L"YAHEI CONSOLAS HYBRID.TTF");
-	CConsole::font.CreateFontW(24, 0, 0, 0, FW_NORMAL, false, false,
-		false, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS,
-		PROOF_QUALITY, DEFAULT_PITCH | FF_DONTCARE << 2, L"YAHEI CONSOLAS HYBRID");
-	CConsole::selectionColor.CreateSolidBrush(RGB(38, 79, 120));
-}
-App::~App()
-{
-}
-BOOL App::InitInstance()
-{
-	CWinAppEx::InitInstance();
-	m_pMainWnd = (CFrameWnd*)new CTestWnd;
-	m_pMainWnd->CreateEx(NULL, NULL, L"Test", WS_OVERLAPPEDWINDOW, CRect(0, 0, 400, 400), NULL, NULL);
-	m_pMainWnd->ShowWindow(SW_NORMAL);
-	m_pMainWnd->UpdateWindow();
-	return TRUE;
+void test2() {
+	IndexedList<int> list1;
+	for (int i = 0; i != 100; i++) {
+		list1.append(i);
+	}
+	for (int i = 100; i != 200; i++) {
+		list1.insert(0, i);
+	}
+	for (IndexedList<int>::iterator iter = list1.begin(); iter != list1.end(); iter++) {
+		cout << *iter << ' ';
+	}
 }
 
-App theApp;
+void test3() {
+	IndexedList<int> list1;
+	for (int i = 0; i != 100; i++) {
+		list1.append(i);
+	}
+	for (int i = 100; i != 0; i--) {
+		srand(time(0));
+		list1.pop(rand() % i);
+		for (IndexedList<int>::iterator iter = list1.begin(); iter != list1.end(); iter++) {
+			cout << *iter << ' ';
+		}
+		cout << endl;
+	}
+}
 
-void CTestWnd::OnNcCalcSize(BOOL bCalcValidRects, NCCALCSIZE_PARAMS* lpncsp)
-{
-	// TODO: 在此添加消息处理程序代码和/或调用默认值
-	
-	CFrameWnd::OnNcCalcSize(bCalcValidRects, lpncsp);
-	lpncsp->rgrc[0].left -= 2;
-	lpncsp->rgrc[0].right += 2;
-	lpncsp->rgrc[0].bottom += 2;
+int main() {
+	test3();
 }

@@ -192,6 +192,7 @@
     <ClInclude Include="Console.h" />
     <ClInclude Include="ControlPanel.h" />
     <ClInclude Include="Editor.h" />
+    <ClInclude Include="IndexedList.h" />
     <ClInclude Include="InfoView.h" />
     <ClInclude Include="Slider.h" />
     <ClInclude Include="StatusBar.h" />
@@ -243,6 +244,7 @@
     <Image Include="images\file_open.bmp" />
     <Image Include="images\file_save.bmp" />
     <Image Include="images\edit_undo.bmp" />
+    <Image Include="images\file_saveas.bmp" />
     <Image Include="images\file_savefile.bmp" />
     <Image Include="images\PI.ico" />
   </ItemGroup>

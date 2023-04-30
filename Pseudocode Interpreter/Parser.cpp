@@ -165,7 +165,7 @@ void FormatErrorMessage(Error error, wchar_t** lines) {
 	WriteFile(standard_error, buffer, size + 5, nullptr, 0);
 	delete[] buffer;
 	// call in stack
-	for (unsigned short index = 0; index != calling_ptr; index++) {
+	for (USHORT index = 0; index != calling_ptr; index++) {
 		current_line_number = index == calling_ptr - 1 ? CII : call[index + 1].line_number;
 		wchar_t* call_info = call[index].name;
 		line_number_string = unsigned_to_string(current_line_number + 1);
@@ -206,7 +206,7 @@ void SequenceCheck(size_t length) {
 	bool define_type = false;
 	bool define_subroutine = false;
 	for (size_t index = 0; index != length; index++) {
-		unsigned short& syntax_index = parsed_code[index].syntax_index;
+		USHORT& syntax_index = parsed_code[index].syntax_index;
 		if (Construct::constructs[syntax_index] == Construct::type_ender) { define_type = false; continue; }
 		if (Construct::constructs[syntax_index] == Construct::procedure_ender or
 			Construct::constructs[syntax_index] == Construct::function_ender) {
@@ -241,29 +241,19 @@ void SequenceCheck(size_t length) {
 // perform syntax check for each line and extract key information
 bool SyntaxCheck(size_t length, wchar_t** lines) {
 	calling_ptr = 0;
-	parsed_code = new MatchedSyntax[length];
+	parsed_code = new CONSTRUCT[length];
 	for (CII = 0; CII != length; CII++) {
-		bool matched = false;
-		for (unsigned short index = 0; index != Construct::number_of_constructs; index++) {
-			Result* result = (*(Result*(*)(wchar_t*))(Construct::constructs[index]))(lines[CII]);
-			if (result->matched) {
-				matched = true;
-				if (result->error_message) {
-					Error error(SyntaxError, result->error_message);
-					FormatErrorMessage(error, lines);
-					delete[] parsed_code;
-					return false;
-				}
-				else {
-					parsed_code[CII] = MatchedSyntax(index, result);
-				}
-				break;
-			}
-			else {
-				delete result;
+		CONSTRUCT construct = Construct::parse(lines[CII]);
+		parsed_code[CII] = construct;
+		if (construct.result) {
+			if (construct.result->error_message) {
+				Error error(SyntaxError, construct.result->error_message);
+				FormatErrorMessage(error, lines);
+				delete[] parsed_code;
+				return false;
 			}
 		}
-		if (not matched) {
+		else {
 			Error error(SyntaxError, L"无法识别的语法");
 			FormatErrorMessage(error, lines);
 			delete[] parsed_code;
@@ -335,7 +325,7 @@ INT_PTR SignalProc(UINT message, WPARAM wParam, LPARAM lParam) {
 }
 
 // thread used to monitor signal pipe
-DWORD WINAPI SignalThread(LPVOID lpParameter) {
+DWORD SignalThread(LPVOID lpParameter) {
 	static char buffer[20];
 	DWORD content = 0;
 	while (true) {
@@ -456,7 +446,7 @@ int wmain(int argc, wchar_t** args)
 	};
 	wchar_t* filename = nullptr;
 	for (int arg_index = 1; arg_index != argc; arg_index++) {
-		for (unsigned short match_index = 0; match_index != sizeof(match_args) / sizeof(wchar_t*); match_index++) {
+		for (USHORT match_index = 0; match_index != sizeof(match_args) / sizeof(wchar_t*); match_index++) {
 			if (wcslen(match_args[match_index]) == wcslen(args[arg_index])) {
 				if (memcmp(match_args[match_index], args[arg_index], wcslen(match_args[match_index])) == 0) {
 					switch (match_index) {
