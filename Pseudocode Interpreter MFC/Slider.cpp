@@ -23,8 +23,7 @@ void CSlider::SetRatio(double ratio)
 	ratio = min(ratio, 1.0);
 	if (ratio + m_Percentage > 1.0) {
 		// 更改比例防止溢出
-		m_Percentage = 1.0 - ratio;
-		m_pCallback(m_Percentage);
+		SetPercentage(1.0 - ratio);
 	}
 	else {
 		// 更改比例以匹配原本比例

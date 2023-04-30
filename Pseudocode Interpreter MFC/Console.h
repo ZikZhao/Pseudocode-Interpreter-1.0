@@ -21,8 +21,8 @@ protected:
 	struct LINE {
 		wchar_t* line; // 行文本
 		ULONG length; // 文本总长度
-		int height_unit; // 高度单位
-		ULONG offset; // 最后一行起始字符下标
+		USHORT height_unit; // 高度单位
+		ULONG accumulated_height_unit; // 累计高度单位（不包含该行）
 	};
 public:
 	static inline CConsoleOutput* pObject = nullptr;
@@ -35,10 +35,9 @@ protected:
 	CDC m_Selection; // 选区源
 	CDC m_Pointer; // 指针源
 	bool m_bFocus; //是否获得键盘输入
-	std::list<LINE> m_Lines; // 所有缓冲行
-	std::list<LINE>::iterator m_CurrentLine; // 指针指向的当前行
+	IndexedList<LINE> m_Lines; // 所有缓冲行
+	IndexedList<LINE>::iterator m_CurrentLine; // 当前行
 	ULONG m_TotalHeightUnit; // 所有行高度合计
-	ULONG m_AccumulatedHeightUnit; // 到当前行的累计高度单位（不包含）
 	double m_Percentage; // 纵向比例
 	CSize m_CharSize; // 文字大小
 	CPoint m_PointerPoint; // 指针字符位置
@@ -65,15 +64,17 @@ public:
 	void AppendInput(wchar_t* input, DWORD count); // 记录输入
 	void ClearBuffer(); // 清空控制台缓冲行
 	static void VerticalCallback(double percentage); // 垂直滚动条回调函数
+	void SetListState(bool state); // 设置跳跃式链表是否为构造模式
 protected:
 	LINE EncodeLine(wchar_t* line); // 计算单行文本所需的高度单位并辨别每一位字符的宽度类型
 	void RecalcTotalHeight(); // 计算当前宽度下显示所有文本所需高度单位
 	void ArrangeText(); // 计算渲染文字源
+	void ArrangeLastText(); // 为最后的输出计算渲染文字源
 	void ArrangePointer(); // 计算文档指针源
 	void ArrangeSelection(); // 计算选区源
 	void UpdateSlider(); // 更新垂直滚动条
-	CPoint TranslatePointer(CPoint point); // 将逻辑坐标转换为字符单位（包含MovePointer的功能）
-	void MovePointer(CPoint point); // 移动指针（以及当前行指针）
+	void TranslatePointer(CPoint point); // 将逻辑坐标转换为字符单位并更新指针位置
+	IndexedList<LINE>::iterator SearchStartLine(LONG& cy, LONG* index = nullptr); // 计算
 };
 
 class CConsoleInput : public CWnd

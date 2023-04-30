@@ -1,6 +1,7 @@
 #include <Windows.h>
 #include <cmath>
 #include <mutex>
+#define ASSERT _wassert;
 #include "..\Pseudocode Interpreter MFC\IndexedList.h"
 #include "iostream"
 #include <random>
@@ -53,6 +54,21 @@ void test3() {
 	}
 }
 
+void test4() {
+	LARGE_INTEGER li, t1, t2;
+	QueryPerformanceFrequency(&li);
+	QueryPerformanceCounter(&t1);
+	IndexedList<int> list1;
+	list1.append(0);
+	list1.set_construction(true);
+	for (int i = 1; i != 100000; i++) {
+		list1.append(i);
+	}
+	list1.set_construction(false);
+	QueryPerformanceCounter(&t2);
+	cout << "构造模式下耗时：" << (double)(t2.QuadPart - t1.QuadPart) / li.QuadPart * 10e6 << "μs" << endl;
+}
+
 int main() {
-	test3();
+	test4();
 }

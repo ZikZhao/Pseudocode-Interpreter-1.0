@@ -1,7 +1,5 @@
 #pragma once
 #include <assert.h>
-#define ASSERT _wassert;
-#define MAX_INDEXEDLIST_SIZE 1e8 // 最大大小
 #define INDEXEDLIST_SKIP 10 // 跳跃长度
 
 template<typename Type>
@@ -58,8 +56,11 @@ public:
 			m_Node = m_Node->next;
 			return iterator(m_Node);
 		}
-		Type operator *() {
+		Type& operator *() {
 			return m_Node->value;
+		}
+		Type* operator ->() {
+			return &m_Node->value;
 		}
 	};
 protected:
@@ -68,10 +69,15 @@ protected:
 	IndexNode* m_IndexRoot;
 	UINT m_Size;
 	USHORT m_Depth;
+	bool m_ConstructionMode = false; // 构建模式（将操作限定于append，添加的同时构建索引层）
+	IndexNode** m_ConstructionStack = nullptr; // 仅在构建模式下是哟
+protected:
+	iterator forward_indexing(INT index) const {
+	}
 public:
 	IndexedList() {
-		m_Root = nullptr;
 		m_ReverseRoot = new Node{ nullptr, nullptr, NULL, true };
+		m_Root = m_ReverseRoot;
 		m_IndexRoot = nullptr;
 		m_Size = 0;
 		m_Depth = 0;
@@ -118,40 +124,7 @@ public:
 		this->m_ReverseRoot = new Node{ previous, nullptr, static_cast<Type>(NULL), true };
 	}
 	~IndexedList() {
-		auto release = [](IndexNode* current) {
-			while (current) {
-				IndexNode* next = current->next;
-				delete current;
-				current = next;
-			}
-		};
-		if (m_Size) {
-			IndexNode** stack = new IndexNode* [m_Depth];
-			USHORT stack_ptr = 0;
-			IndexNode* this_index_node = m_IndexRoot;
-			// 获取所有层索引起始点
-			while (true) {
-				stack[stack_ptr] = this_index_node;
-				stack_ptr++;
-				if (this_index_node->is_index) {
-					this_index_node = this_index_node->target;
-				}
-				else {
-					break;
-				}
-			}
-			// 删除所有索引
-			for (USHORT level = 0; level != stack_ptr; level++) {
-				release(stack[level]);
-			}
-			// 删除所有节点
-			Node* current = m_Root;
-			while (current) {
-				Node* next = current->next;
-				delete current;
-				current = next;
-			}
-		}
+		clear();
 	}
 	UINT size() const {
 		return m_Size;
@@ -162,20 +135,97 @@ public:
 	iterator end() const {
 		return iterator(m_ReverseRoot);
 	}
+	iterator operator [](INT index) const {
+		if (index < 0) {
+			index = index + m_Size;
+		}
+		ASSERT(index >= 0 and index < m_Size);
+		IndexNode* this_index_node = m_IndexRoot;
+		while (true) {
+			if (this_index_node->next) {
+				if (this_index_node->next->index > index) {
+					if (this_index_node->is_index) {
+						this_index_node = this_index_node->target;
+					}
+					else {
+						break;
+					}
+				}
+				else {
+					this_index_node = this_index_node->next;
+				}
+			}
+			else {
+				if (this_index_node->is_index) {
+					this_index_node = this_index_node->target;
+				}
+				else {
+					break;
+				}
+			}
+		}
+		Node* this_node = this_index_node->value;
+		UINT difference = index - this_index_node->index;
+		for (UINT count = 0; count != difference; count++) {
+			this_node = this_node->next;
+		}
+		return iterator(this_node);
+	}
 	void append(Type value) {
 		Node* new_node = new Node{ m_ReverseRoot->previous, m_ReverseRoot, value };
-		if (m_Size == 0) {
-			m_Root = new_node;
-			m_IndexRoot = new IndexNode{ nullptr, (IndexNode*)new_node, 0, false };
-			m_Depth = 1;
+		if (m_ConstructionMode) {
+			if (m_Size == 0) {
+				m_Root = new_node;
+				m_IndexRoot = new IndexNode{ nullptr, (IndexNode*)new_node, 0, false };
+				m_Depth = 1;
+				m_ConstructionStack = new IndexNode*[] { m_IndexRoot };
+			}
+			else {
+				m_ReverseRoot->previous->next = new_node;
+				// 如果达到了跳跃长度，则更新索引节点
+				USHORT level;
+				for (level = 0; level != m_Depth;) {
+					if (m_Size % (UINT)pow(INDEXEDLIST_SKIP, level + 1) == 0) {
+						level++;
+					}
+					else {
+						break;
+					}
+				}
+				// 若达到新的数量级，则重新分配栈
+				if (level == m_Depth) {
+					IndexNode** new_stack = new IndexNode* [level + 1];
+					memcpy(new_stack, m_ConstructionStack, sizeof(IndexNode*) * m_Depth);
+					delete[] m_ConstructionStack;
+					m_ConstructionStack = new_stack;
+					m_ConstructionStack[m_Depth] = new IndexNode{ nullptr, m_ConstructionStack[m_Depth - 1], 0, true };
+					m_Depth++;
+				}
+				IndexNode* lower_level = (IndexNode*)new_node;
+				for (USHORT current_level = 0; current_level != level; current_level++) {
+					IndexNode* new_index_node = new IndexNode{ nullptr, lower_level, m_Size, true };
+					m_ConstructionStack[current_level]->next = new_index_node;
+					m_ConstructionStack[current_level] = new_index_node;
+					lower_level = new_index_node;
+				}
+				m_ConstructionStack[0]->is_index = false;
+			}
 		}
 		else {
-			m_ReverseRoot->previous->next = new_node;
+			if (m_Size == 0) {
+				m_Root = new_node;
+				m_IndexRoot = new IndexNode{ nullptr, (IndexNode*)new_node, 0, false };
+				m_Depth = 1;
+			}
+			else {
+				m_ReverseRoot->previous->next = new_node;
+			}
 		}
 		m_ReverseRoot->previous = new_node;
 		m_Size++;
 	}
 	void insert(UINT index, Type value) {
+		ASSERT(m_ConstructionMode == false);
 		ASSERT(index >= 0 and index < m_Size);
 		IndexNode** stack = new IndexNode* [m_Depth] {nullptr}; // 用于更新之后节点的索引
 		USHORT stack_ptr = 0;
@@ -289,6 +339,7 @@ public:
 		if (index == 0) {
 			stack[stack_ptr - 1]->value = m_Root = this_node->next;
 			this_node->next->previous = m_Root;
+			clear();
 		}
 		else {
 			// 当索引指向的节点被移除
@@ -315,38 +366,53 @@ public:
 		}
 		return value;
 	}
-	iterator operator [](UINT index) const {
-		ASSERT(m_Size > 0);
-		ASSERT(index >= 0 and index < m_Size);
+	void clear() {
+		auto release = [](IndexNode* current) {
+			while (current) {
+				IndexNode* next = current->next;
+				delete current;
+				current = next;
+			}
+		};
+		if (m_Size == 0) { return; }
+		IndexNode** stack = new IndexNode * [m_Depth];
+		USHORT stack_ptr = 0;
 		IndexNode* this_index_node = m_IndexRoot;
+		// 获取所有层索引起始点
 		while (true) {
-			if (this_index_node->next) {
-				if (this_index_node->next->index > index) {
-					if (this_index_node->is_index) {
-						this_index_node = this_index_node->target;
-					}
-					else {
-						break;
-					}
-				}
-				else {
-					this_index_node = this_index_node->next;
-				}
+			stack[stack_ptr] = this_index_node;
+			stack_ptr++;
+			if (this_index_node->is_index) {
+				this_index_node = this_index_node->target;
 			}
 			else {
-				if (this_index_node->is_index) {
-					this_index_node = this_index_node->target;
-				}
-				else {
-					break;
-				}
+				break;
 			}
 		}
-		Node* this_node = this_index_node->value;
-		UINT difference = index - this_index_node->index;
-		for (UINT count = 0; count != difference; count++) {
-			this_node = this_node->next;
+		// 删除所有索引
+		for (USHORT level = 0; level != stack_ptr; level++) {
+			release(stack[level]);
 		}
-		return iterator(this_node);
+		// 删除所有节点
+		Node* current = m_Root;
+		while (current) {
+			Node* next = current->next;
+			delete current;
+			current = next;
+		}
+		m_ReverseRoot = new Node{ nullptr, nullptr, NULL, true };
+		m_Root = m_ReverseRoot;
+		m_IndexRoot = nullptr;
+		m_Size = 0;
+		m_Depth = 0;
+	}
+	inline void set_construction(bool state) {
+		m_ConstructionMode = state;
+		if (state) {
+			ASSERT(m_Size == 0 or m_Size == 1); // 只有一个元素的链表的索引层也是有效的
+			if (m_Size == 1) {
+				m_ConstructionStack = new IndexNode* [] {m_IndexRoot};
+			}
+		}
 	}
 };

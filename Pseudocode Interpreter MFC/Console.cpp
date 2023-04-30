@@ -20,14 +20,13 @@ CConsoleOutput::CConsoleOutput()
 	m_FullLength = 0;
 	m_Percentage = 0.0;
 	m_bDrag = false;
-	m_AccumulatedHeightUnit = 0;
 	m_TotalHeightUnit = 0;
 
 	pObject = this;
 }
 CConsoleOutput::~CConsoleOutput()
 {
-	for (std::list<LINE>::iterator iter = m_Lines.begin(); iter != m_Lines.end(); iter++) {
+	for (IndexedList<LINE>::iterator iter = m_Lines.begin(); iter != m_Lines.end(); iter++) {
 		delete[] iter->line;
 	}
 }
@@ -139,7 +138,8 @@ void CConsoleOutput::OnLButtonDown(UINT nFlags, CPoint point)
 {
 	SetCapture();
 	SetFocus();
-	m_DragPointerPoint = TranslatePointer(point);
+	TranslatePointer(point);
+	m_DragPointerPoint = m_PointerPoint;
 	m_bDrag = true;
 	ArrangePointer();
 	ArrangeSelection();
@@ -178,7 +178,7 @@ void CConsoleOutput::AppendText(char* buffer, DWORD transferred)
 	LONG64 last_return = -1;
 	for (ULONG64 index = 0;; index++) {
 		if (wchar_buffer[index] == 10 or wchar_buffer[index] == 0) {
-			LINE& last_line = m_Lines.back();
+			LINE& last_line = *m_Lines[-1];
 			size_t original_length = wcslen(last_line.line);
 			wchar_t* combined_line = new wchar_t[original_length + index - last_return];
 			memcpy(combined_line, last_line.line, original_length * 2);
@@ -187,15 +187,16 @@ void CConsoleOutput::AppendText(char* buffer, DWORD transferred)
 			delete[] last_line.line;
 			USHORT orginal_height_unit = last_line.height_unit;
 			last_line = EncodeLine(combined_line);
-			m_TotalHeightUnit += (size_t)last_line.height_unit - orginal_height_unit;
+			last_line.accumulated_height_unit = m_TotalHeightUnit - orginal_height_unit;
+			m_TotalHeightUnit = (size_t)last_line.accumulated_height_unit + last_line.height_unit;
 			if (wchar_buffer[index] == 10) {
 				// 创建新行
-				m_Lines.push_back(LINE{ new wchar_t[] {0}, 0, 1, 0 });
+				m_Lines.append(LINE{ new wchar_t[] {0}, 0, 1, m_TotalHeightUnit });
 				m_TotalHeightUnit++;
-				MovePointer(CPoint(0, m_Lines.size() - 1));
+				m_DragPointerPoint = m_PointerPoint = CPoint(0, m_Lines.size() - 1);
 			}
 			else {
-				MovePointer(CPoint(original_length + index - last_return - 1, m_Lines.size() - 1));
+				m_DragPointerPoint = m_PointerPoint = CPoint(original_length + index - last_return - 1, m_Lines.size() - 1);
 				break;
 			}
 			last_return = index;
@@ -209,32 +210,29 @@ void CConsoleOutput::AppendText(char* buffer, DWORD transferred)
 }
 void CConsoleOutput::AppendInput(wchar_t* input, DWORD count)
 {
-	std::list<LINE>::iterator last_line = m_Lines.end();
-	last_line--;
+	IndexedList<LINE>::iterator last_line = m_Lines[-1];
 	size_t original_length = wcslen(last_line->line);
 	wchar_t* combined_line = new wchar_t[original_length + count + 1];
 	memcpy(combined_line, last_line->line, original_length * 2);
 	memcpy(combined_line + original_length, input, (size_t)count * 2);
 	combined_line[original_length + count] = 0;
 	delete[] last_line->line;
-	last_line->line = combined_line;
-	CRect rect(0, 0, m_Width, 0);
-	m_Source.DrawTextW(combined_line, -1, &rect, DT_CALCRECT);
-	USHORT difference = rect.bottom / m_CharSize.cy - last_line->height_unit;
+	USHORT original_height_unit = last_line->height_unit;
+	*last_line = EncodeLine(combined_line);
+	USHORT difference = last_line->height_unit - original_height_unit;
 	last_line->height_unit += difference;
-	m_Lines.push_back(LINE{ new wchar_t[] {0}, 0, 1, 0 });
+	m_Lines.append(LINE{ new wchar_t[] {0}, 0, 1, m_TotalHeightUnit + difference });
 	m_TotalHeightUnit += difference + 1;
 }
 void CConsoleOutput::ClearBuffer()
 {
-	for (std::list<LINE>::iterator iter = m_Lines.begin(); iter != m_Lines.end(); iter++) {
+	for (IndexedList<LINE>::iterator iter = m_Lines.begin(); iter != m_Lines.end(); iter++) {
 		delete[] iter->line;
 	}
 	m_Lines.clear();
-	m_Lines.push_back(LINE{ new wchar_t[] {0}, 1, 1, 0 });
-	m_CurrentLine = m_Lines.begin();
+	m_Lines.append(LINE{ new wchar_t[] {0}, 1, 1, 0 });
+	m_CurrentLine = m_Lines[0];
 	m_TotalHeightUnit = 1;
-	m_AccumulatedHeightUnit = 0;
 	m_PointerPoint = m_DragPointerPoint = CPoint(0, 0);
 	ArrangeText();
 	ArrangePointer();
@@ -248,7 +246,11 @@ void CConsoleOutput::VerticalCallback(double percentage)
 	pObject->ArrangeText();
 	pObject->ArrangePointer();
 	pObject->ArrangeSelection();
-	pObject->Invalidate(FALSE);
+	pObject->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+}
+inline void CConsoleOutput::SetListState(bool state)
+{
+	m_Lines.set_construction(state);
 }
 CConsoleOutput::LINE CConsoleOutput::EncodeLine(wchar_t* line)
 {
@@ -257,7 +259,6 @@ CConsoleOutput::LINE CConsoleOutput::EncodeLine(wchar_t* line)
 	line_out.length = wcslen(line);
 	if (m_Width <= 0) {
 		line_out.height_unit = 1;
-		line_out.offset = 0;
 	}
 	else {
 		line_out.height_unit = 0;
@@ -269,21 +270,20 @@ CConsoleOutput::LINE CConsoleOutput::EncodeLine(wchar_t* line)
 			offset += number;
 			line_out.height_unit += 1;
 		}
-		line_out.offset = offset;
 	}
 	return line_out;
 }
 void CConsoleOutput::RecalcTotalHeight()
 {
 	if (m_Width <= 0) { return; }
+	m_Lock.lock();
 	m_TotalHeightUnit = 0;
-	m_AccumulatedHeightUnit = 0;
 	ULONG index = 0;
-	for (std::list<LINE>::iterator this_line = m_Lines.begin(); this_line != m_Lines.end(); this_line++) {
+	for (IndexedList<LINE>::iterator this_line = m_Lines.begin(); this_line != m_Lines.end(); this_line++) {
 		this_line->height_unit = 0;
+		this_line->accumulated_height_unit = m_TotalHeightUnit;
 		ULONG offset = 0;
 		while (offset != this_line->length) {
-			this_line->offset = offset;
 			int number;
 			static CSize size;
 			GetTextExtentExPointW(m_Source, this_line->line + offset, this_line->length - offset, m_Width, &number, NULL, &size);
@@ -295,39 +295,66 @@ void CConsoleOutput::RecalcTotalHeight()
 			this_line->height_unit = 1;
 			m_TotalHeightUnit++;
 		}
-		if (index < m_PointerPoint.y) {
-			m_AccumulatedHeightUnit += this_line->height_unit;
-		}
 		index++;
 	}
+	m_Lock.unlock();
 }
 void CConsoleOutput::ArrangeText()
 {
 	if (m_Width <= 0) { return; }
 	m_Lock.lock();
 	// 计算起始行
-	double start_height_unit = m_Percentage * m_TotalHeightUnit;
 	m_Source.PatBlt(0, 0, m_Width, m_Height, BLACKNESS);
-	std::list<LINE>::iterator this_line = m_Lines.begin();
-	ULONG accumulated_height_unit = 0;
-	for (; accumulated_height_unit <= start_height_unit;) {
-		accumulated_height_unit += this_line->height_unit;
-		this_line++;
-	}
-	this_line--;
-	accumulated_height_unit -= this_line->height_unit;
+	LONG cy = m_Percentage * m_TotalHeightUnit * m_CharSize.cy;
+	IndexedList<LINE>::iterator this_line = SearchStartLine(cy);
 	CRect rect(
 		0,
-		((double)accumulated_height_unit - start_height_unit) * m_CharSize.cy,
+		cy,
 		m_Width,
-		((double)accumulated_height_unit - start_height_unit + 1) * m_CharSize.cy
+		cy + m_CharSize.cy
 	);
 	// 计算自动换行
 	USHORT width_unit = m_Width / m_CharSize.cx;
 	for (; this_line != m_Lines.end(); this_line++) {
 		ULONG offset = 0;
 		while (offset != this_line->length) {
-			int number = 0;
+			int number;
+			static CSize size;
+			if (not GetTextExtentExPointW(m_Source, this_line->line + offset, this_line->length - offset, m_Width, &number, NULL, &size)) {
+				break;
+			}
+			m_Source.ExtTextOutW(0, rect.top, ETO_CLIPPED, &rect, this_line->line + offset, number, NULL);
+			offset += number;
+			rect.top = rect.bottom;
+			rect.bottom += m_CharSize.cy;
+			if (rect.top > m_Height) {
+				m_Lock.unlock();
+				return;
+			}
+		}
+	}
+	m_Lock.unlock();
+}
+void CConsoleOutput::ArrangeLastText()
+{
+	m_Lock.lock();
+	// 计算起始行
+	double available_height_unit = (double)m_Height / m_CharSize.cy;
+	USHORT accumulated_height_unit = 0;
+	IndexedList<LINE>::iterator this_line = m_Lines.end();
+	this_line--;
+	while (accumulated_height_unit < available_height_unit and this_line != m_Lines.begin()) {
+		accumulated_height_unit += this_line->height_unit;
+		this_line--;
+	}
+	CRect rect(0, m_Height - accumulated_height_unit * m_CharSize.cy, m_Width, 0);
+	rect.bottom = rect.top + m_CharSize.cy * this_line->height_unit;
+	// 计算自动换行
+	USHORT width_unit = m_Width / m_CharSize.cx;
+	for (; this_line != m_Lines.end(); this_line++) {
+		ULONG offset = 0;
+		while (offset != this_line->length) {
+			int number;
 			static CSize size;
 			if (not GetTextExtentExPointW(m_Source, this_line->line + offset, this_line->length - offset, m_Width, &number, NULL, &size)) {
 				break;
@@ -348,17 +375,18 @@ void CConsoleOutput::ArrangePointer()
 {
 	if (m_Width <= 0) { return; }
 	double start_line = m_Percentage * m_TotalHeightUnit;
-	double difference = (double)m_AccumulatedHeightUnit - start_line;
+	double difference = (double)m_CurrentLine->accumulated_height_unit - start_line;
 	ULONG offset = 0;
 	ULONG remain = m_PointerPoint.x;
 	USHORT count = 0;
 	while (true) {
 		static CSize size;
 		int number;
-		GetTextExtentExPointW(m_Source, m_CurrentLine->line + offset, m_CurrentLine->length - offset, m_Width, &number, NULL, &size);
+		LINE& current_line = *m_Lines[m_PointerPoint.y];
+		GetTextExtentExPointW(m_Source, current_line.line + offset, current_line.length - offset, m_Width, &number, NULL, &size);
 		if (number >= remain) {
 			CRect rect;
-			m_Source.DrawTextW(m_CurrentLine->line + offset, remain, &rect, DT_CALCRECT);
+			m_Source.DrawTextW(current_line.line + offset, remain, &rect, DT_CALCRECT);
 			m_cPointer = CPoint(rect.right, (difference + count) * m_CharSize.cy);
 			return;
 		}
@@ -413,7 +441,7 @@ void CConsoleOutput::ArrangeSelection()
 	CRect rect(0, 0, m_Width, m_Height);
 	m_Selection.FillRect(&rect, pGreyBlackBrush);
 	double start_line = m_Percentage * m_TotalHeightUnit;
-	LONG relative = (m_AccumulatedHeightUnit - start_line) * m_CharSize.cy;
+	LONG relative = (m_CurrentLine->accumulated_height_unit - start_line) * m_CharSize.cy;
 	if (m_PointerPoint.y == m_DragPointerPoint.y) {
 		if (m_PointerPoint.x == m_DragPointerPoint.x) {
 			return;
@@ -421,12 +449,12 @@ void CConsoleOutput::ArrangeSelection()
 		else {
 			UINT smaller = min(m_PointerPoint.x, m_DragPointerPoint.x);
 			UINT larger = max(m_PointerPoint.x, m_DragPointerPoint.x);
-			fill_selection(*m_CurrentLine, smaller, larger, relative);
+			fill_selection(*m_Lines[m_PointerPoint.y], smaller, larger, relative);
 		}
 	}
 	else if (m_PointerPoint.y > m_DragPointerPoint.y) {
 		//正向选区
-		std::list<LINE>::iterator this_line = m_CurrentLine;
+		IndexedList<LINE>::iterator this_line = m_Lines[m_PointerPoint.y];
 		fill_selection(*this_line, 0, m_PointerPoint.x, relative);
 		this_line--;
 		relative -= this_line->height_unit * m_CharSize.cy;
@@ -439,7 +467,7 @@ void CConsoleOutput::ArrangeSelection()
 	}
 	else {
 		// 逆向选区
-		std::list<LINE>::iterator this_line = m_CurrentLine;
+		IndexedList<LINE>::iterator this_line = m_Lines[m_PointerPoint.y];
 		fill_selection(*this_line, m_PointerPoint.x, this_line->length + 1, relative);
 		relative += this_line->height_unit * m_CharSize.cy;
 		this_line++;
@@ -455,44 +483,35 @@ inline void CConsoleOutput::UpdateSlider()
 {
 	m_Slider.SetRatio((double)m_Height / (m_TotalHeightUnit * m_CharSize.cy));
 }
-CPoint CConsoleOutput::TranslatePointer(CPoint point)
+void CConsoleOutput::TranslatePointer(CPoint point)
 {
 	point.x = max(point.x, 0);
-	double start_line = m_Percentage * m_TotalHeightUnit;
 	// 计算行指针
-	ULONG target_height_unit = min(start_line + (double)point.y / m_CharSize.cy, m_TotalHeightUnit - 1);
-	while (target_height_unit > m_AccumulatedHeightUnit) {
-		m_AccumulatedHeightUnit += m_CurrentLine->height_unit;
-		m_CurrentLine++;
-		m_PointerPoint.y++;
-	}
-	while (target_height_unit < m_AccumulatedHeightUnit) {
-		m_CurrentLine--;
-		m_PointerPoint.y--;
-		m_AccumulatedHeightUnit -= m_CurrentLine->height_unit;
-	}
+	LONG cy = point.y + m_Percentage * m_TotalHeightUnit * m_CharSize.cy;
+	SearchStartLine(cy, &m_PointerPoint.y);
 	// 计算列指针
-	USHORT line_count = point.y / m_CharSize.cy - m_AccumulatedHeightUnit;
+	USHORT line_count = point.y / m_CharSize.cy - m_CurrentLine->accumulated_height_unit;
 	size_t total_length = 0;
 	ULONG offset = 0;
 	static CSize size;
 	int number;
+	LINE& current_line = *m_Lines[m_PointerPoint.y];
 	while (line_count) {
-		GetTextExtentExPointW(m_Source, m_CurrentLine->line + offset, m_CurrentLine->length - offset, m_Width, &number, NULL, &size);
+		GetTextExtentExPointW(m_Source, current_line.line + offset, current_line.length - offset, m_Width, &number, NULL, &size);
 		offset += number;
 		line_count--;
 	}
-	GetTextExtentExPointW(m_Source, m_CurrentLine->line + offset, m_CurrentLine->length - offset, point.x, &number, NULL, &size);
+	GetTextExtentExPointW(m_Source, current_line.line + offset, current_line.length - offset, point.x, &number, NULL, &size);
 	CRect rect;
-	m_Source.DrawTextW(m_CurrentLine->line + offset, number, &rect, DT_CALCRECT);
-	if (offset + number == m_CurrentLine->length) {
+	m_Source.DrawTextW(current_line.line + offset, number, &rect, DT_CALCRECT);
+	if (offset + number == current_line.length) {
 		// 最后一个字符
-		m_PointerPoint.x = m_CurrentLine->length;
+		m_PointerPoint.x = current_line.length;
 	}
 	else {
 		// 判断指针是否离右边更近
 		point.x -= rect.right;
-		GetTextExtentExPointW(m_Source, m_CurrentLine->line + offset + number, 1, 65535, NULL, NULL, &size);
+		GetTextExtentExPointW(m_Source, current_line.line + offset + number, 1, 65535, NULL, NULL, &size);
 		if (point.x > size.cx / 2) {
 			m_PointerPoint.x = offset + number + 1;
 		}
@@ -500,25 +519,38 @@ CPoint CConsoleOutput::TranslatePointer(CPoint point)
 			m_PointerPoint.x = offset + number;
 		}
 	}
-	return m_PointerPoint;
 }
-void CConsoleOutput::MovePointer(CPoint point)
+IndexedList<CConsoleOutput::LINE>::iterator CConsoleOutput::SearchStartLine(LONG& cy, LONG* index)
 {
-	LONG difference = point.y - m_PointerPoint.y;
-	// 调整行指针
-	if (difference < 0) {
-		for (long long index = 0; index != difference; index--) {
-			m_CurrentLine--;
-			m_AccumulatedHeightUnit -= m_CurrentLine->height_unit;
+	UINT target_height_unit = (UINT)cy / m_CharSize.cy;
+	// 二分查找
+	UINT low = 0;
+	UINT high = m_Lines.size();
+	UINT middle;
+	IndexedList<LINE>::iterator element;
+	while (low != high) {
+		middle = (low + high) / 2;
+		element = m_Lines[middle];
+		if (element->accumulated_height_unit <= target_height_unit) {
+			if (element->accumulated_height_unit + element->height_unit > target_height_unit) {
+				break;
+			}
+			else {
+				low = middle;
+			}
+		}
+		else if (element->accumulated_height_unit == target_height_unit) {
+			
+		}
+		else {
+			high = middle;
 		}
 	}
-	else if (difference > 0) {
-		for (long long index = 0; index != difference; index++) {
-			m_CurrentLine++;
-			m_AccumulatedHeightUnit += m_CurrentLine->height_unit;
-		}
+	cy = element->accumulated_height_unit * m_CharSize.cy - cy;
+	if (index) {
+		*index = middle;
 	}
-	m_DragPointerPoint = m_PointerPoint = point;
+	return element;
 }
 
 BEGIN_MESSAGE_MAP(CConsoleInput, CWnd)
@@ -627,8 +659,6 @@ void CConsoleInput::OnSize(UINT nType, int cx, int cy)
 	ArrangeText();
 	ArrangePointer();
 	ArrangeSelection();
-	// 更新滚动条
-	CRect rect(cx - 10, 0, cx, cy);
 }
 void CConsoleInput::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
@@ -963,6 +993,7 @@ void CConsole::InitSubprocess(bool debug_mode)
 	}
 	// 清理控制台
 	m_Output.ClearBuffer();
+	m_Output.SetListState(true);
 	m_bRun = true;
 }
 void CConsole::ExitSubprocess(UINT exit_code)
@@ -989,6 +1020,7 @@ void CConsole::ExitSubprocess(UINT exit_code)
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetState(false);
+	m_Output.SetListState(false);
 
 	switch (exit_code) {
 	case 0:

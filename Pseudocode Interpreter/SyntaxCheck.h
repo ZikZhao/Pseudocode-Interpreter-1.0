@@ -2634,8 +2634,8 @@ namespace Construct {
 					strip(this_variable);
 					if (Element::variable(this_variable)) {
 						variables[count] = this_variable;
-						variable_tokens[count * 2] = TOKEN{ (USHORT)(index - last_spliter - 1), VARIABLE };
-						variable_tokens[count * 2 + 1] = TOKEN{ 1, PUNCTUATION };
+						variable_tokens[count * 2] = TOKEN{ (USHORT)(index - last_spliter - 1), TOKENTYPE::Variable };
+						variable_tokens[count * 2 + 1] = TOKEN{ 1, TOKENTYPE::Punctuation };
 						count++;
 					}
 					else {
@@ -2661,9 +2661,9 @@ namespace Construct {
 								type_part,
 							};
 							result->tokens = new TOKEN[2 + count * 2];
-							result->tokens[0] = TOKEN{ 8, KEYWORD };
+							result->tokens[0] = TOKEN{ 8, TOKENTYPE::Keyword };
 							memcpy(result->tokens + 1, variable_tokens, sizeof(TOKEN) * (count * 2));
-							result->tokens[1 + count * 2] = TOKEN{ (USHORT)wcslen(type_part), TYPE };
+							result->tokens[1 + count * 2] = TOKEN{ (USHORT)wcslen(type_part), TOKENTYPE::Type };
 							delete[] variable_tokens;
 						}
 						else if (Element::array_type(type_part, &boundaries_out, &type_out)) {
@@ -2711,10 +2711,10 @@ namespace Construct {
 						result->matched = true;
 						result->args = new void* [] {variable_part, rpn_out};
 						result->tokens = new TOKEN[] {
-							{ 8ui16, KEYWORD },
-							{ (USHORT)(index - 9ui16), VARIABLE },
-							{ 1, OPERATOR },
-							{ (USHORT)(wcslen(expr) - index - 1), EXPRESSION },
+							{ 8ui16, TOKENTYPE::Keyword },
+							{ (USHORT)(index - 9ui16), TOKENTYPE::Variable },
+							{ 1, TOKENTYPE::Operator },
+							{ (USHORT)(wcslen(expr) - index - 1), TOKENTYPE::Expression },
 							ENDTOKEN,
 						};
 						return result;

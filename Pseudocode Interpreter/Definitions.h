@@ -3,16 +3,16 @@
 #ifdef TRY
 #undef TRY
 #endif
-#define ENDTOKEN { 0, PUNCTUATION }
+#define ENDTOKEN { 0, TOKENTYPE::Punctuation }
 
 enum TOKENTYPE {
-	PUNCTUATION,
-	KEYWORD,
-	VARIABLE,
-	TYPE,
-	OPERATOR,
-	SUBROUTINE,
-	EXPRESSION,
+	Punctuation,
+	Keyword,
+	Variable,
+	Type,
+	Operator,
+	Subroutine,
+	Expression,
 };
 
 struct TOKEN {
