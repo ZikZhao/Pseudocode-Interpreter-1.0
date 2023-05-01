@@ -3,9 +3,9 @@
 #define LINE_NUMBER_OFFSET 27 // 展示行数所需的额外偏移量
 #define SCROLL_UNIT 3 // 每次鼠标滚轮滚动时移动的行数
 #define PAUSE_BACKEND() { m_bBackendEnabled = false; WaitForSingleObject(*m_BackendPaused, INFINITE); SetTimer(NULL, 100, nullptr); } // 停止后台任务以避免访问冲突
-#define GET_TEXT_WIDTH(string, length) LOWORD(GetTabbedTextExtentW(m_Source, string, length, 1, tab_positions))
+#define GET_TEXT_WIDTH(string, length) LOWORD(GetTabbedTextExtentW(m_Source, string, length, 1, &tab_position))
 
-static const int* tab_positions;
+static int tab_position;
 
 BEGIN_MESSAGE_MAP(CEditor, CWnd)
 	ON_WM_CREATE()
@@ -65,7 +65,7 @@ int CEditor::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	TEXTMETRICW tm;
 	GetTextMetricsW(m_Source, &tm);
 	m_CharSize = CSize(tm.tmAveCharWidth, tm.tmHeight);
-	tab_positions = new int[1] {m_CharSize.cx * 4};
+	tab_position = m_CharSize.cx * 4;
 
 	// 准备文档指针源
 	m_Pointer.CreateCompatibleDC(pWindowDC);

@@ -152,7 +152,7 @@ void CConsoleOutput::OnLButtonUp(UINT nFlags, CPoint point)
 }
 BOOL CConsoleOutput::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
-	m_Slider.SetPercentage(m_Percentage + (double)zDelta / 120 / m_TotalHeightUnit);
+	m_Slider.SetPercentage(m_Percentage - (double)zDelta / 120 / m_TotalHeightUnit);
 	return TRUE;
 }
 void CConsoleOutput::OnSetFocus(CWnd* pOldWnd)
