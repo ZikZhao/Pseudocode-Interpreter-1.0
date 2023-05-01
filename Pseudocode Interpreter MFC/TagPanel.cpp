@@ -46,7 +46,7 @@ CFileTag::CFileTag(wchar_t* path)
 		ULONG64 offset = 0;
 		m_Lines.set_construction(true);
 		for (ULONG64 index = 0;; index++) {
-			if (wchar_buffer[index] == L'\r') {
+			if (wchar_buffer[index] == L'\n') {
 				wchar_t* this_line = new wchar_t[index - offset];
 				memcpy(this_line, wchar_buffer + offset, (index - offset - 1) * 2);
 				this_line[index - offset - 1] = 0;
@@ -160,17 +160,17 @@ void CFileTag::OnMouseMove(UINT nFlags, CPoint point)
 		tme.hwndTrack = m_hWnd;
 		TrackMouseEvent(&tme);
 		m_bHover = true;
-		Invalidate(FALSE);
+		REDRAW_WINDOW();
 	}
 }
 void CFileTag::OnMouseLeave()
 {
 	m_bHover = false;
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 inline void CFileTag::SetState(bool state) {
 	m_bSelected = state;
-	Invalidate(false);
+	REDRAW_WINDOW();
 }
 const wchar_t* CFileTag::GetPath() const
 {

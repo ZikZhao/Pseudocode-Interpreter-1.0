@@ -99,14 +99,14 @@ void CInfoViewTag::OnMouseMove(UINT nFlags, CPoint point)
 		tme.hwndTrack = m_hWnd;
 		TrackMouseEvent(&tme);
 		m_bHover = true;
-		Invalidate(FALSE);
+		REDRAW_WINDOW();
 	}
 	m_bHover = true;
 }
 void CInfoViewTag::OnMouseLeave()
 {
 	m_bHover = false;
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 void CInfoViewTag::OnLButtonDown(UINT nFlags, CPoint point)
 {
@@ -123,7 +123,7 @@ void CInfoViewTag::OnLButtonUp(UINT nFlags, CPoint point)
 void CInfoViewTag::SetState(bool state)
 {
 	m_bSelected = state;
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 
 BEGIN_MESSAGE_MAP(CInfoView, CWnd)

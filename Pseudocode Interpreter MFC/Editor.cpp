@@ -175,7 +175,7 @@ void CEditor::OnLButtonDown(UINT nFlags, CPoint point)
 		CRect rect(0, 0, m_Width, m_Height);
 		m_Selection.FillRect(&rect, pGreyBlackBrush);
 		ArrangePointer();
-		Invalidate(FALSE);
+		REDRAW_WINDOW();
 	}
 }
 void CEditor::OnLButtonUp(UINT nFlags, CPoint point)
@@ -183,22 +183,27 @@ void CEditor::OnLButtonUp(UINT nFlags, CPoint point)
 	PAUSE_BACKEND()
 	ReleaseCapture();
 	if (not m_bDrag) {
+		if (point.x < 0 or point.x > LINE_NUMBER_OFFSET + m_LineNumberWidth) {
+			return;
+		}
 		double start_line = m_PercentageVertical * m_CurrentTag->m_Lines.size();
 		ULONG64 line_index = (ULONG64)((double)point.y / m_CharSize.cy + start_line);
-		if (line_index < 0 or line_index >= m_CurrentTag->m_Lines.size());
+		if (line_index < 0 or line_index >= m_CurrentTag->m_Lines.size()) {
+			return;
+		}
 		for (std::list<BREAKPOINT>::iterator iter = m_Breakpoints.begin(); iter != m_Breakpoints.end(); iter++) {
 			if (iter->line_index == line_index) {
 				// 删除断点
 				m_Breakpoints.erase(iter);
 				ArrangeBreakpoints();
-				Invalidate(FALSE);
+				REDRAW_WINDOW();
 				return;
 			}
 		}
 		// 添加断点
 		m_Breakpoints.push_back(BREAKPOINT{ line_index, 0, 0, 0 });
 		ArrangeBreakpoints();
-		Invalidate(FALSE);
+		REDRAW_WINDOW();
 	}
 	else {
 		m_bDrag = false;
@@ -282,7 +287,6 @@ void CEditor::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 		USHORT digits = (USHORT)log10(m_CurrentTag->m_Lines.size()) + 1;
 		m_LineNumberWidth = m_CharSize.cx * digits;
 		m_FullHeight += m_CharSize.cy;
-		UpdateSlider();
 		break;
 	}
 	default:
@@ -298,20 +302,15 @@ void CEditor::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 			(wcslen(*m_CurrentTag->m_CurrentLine) - m_PointerPoint.x + 1) * 2);
 		delete[] *m_CurrentTag->m_CurrentLine;
 		CSize size;
-		GetTextExtentPoint32W(m_Source, buffer, wcslen(buffer), &size);
-		m_FullWidth = max(m_FullWidth, size.cx + m_CharSize.cx);
-		UpdateSlider();
+		m_FullWidth = max(m_FullWidth, GET_TEXT_WIDTH(buffer, wcslen(buffer)) + m_CharSize.cx);
 		*m_CurrentTag->m_CurrentLine = buffer;
-		m_PointerPoint.x++;
+		m_DragPointerPoint.x = ++m_PointerPoint.x;
 		break;
 	}
 	}
-	m_DragPointerPoint = m_PointerPoint;
+	UpdateSlider();
 	MoveView();
-	ArrangeText();
-	ArrangePointer();
-	ArrangeSelection();
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 BOOL CEditor::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 {
@@ -322,14 +321,14 @@ void CEditor::OnSetFocus(CWnd* pOldWnd)
 	PAUSE_BACKEND()
 	CWnd::OnSetFocus(pOldWnd);
 	m_bFocus = true;
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 void CEditor::OnKillFocus(CWnd* pNewWnd)
 {
 	PAUSE_BACKEND()
 	CWnd::OnKillFocus(pNewWnd);
 	m_bFocus = false;
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 void CEditor::OnTimer(UINT_PTR nIDEvent)
 {
@@ -389,7 +388,7 @@ LRESULT CEditor::OnStep(WPARAM wParam, LPARAM lParam)
 	ArrangePointer();
 	ArrangeSelection();
 	ArrangeBreakpoints();
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(true);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(true);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetState(true);
@@ -415,12 +414,8 @@ void CEditor::LoadFile(CFileTag* tag)
 	m_LineNumberWidth = m_CharSize.cx * digits;
 	m_PointerPoint = CPoint(0, 0);
 	m_DragPointerPoint = CPoint(0, 0);
-	ArrangeText();
-	ArrangeSelection();
-	ArrangePointer();
-	ArrangeBreakpoints();
 	UpdateSlider();
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 void CEditor::VerticalCallback(double percentage)
 {
@@ -450,23 +445,16 @@ void CEditor::ArrangeText()
 	m_Source.PatBlt(0, 0, m_Width, m_Height, BLACKNESS);
 	// 计算出现在DC中的第一行行数
 	double start_line = m_PercentageVertical * m_CurrentTag->m_Lines.size();
-	size_t start_line_index = (size_t)(start_line);
+	UINT start_line_index = start_line;
 	// 绘制代码
 	m_Source.SetTextColor(RGB(255, 255, 255));
-	IndexedList<wchar_t*>::iterator iter = m_CurrentTag->m_Lines.begin();
-	size_t index = 0;
-	for (; index != start_line_index; iter++) {
-		index++;
-	}
-	CRect rect(LINE_NUMBER_OFFSET + m_LineNumberWidth - (long)(m_PercentageHorizontal * m_FullWidth),
-		(long)((start_line_index - start_line) * m_CharSize.cy),
-		m_Width,
-		(long)((start_line_index - start_line + 1) * m_CharSize.cy));
+	IndexedList<wchar_t*>::iterator iter = m_CurrentTag->m_Lines[start_line_index];
+	int x_offset = LINE_NUMBER_OFFSET + m_LineNumberWidth - (long)(m_PercentageHorizontal * m_FullWidth);
+	int y_offset = (start_line_index - start_line) * m_CharSize.cy;
 	for (; iter != m_CurrentTag->m_Lines.end(); iter++) {
-		m_Source.DrawTextW(*iter, -1, &rect, DT_EXPANDTABS | DT_TABSTOP | 4 << 8);
-		rect.top = rect.bottom;
-		rect.bottom += m_CharSize.cy;
-		if (rect.top >= m_Height) {
+		TabbedTextOutW(m_Source, x_offset, y_offset, *iter, wcslen(*iter), 1, &tab_position, x_offset);
+		y_offset += m_CharSize.cy;
+		if (y_offset >= m_Height) {
 			break;
 		}
 	}
@@ -475,17 +463,20 @@ void CEditor::ArrangeText()
 	USHORT digits = (USHORT)log10(m_CurrentTag->m_Lines.size()) + 1;
 	wchar_t* buffer = new wchar_t[digits + 1];
 	m_Source.PatBlt(0, 0, m_LineNumberWidth + LINE_NUMBER_OFFSET, m_Height, BLACKNESS);
-	rect = CRect(LINE_NUMBER_OFFSET - 12,
+	m_Source.SetTextAlign(TA_RIGHT | TA_TOP);
+	CRect rect(LINE_NUMBER_OFFSET - 12,
 		(long)((start_line_index - start_line) * m_CharSize.cy),
 		LINE_NUMBER_OFFSET - 12 + m_LineNumberWidth,
 		(long)((start_line_index - start_line + 1) * m_CharSize.cy));
 	size_t total_lines = m_CurrentTag->m_Lines.size();
 	for (size_t line_index = start_line_index; line_index != total_lines; line_index++) {
 		StringCchPrintfW(buffer, (size_t)digits + 1, L"%d", (int)line_index + 1);
-		m_Source.DrawTextW(buffer, -1, &rect, DT_RIGHT);
+		TextOutW(m_Source, rect.right, rect.top, buffer, wcslen(buffer));
 		rect.top = rect.bottom;
 		rect.bottom += m_CharSize.cy;
-		if (rect.top > m_Height) { break; }
+		if (rect.top > m_Height) {
+			break;
+		}
 	}
 	delete[] buffer;
 }
@@ -822,6 +813,8 @@ DWORD CEditor::BackendTasking(LPVOID)
 	while (IsWindow(hWnd)) {
 		if (not pObject->m_bBackendEnabled) {
 			pObject->m_BackendPaused->SetEvent();
+			static bool waiting_value = false;
+			WaitOnAddress(&pObject->m_BackendPaused, &waiting_value, sizeof(bool), INFINITE);
 		}
 		else {
 			pObject->RecalcWidth();

@@ -92,14 +92,14 @@ void CControlPanelTag::OnMouseMove(UINT nFlags, CPoint point)
 		tme.hwndTrack = m_hWnd;
 		TrackMouseEvent(&tme);
 		m_bHover = true;
-		Invalidate(FALSE);
+		REDRAW_WINDOW();
 	}
 }
 void CControlPanelTag::OnMouseLeave()
 {
 	CWnd::OnMouseLeave();
 	m_bHover = false;
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 void CControlPanelTag::OnLButtonUp(UINT nFlags, CPoint point)
 {
@@ -108,7 +108,7 @@ void CControlPanelTag::OnLButtonUp(UINT nFlags, CPoint point)
 void CControlPanelTag::SetState(bool selected)
 {
 	m_bSelected = selected;
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 
 void CControlPanelComponent::SetState(bool state)
@@ -215,13 +215,13 @@ void CControlPanelButton::OnMouseMove(UINT nFlags, CPoint point)
 		tme.hwndTrack = m_hWnd;
 		TrackMouseEvent(&tme);
 		m_bHover = true;
-		Invalidate(FALSE);
+		REDRAW_WINDOW();
 	}
 }
 void CControlPanelButton::OnMouseLeave()
 {
 	m_bHover = false;
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 void CControlPanelButton::OnLButtonDown(UINT nFlags, CPoint point)
 {
@@ -237,7 +237,7 @@ void CControlPanelButton::OnLButtonUp(UINT nFlags, CPoint point)
 void CControlPanelButton::SetState(bool state)
 {
 	m_bDisabled = not state;
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 
 BEGIN_MESSAGE_MAP(CControlPanelSplitter, CWnd)

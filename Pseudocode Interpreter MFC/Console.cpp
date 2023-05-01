@@ -131,7 +131,7 @@ void CConsoleOutput::OnMouseMove(UINT nFlags, CPoint point)
 		TranslatePointer(point);
 		ArrangePointer();
 		ArrangeSelection();
-		Invalidate(FALSE);
+		REDRAW_WINDOW();
 	}
 }
 void CConsoleOutput::OnLButtonDown(UINT nFlags, CPoint point)
@@ -143,7 +143,7 @@ void CConsoleOutput::OnLButtonDown(UINT nFlags, CPoint point)
 	m_bDrag = true;
 	ArrangePointer();
 	ArrangeSelection();
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 void CConsoleOutput::OnLButtonUp(UINT nFlags, CPoint point)
 {
@@ -159,13 +159,13 @@ void CConsoleOutput::OnSetFocus(CWnd* pOldWnd)
 {
 	CWnd::OnSetFocus(pOldWnd);
 	m_bFocus = true;
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 void CConsoleOutput::OnKillFocus(CWnd* pNewWnd)
 {
 	CWnd::OnKillFocus(pNewWnd);
 	m_bFocus = false;
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 void CConsoleOutput::AppendText(char* buffer, DWORD transferred)
 {
@@ -238,7 +238,7 @@ void CConsoleOutput::ClearBuffer()
 	ArrangePointer();
 	ArrangeSelection();
 	UpdateSlider();
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 void CConsoleOutput::VerticalCallback(double percentage)
 {
@@ -246,7 +246,7 @@ void CConsoleOutput::VerticalCallback(double percentage)
 	pObject->ArrangeText();
 	pObject->ArrangePointer();
 	pObject->ArrangeSelection();
-	pObject->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+	pObject->Invalidate(FALSE);
 }
 inline void CConsoleOutput::SetListState(bool state)
 {
@@ -484,7 +484,7 @@ void CConsoleOutput::TranslatePointer(CPoint point)
 }
 IndexedList<CConsoleOutput::LINE>::iterator CConsoleOutput::SearchStartLine(LONG& cy, LONG* index)
 {
-	UINT target_height_unit = (UINT)cy / m_CharSize.cy;
+	UINT target_height_unit = max(min((UINT)cy / m_CharSize.cy, m_Lines.size() - 1), 0);
 	// 二分查找
 	UINT low = 0;
 	UINT high = m_Lines.size();
@@ -502,7 +502,7 @@ IndexedList<CConsoleOutput::LINE>::iterator CConsoleOutput::SearchStartLine(LONG
 			}
 		}
 		else if (element->accumulated_height_unit == target_height_unit) {
-			
+			break;
 		}
 		else {
 			high = middle;
@@ -660,7 +660,7 @@ void CConsoleInput::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 	ArrangeText();
 	ArrangePointer();
 	ArrangeSelection();
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 void CConsoleInput::OnMouseMove(UINT nFlags, CPoint point)
 {
@@ -668,7 +668,7 @@ void CConsoleInput::OnMouseMove(UINT nFlags, CPoint point)
 		m_cchPointer = TranslatePointer(point);
 		ArrangePointer();
 		ArrangeSelection();
-		Invalidate(FALSE);
+		REDRAW_WINDOW();
 	}
 	else {
 		if (point.x > m_Offset) {
@@ -689,7 +689,7 @@ void CConsoleInput::OnLButtonDown(UINT nFlags, CPoint point)
 	}
 	ArrangePointer();
 	ArrangeSelection();
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 void CConsoleInput::OnLButtonUp(UINT nFlags, CPoint point)
 {
@@ -704,13 +704,13 @@ void CConsoleInput::OnSetFocus(CWnd* pOldWnd)
 {
 	CWnd::OnSetFocus(pOldWnd);
 	m_bFocus = true;
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 void CConsoleInput::OnKillFocus(CWnd* pNewWnd)
 {
 	CWnd::OnKillFocus(pNewWnd);
 	m_bFocus = false;
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 inline int CConsoleInput::GetCharHeight()
 {

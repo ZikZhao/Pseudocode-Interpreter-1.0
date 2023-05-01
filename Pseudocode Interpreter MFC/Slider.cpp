@@ -161,7 +161,7 @@ void CHSlider::OnLButtonUp(UINT nFlags, CPoint point)
 	// 检查是否悬浮于滚动条按钮
 	m_bHoverSlider = point.x > adjusted_percentage * m_Height and point.x < (adjusted_percentage + adjusted_ratio) * m_Height and point.y > 0 and point.y < 10;
 	if (previous_state != m_bHoverSlider) {
-		Invalidate(FALSE);
+		REDRAW_WINDOW();
 	}
 }
 void CHSlider::OnMouseMove(UINT nFlags, CPoint point)
@@ -179,7 +179,7 @@ void CHSlider::OnMouseMove(UINT nFlags, CPoint point)
 		// 检查是否悬浮于滚动条按钮
 		m_bHoverSlider = point.x > adjusted_percentage * m_Height and point.x < (adjusted_percentage + adjusted_ratio) * m_Height;
 		if (previous_state != m_bHoverSlider) {
-			Invalidate(FALSE);
+			REDRAW_WINDOW();
 		}
 		TRACKMOUSEEVENT tme{};
 		tme.cbSize = sizeof(tme);
@@ -193,7 +193,7 @@ void CHSlider::OnMouseLeave()
 {
 	m_bHover = false;
 	m_bHoverSlider = false;
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 BOOL CHSlider::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 {
@@ -340,7 +340,7 @@ void CVSlider::OnLButtonUp(UINT nFlags, CPoint point)
 	// 检查是否悬浮于滚动条按钮
 	m_bHoverSlider = point.x > 0 and point.x < 10 and point.y > adjusted_percentage * m_Height and point.y < (adjusted_percentage + adjusted_ratio) * m_Height;
 	if (previous_state != m_bHoverSlider) {
-		Invalidate(FALSE);
+		REDRAW_WINDOW();
 	}
 }
 void CVSlider::OnMouseMove(UINT nFlags, CPoint point)
@@ -358,7 +358,7 @@ void CVSlider::OnMouseMove(UINT nFlags, CPoint point)
 		// 检查是否悬浮于滚动条按钮
 		m_bHoverSlider = point.y > adjusted_percentage * m_Height and point.y < (adjusted_percentage + adjusted_ratio) * m_Height;
 		if (previous_state != m_bHoverSlider) {
-			Invalidate(FALSE);
+			REDRAW_WINDOW();
 		}
 		TRACKMOUSEEVENT tme{};
 		tme.cbSize = sizeof(tme);
@@ -372,7 +372,7 @@ void CVSlider::OnMouseLeave()
 {
 	m_bHover = false;
 	m_bHoverSlider = false;
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }
 BOOL CVSlider::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 {
@@ -400,5 +400,5 @@ void CVSlider::SetRatio(double ratio)
 	CRect rect(0, 0, 10, m_SliderHeight);
 	m_Source.RoundRect(&rect, CPoint(10, 10));
 	m_Hover.RoundRect(&rect, CPoint(10, 10));
-	Invalidate(FALSE);
+	REDRAW_WINDOW();
 }

@@ -223,7 +223,11 @@ public:
 	}
 	void insert(UINT index, Type value) {
 		ASSERT(m_ConstructionMode == false);
-		ASSERT(index >= 0 and index < m_Size);
+		ASSERT(index >= 0 and index <= m_Size);
+		if (index == m_Size) {
+			append(value);
+			return;
+		}
 		IndexNode** stack = new IndexNode* [m_Depth] {nullptr}; // 用于更新之后节点的索引
 		USHORT stack_ptr = 0;
 		IndexNode* this_index_node = m_IndexRoot;
@@ -232,9 +236,9 @@ public:
 			while (true) {
 				if (this_index_node->next) {
 					if (this_index_node->next->index > index) {
+						stack[stack_ptr] = this_index_node;
+						stack_ptr++;
 						if (this_index_node->is_index) {
-							stack[stack_ptr] = this_index_node;
-							stack_ptr++;
 							this_index_node = this_index_node->target;
 						}
 						else {
@@ -304,9 +308,9 @@ public:
 		while (true) {
 			if (this_index_node->next) {
 				if (this_index_node->next->index > index) {
+					stack[stack_ptr] = this_index_node;
+					stack_ptr++;
 					if (this_index_node->is_index) {
-						stack[stack_ptr] = this_index_node;
-						stack_ptr++;
 						this_index_node = this_index_node->target;
 					}
 					else {

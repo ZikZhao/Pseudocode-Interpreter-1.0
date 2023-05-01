@@ -4,6 +4,7 @@
 #include "Editor.h"
 #include "InfoView.h"
 #include "StatusBar.h"
+#define REDRAW_WINDOW() RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW)
 #define WM_STEP WM_USER + 1 // 单步执行消息
 
 class CMainFrame : public CFrameWndEx
