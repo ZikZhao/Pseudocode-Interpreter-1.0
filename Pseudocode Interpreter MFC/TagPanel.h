@@ -1,5 +1,4 @@
 #pragma once
-#include <list>
 
 class CFileTag : public CWnd
 {
@@ -11,15 +10,15 @@ public:
 	static inline CFont m_Font1;
 	static inline CFont m_Font2;
 	static inline CBrush m_Brush;
+	IndexedList<wchar_t*> m_Lines;
+	IndexedList<wchar_t*>::iterator m_CurrentLine;
+	IndexedList<TOKEN*> m_Tokens;
 protected:
 	CDC m_Source;
 	wchar_t* m_Path;
 	wchar_t* m_Directory;
 	wchar_t* m_Filename;
 	HANDLE m_Handle;
-	std::list<wchar_t*> m_Lines;
-	std::list<wchar_t*>::iterator m_CurrentLine;
-	std::list<TOKEN*> m_Tokens;
 	int m_Width;
 	bool m_bHover;
 	bool m_bSelected;
@@ -37,9 +36,6 @@ public:
 	afx_msg void OnMouseLeave();
 	void SetState(bool state);
 	const wchar_t* GetPath() const;
-	std::list<wchar_t*>* GetLines();
-	std::list<wchar_t*>::iterator& GetCurrentLine();
-	std::list<TOKEN*>* GetTokens();
 	void Save();
 	void SaveAs(wchar_t* new_path);
 };

@@ -43,23 +43,25 @@ CFileTag::CFileTag(wchar_t* path)
 		wchar_t* wchar_buffer = new wchar_t[buffer_size];
 		MultiByteToWideChar(CP_UTF8, MB_PRECOMPOSED, char_buffer, -1, wchar_buffer, buffer_size);
 		delete[] char_buffer;
-		size_t offset = 0;
-		for (size_t index = 0;; index++) {
-			if (wchar_buffer[index] == 10) {
+		ULONG64 offset = 0;
+		m_Lines.set_construction(true);
+		for (ULONG64 index = 0;; index++) {
+			if (wchar_buffer[index] == L'\r') {
 				wchar_t* this_line = new wchar_t[index - offset];
 				memcpy(this_line, wchar_buffer + offset, (index - offset - 1) * 2);
 				this_line[index - offset - 1] = 0;
-				m_Lines.push_back(this_line);
+				m_Lines.append(this_line);
 				offset = index + 1;
 			}
-			else if (wchar_buffer[index] == 0) {
+			else if (wchar_buffer[index] == L'\0') {
 				wchar_t* this_line = new wchar_t[index - offset + 1];
 				memcpy(this_line, wchar_buffer + offset, (index - offset) * 2);
 				this_line[index - offset] = 0;
-				m_Lines.push_back(this_line);
+				m_Lines.append(this_line);
 				break;
 			}
 		}
+		m_Lines.set_construction(false);
 		delete[] wchar_buffer;
 		m_CurrentLine = m_Lines.begin();
 	}
@@ -78,7 +80,7 @@ CFileTag::CFileTag()
 	m_Handle = NULL;
 	m_bHover = false;
 	m_bSelected = false;
-	m_Lines.push_back(new wchar_t[1] {0});
+	m_Lines.append(new wchar_t[1] {0});
 	m_CurrentLine = m_Lines.begin();
 }
 CFileTag::~CFileTag()
@@ -174,23 +176,11 @@ const wchar_t* CFileTag::GetPath() const
 {
 	return m_Path;
 }
-std::list<wchar_t*>* CFileTag::GetLines()
-{
-	return &m_Lines;
-}
-std::list<wchar_t*>::iterator& CFileTag::GetCurrentLine()
-{
-	return m_CurrentLine;
-}
-std::list<TOKEN*>* CFileTag::GetTokens()
-{
-	return &m_Tokens;
-}
 void CFileTag::Save()
 {
 	if (m_Handle) {
 		SetFilePointer(m_Handle, 0, 0, FILE_BEGIN);
-		for (std::list<wchar_t*>::iterator iter = m_Lines.begin();;) {
+		for (IndexedList<wchar_t*>::iterator iter = m_Lines.begin();;) {
 			int size = WideCharToMultiByte(CP_ACP, 0, *iter, -1, nullptr, 0, nullptr, nullptr);
 			char* buffer = new char[size - 1];
 			WideCharToMultiByte(CP_ACP, 0, *iter, -1, buffer, size - 1, nullptr, nullptr);
@@ -213,7 +203,7 @@ void CFileTag::SaveAs(wchar_t* new_path)
 {
 	HANDLE handle = CreateFile(new_path, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
 	if (handle) {
-		for (std::list<wchar_t*>::iterator iter = m_Lines.begin();;) {
+		for (IndexedList<wchar_t*>::iterator iter = m_Lines.begin();;) {
 			int size = WideCharToMultiByte(CP_ACP, 0, *iter, -1, nullptr, 0, nullptr, nullptr);
 			char* buffer = new char[size - 1];
 			WideCharToMultiByte(CP_ACP, 0, *iter, -1, buffer, size - 1, nullptr, nullptr);
