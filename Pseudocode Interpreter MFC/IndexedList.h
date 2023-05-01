@@ -71,9 +71,6 @@ protected:
 	USHORT m_Depth;
 	bool m_ConstructionMode = false; // 构建模式（将操作限定于append，添加的同时构建索引层）
 	IndexNode** m_ConstructionStack = nullptr; // 仅在构建模式下是哟
-protected:
-	iterator forward_indexing(INT index) const {
-	}
 public:
 	IndexedList() {
 		m_ReverseRoot = new Node{ nullptr, nullptr, NULL, true };

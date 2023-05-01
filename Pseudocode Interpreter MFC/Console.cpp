@@ -335,42 +335,6 @@ void CConsoleOutput::ArrangeText()
 	}
 	m_Lock.unlock();
 }
-void CConsoleOutput::ArrangeLastText()
-{
-	m_Lock.lock();
-	// 计算起始行
-	double available_height_unit = (double)m_Height / m_CharSize.cy;
-	USHORT accumulated_height_unit = 0;
-	IndexedList<LINE>::iterator this_line = m_Lines.end();
-	this_line--;
-	while (accumulated_height_unit < available_height_unit and this_line != m_Lines.begin()) {
-		accumulated_height_unit += this_line->height_unit;
-		this_line--;
-	}
-	CRect rect(0, m_Height - accumulated_height_unit * m_CharSize.cy, m_Width, 0);
-	rect.bottom = rect.top + m_CharSize.cy * this_line->height_unit;
-	// 计算自动换行
-	USHORT width_unit = m_Width / m_CharSize.cx;
-	for (; this_line != m_Lines.end(); this_line++) {
-		ULONG offset = 0;
-		while (offset != this_line->length) {
-			int number;
-			static CSize size;
-			if (not GetTextExtentExPointW(m_Source, this_line->line + offset, this_line->length - offset, m_Width, &number, NULL, &size)) {
-				break;
-			}
-			m_Source.ExtTextOutW(0, rect.top, ETO_CLIPPED, &rect, this_line->line + offset, number, NULL);
-			offset += number;
-			rect.top = rect.bottom;
-			rect.bottom += m_CharSize.cy;
-			if (rect.top > m_Height) {
-				m_Lock.unlock();
-				return;
-			}
-		}
-	}
-	m_Lock.unlock();
-}
 void CConsoleOutput::ArrangePointer()
 {
 	if (m_Width <= 0) { return; }
@@ -380,14 +344,13 @@ void CConsoleOutput::ArrangePointer()
 	ULONG remain = m_PointerPoint.x;
 	USHORT count = 0;
 	while (true) {
-		static CSize size;
+		CSize size;
 		int number;
 		LINE& current_line = *m_Lines[m_PointerPoint.y];
 		GetTextExtentExPointW(m_Source, current_line.line + offset, current_line.length - offset, m_Width, &number, NULL, &size);
 		if (number >= remain) {
-			CRect rect;
-			m_Source.DrawTextW(current_line.line + offset, remain, &rect, DT_CALCRECT);
-			m_cPointer = CPoint(rect.right, (difference + count) * m_CharSize.cy);
+			GetTextExtentPoint32W(m_Source, m_CurrentLine->line + offset, remain, &size);
+			m_cPointer = CPoint(size.cx, (difference + count) * m_CharSize.cy);
 			return;
 		}
 		else {
@@ -489,29 +452,28 @@ void CConsoleOutput::TranslatePointer(CPoint point)
 	// 计算行指针
 	LONG cy = point.y + m_Percentage * m_TotalHeightUnit * m_CharSize.cy;
 	SearchStartLine(cy, &m_PointerPoint.y);
+	m_CurrentLine = m_Lines[m_PointerPoint.y];
 	// 计算列指针
-	USHORT line_count = point.y / m_CharSize.cy - m_CurrentLine->accumulated_height_unit;
+	USHORT line_count = -cy / m_CharSize.cy;
 	size_t total_length = 0;
 	ULONG offset = 0;
-	static CSize size;
+	CSize size;
 	int number;
-	LINE& current_line = *m_Lines[m_PointerPoint.y];
 	while (line_count) {
-		GetTextExtentExPointW(m_Source, current_line.line + offset, current_line.length - offset, m_Width, &number, NULL, &size);
+		GetTextExtentExPointW(m_Source, m_CurrentLine->line + offset, m_CurrentLine->length - offset, m_Width, &number, NULL, &size);
 		offset += number;
 		line_count--;
 	}
-	GetTextExtentExPointW(m_Source, current_line.line + offset, current_line.length - offset, point.x, &number, NULL, &size);
-	CRect rect;
-	m_Source.DrawTextW(current_line.line + offset, number, &rect, DT_CALCRECT);
-	if (offset + number == current_line.length) {
+	GetTextExtentExPointW(m_Source, m_CurrentLine->line + offset, m_CurrentLine->length - offset, point.x, &number, NULL, &size);
+	GetTextExtentPoint32W(m_Source, m_CurrentLine->line + offset, number, &size);
+	if (offset + number == m_CurrentLine->length) {
 		// 最后一个字符
-		m_PointerPoint.x = current_line.length;
+		m_PointerPoint.x = m_CurrentLine->length;
 	}
 	else {
 		// 判断指针是否离右边更近
-		point.x -= rect.right;
-		GetTextExtentExPointW(m_Source, current_line.line + offset + number, 1, 65535, NULL, NULL, &size);
+		point.x -= size.cx;
+		GetTextExtentPoint32W(m_Source, m_CurrentLine->line + offset + number, 1, &size);
 		if (point.x > size.cx / 2) {
 			m_PointerPoint.x = offset + number + 1;
 		}

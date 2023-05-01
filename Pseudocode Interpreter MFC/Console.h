@@ -69,7 +69,6 @@ protected:
 	LINE EncodeLine(wchar_t* line); // 计算单行文本所需的高度单位并辨别每一位字符的宽度类型
 	void RecalcTotalHeight(); // 计算当前宽度下显示所有文本所需高度单位
 	void ArrangeText(); // 计算渲染文字源
-	void ArrangeLastText(); // 为最后的输出计算渲染文字源
 	void ArrangePointer(); // 计算文档指针源
 	void ArrangeSelection(); // 计算选区源
 	void UpdateSlider(); // 更新垂直滚动条
