@@ -1,4 +1,5 @@
 #pragma once
+#pragma comment(lib, "Synchronization.lib")
 #include <map>
 #include <list>
 #include <mutex>

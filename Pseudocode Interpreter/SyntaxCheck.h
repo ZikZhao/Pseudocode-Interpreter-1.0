@@ -2660,10 +2660,11 @@ namespace Construct {
 								variables,
 								type_part,
 							};
-							result->tokens = new TOKEN[2 + count * 2];
+							result->tokens = new TOKEN[3 + count * 2];
 							result->tokens[0] = TOKEN{ 8, TOKENTYPE::Keyword };
 							memcpy(result->tokens + 1, variable_tokens, sizeof(TOKEN) * (count * 2));
 							result->tokens[1 + count * 2] = TOKEN{ (USHORT)wcslen(type_part), TOKENTYPE::Type };
+							result->tokens[2 + count * 2] = ENDTOKEN;
 							delete[] variable_tokens;
 						}
 						else if (Element::array_type(type_part, &boundaries_out, &type_out)) {
@@ -2713,7 +2714,7 @@ namespace Construct {
 						result->tokens = new TOKEN[] {
 							{ 8ui16, TOKENTYPE::Keyword },
 							{ (USHORT)(index - 9ui16), TOKENTYPE::Variable },
-							{ 1, TOKENTYPE::Operator },
+							{ 1, TOKENTYPE::Punctuation },
 							{ (USHORT)(wcslen(expr) - index - 1), TOKENTYPE::Expression },
 							ENDTOKEN,
 						};

@@ -12,7 +12,7 @@ public:
 	static inline CBrush m_Brush;
 	IndexedList<wchar_t*> m_Lines;
 	IndexedList<wchar_t*>::iterator m_CurrentLine;
-	IndexedList<TOKEN*> m_Tokens;
+	IndexedList<ADVANCED_TOKEN*> m_Tokens;
 protected:
 	CDC m_Source;
 	wchar_t* m_Path;

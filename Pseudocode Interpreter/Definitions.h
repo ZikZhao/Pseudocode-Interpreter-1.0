@@ -10,14 +10,22 @@ enum TOKENTYPE {
 	Keyword,
 	Variable,
 	Type,
-	Operator,
 	Subroutine,
 	Expression,
+	Integer,
+	String,
+	Comment,
 };
 
 struct TOKEN {
 	USHORT length;
 	TOKENTYPE type;
+};
+
+struct ADVANCED_TOKEN {
+	USHORT indentation; // 前置缩进/空格字符长度
+	TOKEN* token; // 所有令牌
+	UINT comment; // 注释起始位置
 };
 
 struct RESULT { // result of a construct matching

@@ -1,5 +1,4 @@
 #pragma once
-#include <assert.h>
 #define INDEXEDLIST_SKIP 10 // 跳跃长度
 
 template<typename Type>
