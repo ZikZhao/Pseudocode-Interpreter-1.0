@@ -131,6 +131,7 @@ void CEditor::OnSize(UINT nType, int cx, int cy)
 	if (pOldBitmap) {
 		pOldBitmap->DeleteObject();
 	}
+	MAKEROP4();
 	pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
 	pOldBitmap = m_Colour.SelectObject(pBitmap);
