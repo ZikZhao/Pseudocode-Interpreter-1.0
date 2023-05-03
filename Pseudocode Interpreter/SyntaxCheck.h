@@ -1,7 +1,5 @@
 #pragma once
 
-extern size_t current_instruction_index;
-
 enum AVAILABLE_SETTINGS {
 	AUTOMATIC_NEW_LINE_AFTER_OUTPUT = 1,
 	OUTPUT_AS_OBJECT = 2,
@@ -26,14 +24,13 @@ void release_rpn(RPN_EXP* rpn) {
 	delete rpn;
 }
 
+size_t current_instruction_index = 0;
 Nesting** nesting = new Nesting*[128]; // maximum nesting depth : 128
 USHORT nesting_ptr = 0;
 File* files = new File[8]; // maximum 8 files opened at the same time
 USHORT file_ptr = 0;
 
-size_t current_instruction_index = 0;
-
-wchar_t* strip(wchar_t* line) {
+void strip(wchar_t* line) {
 	size_t start = 0;
 	size_t end = wcslen(line);
 	for (size_t index = 0; line[index] != 0; index++) {
@@ -49,11 +46,8 @@ wchar_t* strip(wchar_t* line) {
 		}
 		if (index == 0) { break; }
 	}
-	wchar_t* result = new wchar_t[end - start + 1];
-	memcpy(result, line + start, (end - start) * 2);
-	result[end - start] = 0;
-	memcpy(line, result, (end - start + 1) * 2);
-	return line;
+	memcpy(line, line + start, (end - start) * 2);
+	line[end - start] = 0;
 }
 
 long double string_to_real(wchar_t* expr) {
@@ -112,6 +106,7 @@ wchar_t* unsigned_to_string(size_t expr) {
 }
 
 wchar_t* length_limiting(wchar_t* expr, size_t length_target) {
+	// format a string with specific length
 	size_t length_now = wcslen(expr);
 	wchar_t* result = nullptr;
 	if (length_now == length_target) {
@@ -137,6 +132,7 @@ wchar_t* length_limiting(wchar_t* expr, size_t length_target) {
 }
 
 size_t skip_string(wchar_t* expr) {
+	// find the ender of a string when evaluating an expression
 	char ender = expr[0] == 34 ? 34 : 39;
 	for (size_t index = 1; expr[index] != 0; index++) {
 		if (expr[index] == ender) {
@@ -154,6 +150,7 @@ size_t skip_string(wchar_t* expr) {
 }
 
 long long match_keyword(wchar_t* expr, const wchar_t* keyword) {
+	// find keyword in a string and returns its starting index
 	if (wcslen(expr) < wcslen(keyword)) { return -1; }
 	size_t upper_bound = wcslen(expr) - wcslen(keyword) + 1;
 	size_t length = wcslen(keyword);
@@ -2663,7 +2660,7 @@ namespace Construct {
 							result->tokens = new TOKEN[3 + count * 2];
 							result->tokens[0] = TOKEN{ 8, TOKENTYPE::Keyword };
 							memcpy(result->tokens + 1, variable_tokens, sizeof(TOKEN) * (count * 2));
-							result->tokens[1 + count * 2] = TOKEN{ (USHORT)wcslen(type_part), TOKENTYPE::Type };
+							result->tokens[1 + count * 2] = TOKEN{ (USHORT)(wcslen(expr) - index), TOKENTYPE::Type };
 							result->tokens[2 + count * 2] = ENDTOKEN;
 							delete[] variable_tokens;
 						}

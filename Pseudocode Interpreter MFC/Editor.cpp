@@ -49,12 +49,10 @@ int CEditor::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return -1;
 
 	CDC* pWindowDC = GetDC();
-
 	// 准备未选中文件时背景
 
 	// 准备内存缓冲源
 	m_MemoryDC.CreateCompatibleDC(pWindowDC);
-	m_MemoryDC2.CreateCompatibleDC(pWindowDC);
 
 	// 准备渲染文字源
 	m_Source.CreateCompatibleDC(pWindowDC);
@@ -120,18 +118,10 @@ void CEditor::OnSize(UINT nType, int cx, int cy)
 	}
 	pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
-	pOldBitmap = m_MemoryDC2.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
-	m_MemoryDC2.PatBlt(0, 0, m_Width, m_Height, WHITENESS);
-	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
 	pOldBitmap = m_Source.SelectObject(pBitmap);
 	if (pOldBitmap) {
 		pOldBitmap->DeleteObject();
 	}
-	MAKEROP4();
 	pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
 	pOldBitmap = m_Colour.SelectObject(pBitmap);
@@ -165,9 +155,7 @@ void CEditor::OnPaint()
 {
 	CPaintDC dc(this);
 	m_MemoryDC.BitBlt(0, 0, m_Width, m_Height, &m_Selection, 0, 0, SRCCOPY);
-	m_MemoryDC2.BitBlt(0, 0, m_Width, m_Height, &m_Source, 0, 0, SRCCOPY);
-	m_MemoryDC2.BitBlt(0, 0, m_Width, m_Height, &m_Colour, 0, 0, SRCAND);
-	m_MemoryDC.TransparentBlt(0, 0, m_Width, m_Height, &m_MemoryDC2, 0, 0, m_Width, m_Height, 0);
+	m_MemoryDC.TransparentBlt(0, 0, m_Width, m_Height, &m_Source, 0, 0, m_Width, m_Height, 0);
 	m_MemoryDC.BitBlt(0, 0, m_Width, m_Height, &m_Breakpoint, 0, 0, SRCCOPY);
 	if (m_cPointer.x >= (LONG)m_LineNumberWidth + LINE_NUMBER_OFFSET and m_bFocus) {
 		m_MemoryDC.BitBlt(m_cPointer.x, m_cPointer.y, 1, m_CharSize.cy, &m_Pointer, 0, 0, SRCCOPY);
@@ -463,6 +451,10 @@ void CEditor::ArrangeText()
 {
 	if (not m_CurrentTag) { return; }
 	PAUSE_BACKEND()
+	if (m_CurrentTag->m_Tokens->size()) {
+		ArrangeRenderedText();
+		return;
+	}
 	m_Source.PatBlt(0, 0, m_Width, m_Height, BLACKNESS);
 	// 计算出现在DC中的第一行行数
 	double start_line = m_PercentageVertical * m_CurrentTag->m_Lines.size();
@@ -501,53 +493,78 @@ void CEditor::ArrangeText()
 	}
 	delete[] buffer;
 }
-void CEditor::RenderText(double start_line, int x_offset)
+void CEditor::ArrangeRenderedText()
 {
-	if (m_CurrentTag->m_Tokens.size() == 0) { return; }
-	static CBrush colours[] = {
-		CBrush(RGB(255, 255, 255)), // 标点符号
-		CBrush(RGB(216, 160, 223)), // 关键字
-		CBrush(RGB(156, 220, 254)), // 变量
-		CBrush(RGB(78, 175, 106)), // 类型
-		CBrush(RGB(220, 220, 147)), // 子程序
-		CBrush(RGB(255, 255, 255)), // 表达式（分解成整数和字符串）
-		CBrush(RGB(181, 206, 168)), // 整数
-		CBrush(RGB(203, 201, 187)), // 字符串
-		CBrush(RGB(77, 166, 74)), // 注释
-	};
+	m_Source.PatBlt(0, 0, m_Width, m_Height, BLACKNESS);
+	// 计算出现在DC中的第一行行数
+	double start_line = m_PercentageVertical * m_CurrentTag->m_Lines.size();
 	UINT start_line_index = start_line;
-	m_Colour.PatBlt(0, 0, m_Width, m_Height, WHITENESS);
-	CRect rect(
-		x_offset,
-		(start_line_index - start_line) * m_CharSize.cy,
-		x_offset,
-		(start_line_index - start_line + 1) * m_CharSize.cy
-	);
+	// 绘制代码
+	static COLORREF colours[] = {
+		RGB(255, 255, 255), // 标点符号
+		RGB(216, 160, 223), // 关键字
+		RGB(156, 220, 254), // 变量
+		RGB(78, 175, 106), // 类型
+		RGB(220, 220, 147), // 子程序
+		RGB(255, 255, 255), // 表达式（分解成整数和字符串）
+		RGB(181, 206, 168), // 整数
+		RGB(203, 201, 187), // 字符串
+		RGB(77, 166, 74), // 注释
+	};
+	int x_offset = LINE_NUMBER_OFFSET + m_LineNumberWidth - (long)(m_PercentageHorizontal * m_FullWidth);
+	int y_offset = (start_line_index - start_line) * m_CharSize.cy;
 	IndexedList<wchar_t*>::iterator this_line = m_CurrentTag->m_Lines[start_line_index];
-	IndexedList<ADVANCED_TOKEN*>::iterator this_token_list = m_CurrentTag->m_Tokens[start_line_index];
+	IndexedList<ADVANCED_TOKEN>::iterator this_advanced_token = (*m_CurrentTag->m_Tokens)[start_line_index];
 	for (; this_line != m_CurrentTag->m_Lines.end();) {
-		ULONG offset = GET_TEXT_WIDTH(*this_line, (*this_token_list)->indentation);
-		for (TOKEN* this_token = (*this_token_list)->token; this_token->length != 0; this_token++) {
-			LONG width = GET_TEXT_WIDTH(*this_line + offset, this_token->length);
-			rect.right += width;
-			m_Colour.FillRect(&rect, colours + this_token->type);
-			rect.left = rect.right;
+		int current_x_offset = x_offset;
+		int char_offset = 0;
+		if (this_advanced_token->tokens->length) {
+			// 计算缩进偏移量
+			current_x_offset += GET_TEXT_WIDTH(*this_line, this_advanced_token->indentation);
+			char_offset += this_advanced_token->indentation;
+			// 渲染提取的令牌
+			for (TOKEN* this_token = this_advanced_token->tokens; this_token->length != 0; this_token++) {
+				m_Source.SetTextColor(colours[this_token->type]);
+				LONG width = GET_TEXT_WIDTH(*this_line + char_offset, this_token->length);
+				TabbedTextOutW(m_Source, current_x_offset, y_offset, *this_line + char_offset, this_token->length, 1, &tab_position, x_offset);
+				current_x_offset += width;
+				char_offset += this_token->length;
+			}
 		}
-		// 渲染注释部分
-		rect.left = GET_TEXT_WIDTH(*this_line, (*this_token_list)->comment); // 更新rect.left如果无法解析令牌，使注释的绘制依旧有效
-		LONG width = GET_TEXT_WIDTH(*this_line + (*this_token_list)->comment, wcslen(*this_line) - (*this_token_list)->comment);
-		// 转至下一行
-		rect.right = rect.left + width;
-		m_Colour.FillRect(&rect, colours + TOKENTYPE::Comment);
-		rect.left = rect.right = x_offset;
+		else {
+			// 语法无法识别
+			m_Source.SetTextColor(RGB(255, 255, 255));
+			TabbedTextOutW(m_Source, current_x_offset, y_offset, *this_line, this_advanced_token->comment, 1, &tab_position, x_offset);
+		}
+		// 渲染注释
+		y_offset += m_CharSize.cy;
+		if (y_offset >= m_Height) {
+			break;
+		}
+		this_line++;
+		this_advanced_token++;
+	}
+	// 绘制行号
+	m_Source.SetTextColor(RGB(150, 150, 150));
+	USHORT digits = (USHORT)log10(m_CurrentTag->m_Lines.size()) + 1;
+	wchar_t* buffer = new wchar_t[digits + 1];
+	m_Source.PatBlt(0, 0, m_LineNumberWidth + LINE_NUMBER_OFFSET, m_Height, BLACKNESS);
+	m_Source.SetTextAlign(TA_RIGHT | TA_TOP);
+	CRect rect(LINE_NUMBER_OFFSET - 12,
+		(long)((start_line_index - start_line) * m_CharSize.cy),
+		LINE_NUMBER_OFFSET - 12 + m_LineNumberWidth,
+		(long)((start_line_index - start_line + 1) * m_CharSize.cy));
+	size_t total_lines = m_CurrentTag->m_Lines.size();
+	for (size_t line_index = start_line_index; line_index != total_lines; line_index++) {
+		StringCchPrintfW(buffer, (size_t)digits + 1, L"%d", (int)line_index + 1);
+		TextOutW(m_Source, rect.right, rect.top, buffer, wcslen(buffer));
 		rect.top = rect.bottom;
 		rect.bottom += m_CharSize.cy;
-		this_line++;
-		this_token_list++;
-		if (rect.top >= m_Height) {
+		if (rect.top > m_Height) {
 			break;
 		}
 	}
+	delete[] buffer;
 }
 void CEditor::ArrangePointer()
 {
@@ -868,7 +885,7 @@ inline void CEditor::CentralView(LONG64 line_index)
 	m_VSlider.SetPercentage((double)line_index / m_CurrentTag->m_Lines.size() - half_height / m_FullHeight);
 	m_HSlider.SetPercentage(0);
 }
-ADVANCED_TOKEN* CEditor::LineSplit(wchar_t* line)
+ADVANCED_TOKEN CEditor::LineSplit(wchar_t* line)
 {
 	int end_of_indentation = -1;
 	int start_of_comment = -1;
@@ -900,21 +917,20 @@ ADVANCED_TOKEN* CEditor::LineSplit(wchar_t* line)
 	wchar_t* content = new wchar_t[start_of_comment - end_of_indentation + 1];
 	memcpy(content, line + end_of_indentation, (start_of_comment - end_of_indentation) * 2);
 	content[start_of_comment - end_of_indentation] = 0;
-	return new ADVANCED_TOKEN{ (USHORT)end_of_indentation, reinterpret_cast<TOKEN*>(content), (USHORT)start_of_comment };
+	return ADVANCED_TOKEN{ (USHORT)end_of_indentation, reinterpret_cast<TOKEN*>(content), (USHORT)start_of_comment };
 }
 inline void CEditor::ParseLine()
 {
-	ADVANCED_TOKEN* token = LineSplit(*m_CurrentTag->m_CurrentLine);
-	CONSTRUCT construct = Construct::parse(reinterpret_cast<wchar_t*>(token->token));
-	delete[] reinterpret_cast<wchar_t*>(token->token);
+	ADVANCED_TOKEN token = LineSplit(*m_CurrentTag->m_CurrentLine);
+	CONSTRUCT construct = Construct::parse(reinterpret_cast<wchar_t*>(token.tokens));
+	delete[] reinterpret_cast<wchar_t*>(token.tokens);
 	if (construct.result and not construct.result->error_message) {
-		token->token = construct.result->tokens;
+		token.tokens = construct.result->tokens;
 	}
 	else {
-		token->token = new TOKEN[]{ ENDTOKEN };
+		token.tokens = new TOKEN[]{ ENDTOKEN };
 	}
-	delete* m_CurrentTag->m_Tokens[m_PointerPoint.y];
-	*m_CurrentTag->m_Tokens[m_PointerPoint.y] = token;
+	*(*m_CurrentTag->m_Tokens)[m_PointerPoint.y] = token;
 }
 DWORD CEditor::BackendTasking(LPVOID)
 {
@@ -952,38 +968,41 @@ void CEditor::RecalcWidth()
 void CEditor::ParseAll()
 {
 	if (not m_CurrentTag) { return; }
-	IndexedList<ADVANCED_TOKEN*>* new_list = new IndexedList<ADVANCED_TOKEN*>;
-	new_list->set_construction(true);
+	IndexedList<ADVANCED_TOKEN>* new_token_list = new IndexedList<ADVANCED_TOKEN>;
+	new_token_list->set_construction(true);
 	for (IndexedList<wchar_t*>::iterator this_line = m_CurrentTag->m_Lines.begin(); this_line != m_CurrentTag->m_Lines.end(); this_line++) {
 		if (m_bBackendEnabled) {
-			ADVANCED_TOKEN* token = LineSplit(*this_line);
-			CONSTRUCT construct = Construct::parse(reinterpret_cast<wchar_t*>(token->token));
-			delete[] reinterpret_cast<wchar_t*>(token->token);
+			ADVANCED_TOKEN token = LineSplit(*this_line);
+			CONSTRUCT construct = Construct::parse(reinterpret_cast<wchar_t*>(token.tokens));
+			delete[] reinterpret_cast<wchar_t*>(token.tokens);
 			if (construct.result and not construct.result->error_message) {
-				token->token = construct.result->tokens;
+				token.tokens = construct.result->tokens;
 			}
 			else {
-				token->token = new TOKEN[]{ ENDTOKEN };
+				token.tokens = new TOKEN[]{ ENDTOKEN };
 			}
-			if (not token->token) {
-				token->token = new TOKEN[]{ ENDTOKEN }; // 仅在开发时使用，待语法高亮系统完成后删除
+			if (not token.tokens) {
+				token.tokens = new TOKEN[]{ ENDTOKEN }; // 仅在开发时使用，待语法高亮系统完成后删除
 			}
-			new_list->append(token);
+			new_token_list->append(token);
 		}
 		else {
-			delete new_list;
+			delete new_token_list;
 			return;
 		}
 	}
-	new_list->set_construction(false);
+	new_token_list->set_construction(false);
 	if (m_bBackendEnabled) {
-		bool state = m_CurrentTag->m_Tokens.size() == 0;
-		memcpy(&m_CurrentTag->m_Tokens, new_list, sizeof(IndexedList<ADVANCED_TOKEN*>));
-		free(new_list); // 不调用析构函数
+		bool state = m_CurrentTag->m_Tokens->size() == 0;
+		for (IndexedList<ADVANCED_TOKEN>::iterator iter = m_CurrentTag->m_Tokens->begin(); iter != m_CurrentTag->m_Tokens->end(); iter++) {
+			delete[] iter->tokens;
+		}
+		delete m_CurrentTag->m_Tokens;
+		m_CurrentTag->m_Tokens = new_token_list;
 		if (state) {
 			double start_line = m_PercentageVertical * m_CurrentTag->m_Lines.size();
 			int x_offset = LINE_NUMBER_OFFSET + m_LineNumberWidth - (long)(m_PercentageHorizontal * m_FullWidth);
-			RenderText(start_line, x_offset);
+			ArrangeRenderedText();
 			Invalidate(FALSE);
 		}
 		// 即使令牌并未发生改变，重新构造跳跃式链表也会使得访问速度提升

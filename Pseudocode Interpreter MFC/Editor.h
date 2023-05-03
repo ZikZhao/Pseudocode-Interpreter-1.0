@@ -18,7 +18,6 @@ protected:
 		bool insert; // 是否为插入
 	};
 	CDC m_MemoryDC; // 内存缓冲DC
-	CDC m_MemoryDC2; // 内存缓冲DC（用于合并文字源与语法高亮色块）
 	CDC m_Free; // 未选中文件时展示
 	CDC m_Source; // 渲染文字源
 	CDC m_Colour; // 语法高亮色块载体
@@ -78,7 +77,7 @@ public:
 	static void CALLBACK DeflationCallback(ULONG new_width); // 水平长度削减时回调函数
 protected:
 	void ArrangeText(); // 计算渲染文字源
-	void RenderText(double start_line, int x_offset); // 语法高亮渲染（由ArrangeText调用，或由ParseAll决定调用）
+	void ArrangeRenderedText(); // 计算渲染文字源（带语法高亮）
 	void ArrangePointer(); // 计算文档指针源
 	void ArrangeSelection(); // 计算选区源
 	void ArrangeBreakpoints(); // 计算断点源
@@ -89,7 +88,7 @@ protected:
 	void Delete(); // 删除字符或选区
 	void MoveView(); // 移动垂直与水平进度来显示到当前指针
 	void CentralView(LONG64 line_index); // 移动视图到指定行并居中
-	ADVANCED_TOKEN* LineSplit(wchar_t* line); // 将一行中的缩进和注释分离
+	ADVANCED_TOKEN LineSplit(wchar_t* line); // 将一行中的缩进和注释分离
 	void ParseLine(); // 解析一行语法
 	// 以下函数用于后台
 	static DWORD BackendTasking(LPVOID); // 后台处理程序（负责调用以下函数）

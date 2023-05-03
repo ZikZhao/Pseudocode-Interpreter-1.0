@@ -70,6 +70,7 @@ CFileTag::CFileTag(wchar_t* path)
 	}
 	m_bHover = false;
 	m_bSelected = false;
+	m_Tokens = new IndexedList<ADVANCED_TOKEN>;
 }
 CFileTag::CFileTag()
 {
@@ -82,6 +83,7 @@ CFileTag::CFileTag()
 	m_bSelected = false;
 	m_Lines.append(new wchar_t[1] {0});
 	m_CurrentLine = m_Lines.begin();
+	m_Tokens = new IndexedList<ADVANCED_TOKEN>;
 }
 CFileTag::~CFileTag()
 {

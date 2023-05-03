@@ -24,7 +24,7 @@ struct TOKEN {
 
 struct ADVANCED_TOKEN {
 	USHORT indentation; // 前置缩进/空格字符长度
-	TOKEN* token; // 所有令牌
+	TOKEN* tokens; // 所有令牌
 	UINT comment; // 注释起始位置
 };
 
