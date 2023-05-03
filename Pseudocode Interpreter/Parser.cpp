@@ -245,9 +245,9 @@ bool SyntaxCheck(size_t length, wchar_t** lines) {
 	for (CII = 0; CII != length; CII++) {
 		CONSTRUCT construct = Construct::parse(lines[CII]);
 		parsed_code[CII] = construct;
-		if (construct.result) {
-			if (construct.result->error_message) {
-				Error error(SyntaxError, construct.result->error_message);
+		if (construct.result.matched) {
+			if (construct.result.error_message) {
+				Error error(SyntaxError, construct.result.error_message);
 				FormatErrorMessage(error, lines);
 				delete[] parsed_code;
 				return false;
@@ -379,6 +379,9 @@ int ExecuteNormal(size_t length, wchar_t** lines) {
 			}
 		}
 	}
+	for (ULONG index = 0; index != length; index++) {
+		parsed_code[index].release_tokens();
+	}
 	return 0;
 }
 
@@ -415,6 +418,9 @@ int ExecuteDubug(size_t length, wchar_t** lines) {
 		}
 	}
 	SendSignal(SIGNAL_CONNECTION, CONNECTION_EXIT, 0);
+	for (ULONG index = 0; index != length; index++) {
+		parsed_code[index].release_tokens();
+	}
 	return 0;
 }
 

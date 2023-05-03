@@ -33,6 +33,7 @@ USHORT file_ptr = 0;
 void strip(wchar_t* line) {
 	size_t start = 0;
 	size_t end = wcslen(line);
+	if (start == end) { return; }
 	for (size_t index = 0; line[index] != 0; index++) {
 		if (line[index] != 9 and line[index] != 32) {
 			start = index;
@@ -172,9 +173,9 @@ long long match_keyword(wchar_t* expr, const wchar_t* keyword) {
 }
 
 namespace DataType {
-	inline Data* new_empty_data(Data* type_data); // forward declaration
-	inline Data* copy(Data* original); // forward declaration
-	inline void release_data(Data* data_in); // forward declaration
+	inline DATA* new_empty_data(DATA* type_data); // forward declaration
+	inline DATA* copy(DATA* original); // forward declaration
+	inline void release_data(DATA* data_in); // forward declaration
 	class Any {
 		// only used to check whether a data object is initialised
 	public:
@@ -408,65 +409,65 @@ namespace DataType {
 			this->year = year;
 		}
 		Date* add(Date* offset) {
-			Date* result = new Date(this->second, this->minute, this->hour,
+			Date* new_date = new Date(this->second, this->minute, this->hour,
 				this->day, this->month, this->year);
-			result->second += offset->second;
-			result->minute += offset->minute;
-			result->hour += offset->hour;
-			while (result->second >= 60) {
-				result->minute++; result->second -= 60;
+			new_date->second += offset->second;
+			new_date->minute += offset->minute;
+			new_date->hour += offset->hour;
+			while (new_date->second >= 60) {
+				new_date->minute++; new_date->second -= 60;
 			}
-			while (result->minute >= 60) {
-				result->hour++; result->minute -= 60;
+			while (new_date->minute >= 60) {
+				new_date->hour++; new_date->minute -= 60;
 			}
-			while (result->hour >= 60) {
-				result->day++; result->hour -= 60;
+			while (new_date->hour >= 60) {
+				new_date->day++; new_date->hour -= 60;
 			}
 			bool flag = false;
 			while (!flag) {
 				flag = true;
-				switch (result->month) {
+				switch (new_date->month) {
 				case 1: case 3: case 5: case 7: case 8: case 10:
-					if (result->day >= 32) {
-						result->month++;
-						result->day -= 32;
+					if (new_date->day >= 32) {
+						new_date->month++;
+						new_date->day -= 32;
 						flag = false;
 					}
 					break;
 				case 4: case 6: case 9: case 11:
-					if (result->day >= 31) {
-						result->month++;
-						result->day -= 31;
+					if (new_date->day >= 31) {
+						new_date->month++;
+						new_date->day -= 31;
 						flag = false;
 					}
 					break;
 				case 2:
-					if (result->year % 4 == 0) {
-						if (result->day >= 30) {
-							result->month++;
-							result->day -= 30;
+					if (new_date->year % 4 == 0) {
+						if (new_date->day >= 30) {
+							new_date->month++;
+							new_date->day -= 30;
 							flag = false;
 						}
 					}
 					else {
-						if (result->day >= 29) {
-							result->month++;
-							result->day -= 29;
+						if (new_date->day >= 29) {
+							new_date->month++;
+							new_date->day -= 29;
 							flag = false;
 						}
 					}
 					break;
 				case 12:
-					if (result->day >= 32) {
-						result->year++;
-						result->month = 1;
-						result->day -= 32;
+					if (new_date->day >= 32) {
+						new_date->year++;
+						new_date->month = 1;
+						new_date->day -= 32;
 						flag = false;
 					}
 					break;
 				}
 			}
-			return result;
+			return new_date;
 		}
 		wchar_t* output() {
 			wchar_t* result = new wchar_t[20];
@@ -494,9 +495,9 @@ namespace DataType {
 	class Array {
 	public:
 		bool init;
-		Data** memory;
+		DATA** memory;
 		USHORT* size;
-		Data* type;
+		DATA* type;
 		USHORT* start_indexes;
 		USHORT dimension;
 		size_t total_size;
@@ -509,7 +510,7 @@ namespace DataType {
 			this->dimension = 0;
 			this->memory = nullptr;
 		}
-		Array(Data* type_data, USHORT* boundaries) {
+		Array(DATA* type_data, USHORT* boundaries) {
 			this->init = true;
 			this->size = new USHORT[10];
 			this->type = type_data;
@@ -528,18 +529,18 @@ namespace DataType {
 					break;
 				}
 			}
-			this->memory = new Data* [this->total_size];
+			this->memory = new DATA* [this->total_size];
 			for (USHORT index = 0; index != this->total_size; index++) {
 				this->memory[index] = new_empty_data(type_data);
 				this->memory[index]->variable_data = true;
 			}
 		}
-		Data* read(USHORT* indexes) {
+		DATA* read(USHORT* indexes) {
 			size_t offset = 0;
 			for (USHORT index = 0; index != this->dimension; index++) {
 				if (indexes[index] < this->start_indexes[index] or
 					indexes[index] > this->start_indexes[index] + this->size[index]) {
-					return new Data{ 65535, (void*)L"下标超出可接受范围" };
+					return new DATA{ 65535, (void*)L"下标超出可接受范围" };
 				}
 				offset *= this->size[index];
 				offset += ((size_t)indexes[index] - this->start_indexes[index]);
@@ -548,7 +549,7 @@ namespace DataType {
 				return this->memory[offset];
 			}
 			else {
-				return new Data{ 65535, (void*)L"下标超出边界" };
+				return new DATA{ 65535, (void*)L"下标超出边界" };
 			}
 		}
 	};
@@ -557,15 +558,15 @@ namespace DataType {
 		bool init = true;
 		USHORT number_of_fields;
 		wchar_t** fields;
-		Data* types;
+		DATA* types;
 		RecordType(BinaryTree* field_info) {
 			this->number_of_fields = 0;
 			BinaryTree::Node* all_fields = field_info->list_nodes(field_info->root, &this->number_of_fields);
 			this->fields = new wchar_t* [this->number_of_fields];
-			this->types = new Data[this->number_of_fields];
+			this->types = new DATA[this->number_of_fields];
 			for (USHORT index = 0; index != this->number_of_fields; index++) {
 				this->fields[index] = all_fields[index].key;
-				memcpy(this->types + index, all_fields[index].value, sizeof(Data));
+				memcpy(this->types + index, all_fields[index].value, sizeof(DATA));
 			}
 		}
 	};
@@ -573,7 +574,7 @@ namespace DataType {
 	public:
 		bool init = true;
 		RecordType* source;
-		Data** values;
+		DATA** values;
 		Record() {
 			this->init = false;
 			this->source = nullptr;
@@ -582,7 +583,7 @@ namespace DataType {
 		Record(RecordType* source) {
 			this->source = source;
 			USHORT number = source->number_of_fields;
-			this->values = new Data* [number];
+			this->values = new DATA* [number];
 			for (USHORT index = 0; index != number; index++) {
 				this->values[index] = new_empty_data(this->source->types + index);
 				this->values[index]->variable_data = true;
@@ -605,15 +606,15 @@ namespace DataType {
 			}
 			return -1;
 		}
-		inline Data* read(USHORT index) {
+		inline DATA* read(USHORT index) {
 			return this->values[index];
 		}
 	};
 	class PointerType {
 	public:
 		bool init = true;
-		Data* type;
-		PointerType(Data* type) {
+		DATA* type;
+		PointerType(DATA* type) {
 			this->type = type;
 		}
 		~PointerType() {
@@ -638,8 +639,8 @@ namespace DataType {
 		bool valid = false;
 		PointerType* source;
 		BinaryTree::Node* node;
-		Data* forward_link = nullptr;
-		Data* backward_link = nullptr;
+		DATA* forward_link = nullptr;
+		DATA* backward_link = nullptr;
 		Pointer() {
 			this->source = nullptr;
 			this->node = nullptr;
@@ -661,7 +662,7 @@ namespace DataType {
 				return this->node;
 			}
 		}
-		static inline void add_link(BinaryTree::Node* referenced_node, Data* pointer) {
+		static inline void add_link(BinaryTree::Node* referenced_node, DATA* pointer) {
 			Pointer& pointer_object = *(Pointer*)pointer->value;
 			pointer_object.forward_link = referenced_node->last_pointer;
 			if (referenced_node->last_pointer) {
@@ -669,7 +670,7 @@ namespace DataType {
 			}
 			referenced_node->last_pointer = pointer;
 		}
-		static inline void remove_link(Data* pointer) {
+		static inline void remove_link(DATA* pointer) {
 			Pointer* pointer_object = (Pointer*)pointer->value;
 			if (pointer_object->node) {
 				if (pointer_object->backward_link) {
@@ -681,7 +682,7 @@ namespace DataType {
 			}
 		}
 		static inline void invalidate(BinaryTree::Node* node) {
-			Data* current_pointer = node->last_pointer;
+			DATA* current_pointer = node->last_pointer;
 			if (current_pointer) {
 				do {
 					((Pointer*)current_pointer->value)->valid = false;
@@ -731,7 +732,7 @@ namespace DataType {
 					node->value->value = new Integer(index);
 				}
 				else {
-					Data* data = new Data{ 0, new Integer(index) };
+					DATA* data = new DATA{ 0, new Integer(index) };
 					enumerations->insert(type->values[index], data);
 				}
 			}
@@ -763,8 +764,8 @@ namespace DataType {
 		bool init;
 		size_t start_line;
 		USHORT number_of_args;
-		Parameter* params;
-		Data* return_type; // if it does not return, then return_type->type = 65535
+		PARAMETER* params;
+		DATA* return_type; // if it does not return, then return_type->type = 65535
 		Function() {
 			this->init = false;
 			this->start_line = 0;
@@ -772,15 +773,15 @@ namespace DataType {
 			this->params = nullptr;
 			this->return_type = nullptr;
 		}
-		Function(size_t start_line_in, USHORT number_of_args_in, Parameter* params_in,
-			Data* return_type_in = new Data{ 65535, nullptr }) {
+		Function(size_t start_line_in, USHORT number_of_args_in, PARAMETER* params_in,
+			DATA* return_type_in = new DATA{ 65535, nullptr }) {
 			this->init = true;
 			this->start_line = start_line_in;
 			this->number_of_args = number_of_args_in;
 			this->params = params_in;
 			this->return_type = return_type_in;
 		}
-		bool push_args(BinaryTree* locals, Data** args) {
+		bool push_args(BinaryTree* locals, DATA** args) {
 			for (USHORT index = 0; index != this->number_of_args; index++) {
 				if (not ((Any*)args[index]->value)->init) {
 					wchar_t* error_message = new wchar_t[18 + (USHORT)log10(index)];
@@ -796,21 +797,21 @@ namespace DataType {
 					throw Error(ValueError, error_message);
 				}
 				if (this->params[index].type->type < 7) {
-					Data* args_data = nullptr;
+					DATA* args_data = nullptr;
 					if (args[index]->type != this->params[index].type->type) {
 						switch ((args[index]->type << 8) + this->params[index].type->type) {
 						case 1:
-							args_data = new Data{ 1, new Real((Integer*)args[index]->value) };
+							args_data = new DATA{ 1, new Real((Integer*)args[index]->value) };
 							break;
 						case 256:
-							args_data = new Data{ 0, new Integer((long long)((Real*)args[index]->value)->value) };
+							args_data = new DATA{ 0, new Integer((long long)((Real*)args[index]->value)->value) };
 							break;
 						case 515:
-							args_data = new Data{ 3, new String((Char*)args[index]->value) };
+							args_data = new DATA{ 3, new String((Char*)args[index]->value) };
 							break;
 						case 770:
 							if (((String*)args[index]->value)->length != 1) { return false; }
-							args_data = new Data{ 2, new Char(((String*)args[index]->value)->string[0])};
+							args_data = new DATA{ 2, new Char(((String*)args[index]->value)->string[0])};
 							break;
 						default:
 							return false;
@@ -843,7 +844,7 @@ namespace DataType {
 						}
 						break;
 					}
-					Data* args_data = DataType::copy(args[index]);
+					DATA* args_data = DataType::copy(args[index]);
 					args_data->variable_data = true;
 					locals->insert(this->params[index].name, args_data);
 				}
@@ -862,7 +863,7 @@ namespace DataType {
 			this->value = target;
 		}
 	};
-	Data* new_empty_data(Data* type_data) { // value of this structure represent source
+	DATA* new_empty_data(DATA* type_data) { // value of this structure represent source
 		void* object = nullptr;
 		switch(type_data->type){
 		case 0:
@@ -894,42 +895,42 @@ namespace DataType {
 			break;
 		}
 		if (type_data->type < 7) {
-			return new Data{ type_data->type, object };
+			return new DATA{ type_data->type, object };
 		}
 		else {
-			return new Data{ (USHORT)(type_data->type + 1), object };
+			return new DATA{ (USHORT)(type_data->type + 1), object };
 		}
 	}
-	Data* copy(Data* original) {
-		Data* result = new Data{ original->type, nullptr };
+	DATA* copy(DATA* original) {
+		DATA* result_data = new DATA{ original->type, nullptr };
 		switch (original->type) {
 		case 0:
-			result->value = new Integer;
-			memcpy(result->value, original->value, sizeof(Integer));
+			result_data->value = new Integer;
+			memcpy(result_data->value, original->value, sizeof(Integer));
 			break;
 		case 1:
-			result->value = new Real;
-			memcpy(result->value, original->value, sizeof(Real));
+			result_data->value = new Real;
+			memcpy(result_data->value, original->value, sizeof(Real));
 			break;
 		case 2:
-			result->value = new Char;
-			memcpy(result->value, original->value, sizeof(Char));
+			result_data->value = new Char;
+			memcpy(result_data->value, original->value, sizeof(Char));
 			break;
 		case 3:
-			result->value = new String;
-			memcpy(result->value, original->value, sizeof(String));
-			if (not ((DataType::String*)result->value)->init) { break; }
-			((String*)result->value)->string = new wchar_t[((String*)original->value)->length + 1];
-			memcpy(((String*)result->value)->string, ((String*)original->value)->string, (((String*)original->value)->length + 1) * 2);
+			result_data->value = new String;
+			memcpy(result_data->value, original->value, sizeof(String));
+			if (not ((DataType::String*)result_data->value)->init) { break; }
+			((String*)result_data->value)->string = new wchar_t[((String*)original->value)->length + 1];
+			memcpy(((String*)result_data->value)->string, ((String*)original->value)->string, (((String*)original->value)->length + 1) * 2);
 			break;
 		case 4:
 		{
-			result->value = new Boolean(*(DataType::Boolean*)original->value);
+			result_data->value = new Boolean(*(DataType::Boolean*)original->value);
 			break;
 		}
 		case 5:
-			result->value = new Date;
-			memcpy(result->value, original->value, sizeof(Date));
+			result_data->value = new Date;
+			memcpy(result_data->value, original->value, sizeof(Date));
 			break;
 		case 6:
 		{
@@ -937,27 +938,27 @@ namespace DataType {
 			memcpy(start, ((Array*)original->value)->start_indexes, sizeof(USHORT) * 10);
 			USHORT* size = new USHORT[10];
 			memcpy(size, ((Array*)original->value)->size, sizeof(USHORT) * 10);
-			result->value = new Array;
-			memcpy(result->value, original->value, sizeof(Array));
-			((Array*)result->value)->start_indexes = start;
-			((Array*)result->value)->size = size;
-			((Array*)result->value)->memory = new Data * [((Array*)original->value)->total_size];
+			result_data->value = new Array;
+			memcpy(result_data->value, original->value, sizeof(Array));
+			((Array*)result_data->value)->start_indexes = start;
+			((Array*)result_data->value)->size = size;
+			((Array*)result_data->value)->memory = new DATA * [((Array*)original->value)->total_size];
 			for (size_t index = 0; index != ((Array*)original->value)->total_size; index++) {
-				((Array*)result->value)->memory[index] = copy(((Array*)original->value)->memory[index]);
-				((Array*)result->value)->memory[index]->variable_data = true;
+				((Array*)result_data->value)->memory[index] = copy(((Array*)original->value)->memory[index]);
+				((Array*)result_data->value)->memory[index]->variable_data = true;
 			}
-			((Array*)result->value)->type = new Data;
-			memcpy(((Array*)result->value)->type, ((Array*)original->value)->type, sizeof(Data));
+			((Array*)result_data->value)->type = new DATA;
+			memcpy(((Array*)result_data->value)->type, ((Array*)original->value)->type, sizeof(DATA));
 			break;
 		}
 		case 8:
 		{
-			result->value = new Record;
-			memcpy(result->value, original->value, sizeof(Record));
-			((Record*)result->value)->values = new Data* [((Record*)result->value)->source->number_of_fields];
-			for (USHORT index = 0; index != ((Record*)result->value)->source->number_of_fields; index++) {
-				((Record*)result->value)->values[index] = copy(((Record*)original->value)->values[index]);
-				((Record*)result->value)->values[index]->variable_data = true;
+			result_data->value = new Record;
+			memcpy(result_data->value, original->value, sizeof(Record));
+			((Record*)result_data->value)->values = new DATA* [((Record*)result_data->value)->source->number_of_fields];
+			for (USHORT index = 0; index != ((Record*)result_data->value)->source->number_of_fields; index++) {
+				((Record*)result_data->value)->values[index] = copy(((Record*)original->value)->values[index]);
+				((Record*)result_data->value)->values[index]->variable_data = true;
 			}
 			break;
 		}
@@ -967,25 +968,25 @@ namespace DataType {
 			memcpy(ptr, original->value, sizeof(Pointer));
 			ptr->forward_link = nullptr;
 			ptr->backward_link = nullptr;
-			result->value = ptr;
+			result_data->value = ptr;
 			if (ptr->valid and ptr->init) {
 				ptr->reference(((Pointer*)original->value)->dereference());
-				Pointer::add_link(ptr->node, result);
+				Pointer::add_link(ptr->node, result_data);
 			}
 			break;
 		}
 		case 12:
-			result->value = new Enumerated;
-			memcpy(result->value, original->value, sizeof(Enumerated));
+			result_data->value = new Enumerated;
+			memcpy(result_data->value, original->value, sizeof(Enumerated));
 			break;
 		case 14:
-			result->value = new Address(((Address*)original->value)->value);
+			result_data->value = new Address(((Address*)original->value)->value);
 			break;
 		}
-		return result;
+		return result_data;
 	}
-	inline Data* get_type(Data* data_in) {
-		Data* type = new Data{ data_in->type, nullptr };
+	inline DATA* get_type(DATA* data_in) {
+		DATA* type = new DATA{ data_in->type, nullptr };
 		switch (data_in->type) {
 		case 8:
 			type->value = ((Record*)data_in->value)->source;
@@ -999,30 +1000,30 @@ namespace DataType {
 		}
 		return type;
 	}
-	Data* type_adaptation(Data* data_in, Data* target_type) {
+	DATA* type_adaptation(DATA* data_in, DATA* target_type) {
 		// original data structure is not being released
 		USHORT& type_in = data_in->type;
 		USHORT& type_out = target_type->type;
 		if (type_in == type_out or type_in == 14 and type_out == 10) {
 			return copy(data_in);
 		}
-		Data* data = nullptr;
+		DATA* data = nullptr;
 		switch ((type_in << 8) + type_out) {
 		case 1:
 		{
 			long long value = ((Integer*)(data_in->value))->value;
-			data = new Data{ 1, new Real((long double)value) };
+			data = new DATA{ 1, new Real((long double)value) };
 			break;
 		}
 		case 256:
 		{
 			long double value = ((Real*)(data_in->value))->value;
-			data = new Data{ 0, new Integer((long long)value) };
+			data = new DATA{ 0, new Integer((long long)value) };
 			break;
 		}
 		case 515:
 		{
-			data = new Data{ 3, new String((Char*)data_in->value) };
+			data = new DATA{ 3, new String((Char*)data_in->value) };
 			break;
 		}
 		case 770:
@@ -1032,7 +1033,7 @@ namespace DataType {
 			}
 			else {
 				wchar_t value = ((String*)(data_in->value))->string[0];
-				data = new Data{ 2, new Char(value) };
+				data = new DATA{ 2, new Char(value) };
 			}
 			break;
 		}
@@ -1040,7 +1041,7 @@ namespace DataType {
 		{
 			Enumerated* obj = new Enumerated((EnumeratedType*)target_type->value);
 			obj->assign(((Integer*)data_in->value)->value);
-			data = new Data{ 12, obj };
+			data = new DATA{ 12, obj };
 			break;
 		}
 		default:
@@ -1050,7 +1051,7 @@ namespace DataType {
 		}
 		return data;
 	}
-	inline void release_data(Data* data) {
+	inline void release_data(DATA* data) {
 		switch (data->type) {
 		case 0:
 			delete (Integer*)data->value;
@@ -1099,7 +1100,7 @@ namespace DataType {
 		}
 		delete data;
 	}
-	bool check_identical(Data* left, Data* right) {
+	bool check_identical(DATA* left, DATA* right) {
 		if (left->type != right->type) { return false; }
 		if (not ((Any*)left->value)->init or not ((Any*)right->value)->init) { return false; }
 		switch (left->type) {
@@ -1170,7 +1171,7 @@ namespace DataType {
 		}
 		return false;
 	}
-	wchar_t* output_data(Data* data, DWORD* count_out) {
+	wchar_t* output_data(DATA* data, DWORD* count_out) {
 		if (not ((DataType::Any*)data->value)->init) {
 			*count_out = 6;
 			return new wchar_t[] { L"<未初始化>" };
@@ -1253,7 +1254,7 @@ namespace DataType {
 		}
 		}
 	}
-	wchar_t* output_data_as_object(Data* data, DWORD* count_out) {
+	wchar_t* output_data_as_object(DATA* data, DWORD* count_out) {
 		if (not ((DataType::Any*)data->value)->init) {
 			*count_out = 6;
 			return new wchar_t[] { L"<未初始化>" };
@@ -1403,7 +1404,7 @@ namespace DataType {
 			DWORD* value_lengths = new DWORD[length];
 			size_t total_count = 4;
 			for (USHORT index = 0; index != length; index++) {
-				Data* value_data = ((DataType::Record*)data->value)->read(index);
+				DATA* value_data = ((DataType::Record*)data->value)->read(index);
 				value_ptr[index] = output_data_as_object(value_data, value_lengths + index);
 				total_count += wcslen(((DataType::RecordType*)((DataType::Record*)data->value)->source)->fields[index]) + value_lengths[index] + 3;
 			}
@@ -1553,7 +1554,7 @@ namespace DataType {
 		}
 		return nullptr;
 	}
-	char* sequentialise(Data* data) {
+	char* sequentialise(DATA* data) {
 		char* digest = nullptr;
 		if (not ((Any*)data->value)->init) {
 			return digest;
@@ -1609,28 +1610,28 @@ namespace DataType {
 		}
 		return digest;
 	}
-	Data* desequentialise(char* digest) {
-		Data* data = nullptr;
+	DATA* desequentialise(char* digest) {
+		DATA* data = nullptr;
 		switch (digest[0]) {
 		case 0:
 		{
 			long long value = 0;
 			memcpy(&value, digest + 1, sizeof(long long));
-			data = new Data{ 0, new Integer(value) };
+			data = new DATA{ 0, new Integer(value) };
 			break;
 		}
 		case 1:
 		{
 			long double value = 0;
 			memcpy(&value, digest + 1, sizeof(long double));
-			data = new Data{ 1, new Real(value) };
+			data = new DATA{ 1, new Real(value) };
 			break;
 		}
 		case 2:
 		{
 			wchar_t value = 0;
 			memcpy(&value, digest + 1, sizeof(wchar_t));
-			data = new Data{ 2, new Char(value) };
+			data = new DATA{ 2, new Char(value) };
 			break;
 		}
 		case 3:
@@ -1638,14 +1639,14 @@ namespace DataType {
 			size_t length = *(digest + 1);
 			wchar_t* string = new wchar_t[length];
 			memcpy(string, digest + 9, length * 2);
-			data = new Data{ 3, new String(wcslen(string), string)};
+			data = new DATA{ 3, new String(wcslen(string), string)};
 			break;
 		}
 		case 4:
 		{
 			bool value = 0;
 			memcpy(&value, digest + 1, sizeof(bool));
-			data = new Data{ 4, new Boolean(value) };
+			data = new DATA{ 4, new Boolean(value) };
 			break;
 		}
 		case 5:
@@ -1659,7 +1660,7 @@ namespace DataType {
 			hour = (USHORT)(timestamp >> 12) & 0b11111;
 			minute = (USHORT)(timestamp >> 6) & 0b111111;
 			second = (USHORT)timestamp & 0b111111;
-			data = new Data{ 5, new Date(second, minute, hour, day, month, year) };
+			data = new DATA{ 5, new Date(second, minute, hour, day, month, year) };
 			break;
 		}
 		}
@@ -2295,6 +2296,8 @@ namespace Element {
 					return true;
 				}
 				else {
+					delete rpn_exp;
+					delete[] tag_expr;
 					return false;
 				}
 			}
@@ -2498,10 +2501,10 @@ namespace Element {
 		}
 		return true;
 	}
-	bool parameter_list(wchar_t* expr, Parameter** param_out = nullptr, USHORT* count_out = nullptr) {
+	bool parameter_list(wchar_t* expr, PARAMETER** param_out = nullptr, USHORT* count_out = nullptr) {
 		if (wcslen(expr) == 2) {
 			if (expr[0] == 40 and expr[1] == 41) {
-				if (param_out) { *param_out = new Parameter[0]; }
+				if (param_out) { *param_out = new PARAMETER[0]; }
 				if (count_out) { *count_out = 0; }
 				return true;
 			}
@@ -2519,7 +2522,7 @@ namespace Element {
 		}
 		size_t last_spliter = 0;
 		size_t last_colon = 0;
-		Parameter* params = new Parameter[count];
+		PARAMETER* params = new PARAMETER[count];
 		count = 0;
 		for (size_t index = 0; tag_expr[index] != 0; index++) {
 			if (tag_expr[index] == 44 or tag_expr[index] == 41) {
@@ -2593,29 +2596,31 @@ namespace Element {
 
 namespace Construct {
 	// enders can not be combined, see sequence_check
-	RESULT* empty_line(wchar_t* expr) {
-		RESULT* result = new RESULT;
-		result->matched = true;
-		result->tokens = new TOKEN[]{
-			ENDTOKEN,
-		};
+	RESULT empty_line(wchar_t* expr) {
+		RESULT result;
+		result.matched = true;
 		if (wcslen(expr) == 0) { return result; }
 		for (size_t index = 0; expr[index] != 0; index++) {
 			if (expr[index] != 32 and expr[index] != 9) {
-				result->matched = false;
+				result.matched = false;
 			}
+		}
+		if (result.matched) {
+			result.tokens = new TOKEN[]{
+				ENDTOKEN,
+			};
 		}
 		return result;
 	}
-	RESULT* declaration(wchar_t* expr) {
-		RESULT* result = new RESULT;
-		if (match_keyword(expr, L"DECLARE") == 0) {
+	RESULT declaration(wchar_t* expr) {
+		RESULT result;
+		if (match_keyword(expr, L"DECLARE ") == 0) {
 			USHORT count = 1;
-			for (size_t index = 7; expr[index] != 0; index++) {
-				if (expr[index] == 44) {
+			for (size_t index = 8; expr[index] != 0; index++) {
+				if (expr[index] == L',') {
 					count++;
 				}
-				else if (expr[index] == 58) {
+				else if (expr[index] == L':') {
 					break;
 				}
 			}
@@ -2624,7 +2629,7 @@ namespace Construct {
 			TOKEN* variable_tokens = new TOKEN[count * 2];
 			count = 0;
 			for (size_t index = 7; expr[index] != 0; index++) {
-				if (expr[index] == 44 or expr[index] == 58) {
+				if (expr[index] == L',' or expr[index] == L':') {
 					wchar_t* this_variable = new wchar_t[index - last_spliter];
 					memcpy(this_variable, expr + last_spliter + 1, (index - last_spliter - 1) * 2);
 					this_variable[index - last_spliter - 1] = 0;
@@ -2650,24 +2655,24 @@ namespace Construct {
 						USHORT* boundaries_out = nullptr;
 						wchar_t* type_out = nullptr;
 						if (Element::variable(type_part)) {
-							result->matched = true;
-							result->args = new void* [] {
+							result.matched = true;
+							result.args = new void* [] {
 								(void*)L"V",
 								new USHORT{ count },
 								variables,
 								type_part,
 							};
-							result->tokens = new TOKEN[3 + count * 2];
-							result->tokens[0] = TOKEN{ 8, TOKENTYPE::Keyword };
-							memcpy(result->tokens + 1, variable_tokens, sizeof(TOKEN) * (count * 2));
-							result->tokens[1 + count * 2] = TOKEN{ (USHORT)(wcslen(expr) - index), TOKENTYPE::Type };
-							result->tokens[2 + count * 2] = ENDTOKEN;
+							result.tokens = new TOKEN[3 + count * 2];
+							result.tokens[0] = TOKEN{ 8, TOKENTYPE::Keyword };
+							memcpy(result.tokens + 1, variable_tokens, sizeof(TOKEN) * (count * 2));
+							result.tokens[1 + count * 2] = TOKEN{ (USHORT)(wcslen(expr) - index), TOKENTYPE::Type };
+							result.tokens[2 + count * 2] = ENDTOKEN;
 							delete[] variable_tokens;
 						}
 						else if (Element::array_type(type_part, &boundaries_out, &type_out)) {
-							result->matched = true;
+							result.matched = true;
 							delete[] type_part;
-							result->args = new void* [] {
+							result.args = new void* [] {
 								(void*)L"A",
 								new USHORT{ count },
 								variables,
@@ -2689,12 +2694,12 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* constant(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT constant(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keyword = L"CONSTANT ";
 		if (match_keyword(expr, keyword) == 0) {
 			for (size_t index = 9; expr[index] != 0; index++) {
-				if (expr[index] == 8592) {
+				if (expr[index] == L'=') {
 					wchar_t* variable_part = new wchar_t[index - 8];
 					wchar_t* expression_part = new wchar_t[wcslen(expr) - index];
 					memcpy(variable_part, expr + 9, 2 * ((size_t)index - 9));
@@ -2706,11 +2711,14 @@ namespace Construct {
 					RPN_EXP* rpn_out = nullptr;
 					if (Element::variable(variable_part) and Element::expression(expression_part, &rpn_out)) {
 						delete[] expression_part;
-						result->matched = true;
-						result->args = new void* [] {variable_part, rpn_out};
-						result->tokens = new TOKEN[] {
-							{ 8ui16, TOKENTYPE::Keyword },
-							{ (USHORT)(index - 9ui16), TOKENTYPE::Variable },
+						result.matched = true;
+						result.args = new void* [] {
+							variable_part,
+							rpn_out
+						};
+						result.tokens = new TOKEN[] {
+							{ 9, TOKENTYPE::Keyword },
+							{ (USHORT)(index - 9), TOKENTYPE::Variable },
 							{ 1, TOKENTYPE::Punctuation },
 							{ (USHORT)(wcslen(expr) - index - 1), TOKENTYPE::Expression },
 							ENDTOKEN,
@@ -2727,8 +2735,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* type_header(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT type_header(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keyword = L"TYPE ";
 		if (match_keyword(expr, keyword) == 0) {
 			wchar_t* type_part = new wchar_t[wcslen(expr) - 4];
@@ -2736,8 +2744,13 @@ namespace Construct {
 			type_part[wcslen(expr) - 5] = 0;
 			strip(type_part);
 			if (Element::variable(type_part)) {
-				result->matched = true;
-				result->args = new void* [] { type_part };
+				result.matched = true;
+				result.args = new void* [] { type_part };
+				result.tokens = new TOKEN[]{
+					{ 5, TOKENTYPE::Keyword },
+					{ (USHORT)(wcslen(expr) - 5), TOKENTYPE::Type },
+					ENDTOKEN
+				};
 			}
 			else {
 				delete[] type_part;
@@ -2745,19 +2758,21 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* type_ender(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT type_ender(wchar_t* expr) {
+		RESULT result;
 		if (wcslen(expr) != 7) { return result; }
-		static const wchar_t* keyword = L"ENDTYPE";
-		if (match_keyword(expr, keyword) == 0) {
-			result->matched = true;
+		if (match_keyword(expr, L"ENDTYPE") == 0) {
+			result.matched = true;
+			result.tokens = new TOKEN[]{
+				{ 7, TOKENTYPE::Keyword },
+				ENDTOKEN
+			};
 		}
 		return result;
 	}
-	RESULT* pointer_type_header(wchar_t* expr){
-		RESULT* result = new RESULT;
-		static const wchar_t* keyword = L"TYPE ";
-		if (match_keyword(expr, keyword) == 0) {
+	RESULT pointer_type_header(wchar_t* expr){
+		RESULT result;
+		if (match_keyword(expr, L"TYPE ") == 0) {
 			for (size_t index = 5; expr[index] != 0; index++) {
 				if (expr[index] == L'←') {
 					wchar_t* type_part = new wchar_t[index - 4];
@@ -2769,10 +2784,17 @@ namespace Construct {
 					strip(type_part);
 					strip(pointer_part);
 					if (Element::variable(type_part) and Element::pointer_type(pointer_part)) {
-						result->matched = true;
-						result->args = new void* [] {
+						result.matched = true;
+						result.args = new void* [] {
 							type_part,
 							pointer_part,
+						};
+						result.tokens = new TOKEN[]{
+							{ 5, TOKENTYPE::Keyword },
+							{ (USHORT)(index - 5), TOKENTYPE::Type },
+							{ 1, TOKENTYPE::Punctuation },
+							{ (USHORT)(wcslen(expr) - index), TOKENTYPE::Type },
+							ENDTOKEN,
 						};
 					}
 					else {
@@ -2785,10 +2807,9 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* enumerated_type_header(wchar_t* expr){
-		RESULT* result = new RESULT;
-		static const wchar_t* keyword = L"TYPE ";
-		if (match_keyword(expr, keyword) == 0) {
+	RESULT enumerated_type_header(wchar_t* expr){
+		RESULT result;
+		if (match_keyword(expr, L"TYPE ") == 0) {
 			for (size_t index = 5; expr[index] != 0; index++) {
 				if (expr[index] == L'=') {
 					wchar_t* type_part = new wchar_t[index - 4];
@@ -2800,10 +2821,17 @@ namespace Construct {
 					strip(type_part);
 					strip(value_part);
 					if (Element::variable(type_part) and Element::enumerated_type(value_part)) {
-						result->matched = true;
-						result->args = new void* [] {
+						result.matched = true;
+						result.args = new void* [] {
 							type_part,
 							value_part,
+						};
+						result.tokens = new TOKEN[]{
+							{ 5, TOKENTYPE::Keyword },
+							{ (USHORT)(index - 5), TOKENTYPE::Type },
+							{ 1, TOKENTYPE::Punctuation },
+							{ (USHORT)(wcslen(expr) - index), TOKENTYPE::Enumeration },
+							ENDTOKEN,
 						};
 					}
 					else {
@@ -2816,10 +2844,10 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* assignment(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT assignment(wchar_t* expr) {
+		RESULT result;
 		for (size_t index = 0; expr[index] != 0; index++) {
-			if (expr[index] == 8592) {
+			if (expr[index] == L'←') {
 				wchar_t* variable_part = new wchar_t[index + 1];
 				wchar_t* expression_part = new wchar_t[wcslen(expr) - index];
 				memcpy(variable_part, expr, index * 2);
@@ -2831,8 +2859,8 @@ namespace Construct {
 				RPN_EXP* rpn_out = nullptr;
 				if (Element::expression(expression_part, &rpn_out) and Element::valid_variable_path(variable_part)) {
 					delete[] expression_part;
-					result->matched = true;
-					result->args = new void* [] {
+					result.matched = true;
+					result.args = new void* [] {
 						variable_part,
 						rpn_out,
 					};
@@ -2846,65 +2874,58 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* output(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT output(wchar_t* expr) {
+		RESULT result;
 		if (wcslen(expr) < 7) {
 			return result;
 		}
-		static const wchar_t* keyword = L"OUTPUT";
-		for (USHORT index = 0; index != 6; index++) {
-			if (keyword[index] != expr[index]) {
-				return result;
+		if (match_keyword(expr, L"OUTPUT ") == 0) {
+			wchar_t* expr_part = new wchar_t[wcslen(expr) - 6];
+			memcpy(expr_part, expr + 7, (wcslen(expr) - 7) * 2);
+			expr_part[wcslen(expr) - 7] = 0;
+			RPN_EXP* rpn_out = nullptr;
+			if (Element::expression(expr_part, &rpn_out)) {
+				delete[] expr_part;
+				result.matched = true;
+				result.args = new void* [1] { rpn_out };
 			}
-		}
-		wchar_t* expr_part = new wchar_t[wcslen(expr) - 6];
-		memcpy(expr_part, expr + 7, (wcslen(expr) - 7) * 2);
-		expr_part[wcslen(expr) - 7] = 0;
-		RPN_EXP* rpn_out = nullptr;
-		if (Element::expression(expr_part, &rpn_out)) {
-			delete[] expr_part;
-			result->matched = true;
-			result->args = new void* [1] { rpn_out };
-		}
-		else {
-			delete[] expr_part;
+			else {
+				delete[] expr_part;
+			}
 		}
 		return result;
 	}
-	RESULT* input(wchar_t* expr) {
-		RESULT* result = new RESULT;
-		static const wchar_t* keyword = L"INPUT ";
-		if (match_keyword(expr, keyword) == 0) {
+	RESULT input(wchar_t* expr) {
+		RESULT result;
+		if (match_keyword(expr, L"INPUT ") == 0) {
 			if (Element::valid_variable_path(expr + 6)) {
 				wchar_t* variable_part = new wchar_t[wcslen(expr) - 5];
 				memcpy(variable_part, expr + 6, (wcslen(expr) - 6) * 2);
 				variable_part[wcslen(expr) - 6] = 0;
-				result->matched = true;
-				result->args = new void* [1] {
-					variable_part,
-				};
+				result.matched = true;
+				result.args = new void* [1] { variable_part };
 			}
 		}
 		return result;
 	}
-	RESULT* if_header_1(wchar_t* expr) {
+	RESULT if_header_1(wchar_t* expr) {
 		// IF <condition>
 		//    THEN ...
-		RESULT* result = new RESULT;
+		RESULT result;
 		static const wchar_t* keyword = L"IF ";
 		if (match_keyword(expr, keyword) == 0) {
 			RPN_EXP* rpn_out = nullptr;
 			if (Element::expression(expr + 3, &rpn_out)) {
-				result->matched = true;
+				result.matched = true;
 				if (nesting_ptr == 128) {
 					release_rpn(rpn_out);
-					result->error_message = L"嵌套深度达到上限";
+					result.error_message = L"嵌套深度达到上限";
 				}
 				else {
 					nesting[nesting_ptr] = new Nesting(Nesting::IF, current_instruction_index);
-					result->args = new void* [] {
+					result.args = new void* [] {
 						nesting[nesting_ptr],
-							rpn_out,
+						rpn_out,
 					};
 					nesting_ptr++;
 				}
@@ -2912,10 +2933,10 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* if_header_2(wchar_t* expr) {
+	RESULT if_header_2(wchar_t* expr) {
 		// IF <condition> THEN
 		//     ...
-		RESULT* result = new RESULT;
+		RESULT result;
 		static const wchar_t* keywords[] = { L"IF ", L" THEN" };
 		for (USHORT index = 0; index != 3; index++) {
 			if (keywords[0][index] != expr[index]) {
@@ -2934,89 +2955,85 @@ namespace Construct {
 		bool is_expression = Element::expression(condition, &rpn_out);
 		delete[] condition;
 		if (is_expression) {
-			result->matched = true;
+			result.matched = true;
 			if (nesting_ptr == 128) {
 				release_rpn(rpn_out);
-				result->error_message = L"嵌套深度达到上限";
+				result.error_message = L"嵌套深度达到上限";
 			}
 			else {
 				nesting[nesting_ptr] = new Nesting(Nesting::IF, current_instruction_index);
 				nesting[nesting_ptr]->add_tag(current_instruction_index);
-				result->args = new void* [] {
+				result.args = new void* [] {
 					nesting[nesting_ptr],
-						rpn_out,
+					rpn_out,
 				};
 				nesting_ptr++;
 			}
 		}
 		return result;
 	}
-	RESULT* then_tag(wchar_t* expr) {
+	RESULT then_tag(wchar_t* expr) {
 		// THEN
 		//     <statements>
-		RESULT* result = new RESULT;
+		RESULT result;
 		static const wchar_t* keyword = L"THEN";
 		if (match_keyword(expr, keyword) == 0) {
-			result->matched = true;
+			result.matched = true;
 			if (not nesting_ptr) {
-				result->error_message = L"未找到THEN标签对应的语法头";
+				result.error_message = L"未找到THEN标签对应的语法头";
 			}
 			if (nesting[nesting_ptr - 1]->nest_type != Nesting::IF) {
-				result->error_message = L"未找到THEN标签对应的语法头";
+				result.error_message = L"未找到THEN标签对应的语法头";
 			}
 			else if (nesting[nesting_ptr - 1]->tag_number != 1) {
-				result->error_message = L"重定义THEN标签是非法的";
+				result.error_message = L"重定义THEN标签是非法的";
 			}
 			else {
 				nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
-				result->args = new void* [] {
-					nesting[nesting_ptr - 1],
-				};
+				result.args = new void* [] { nesting[nesting_ptr - 1] };
 			}
 		}
 		return result;
 	}
-	RESULT* else_tag(wchar_t* expr) {
+	RESULT else_tag(wchar_t* expr) {
 		// ELSE
 		//     <statements>
-		RESULT* result = new RESULT;
+		RESULT result;
 		static const wchar_t* keyword = L"ELSE";
 		if (match_keyword(expr, keyword) == 0) {
-			result->matched = true;
+			result.matched = true;
 			if (not nesting_ptr) {
-				result->error_message = L"未找到ELSE标签对应的IF头";
+				result.error_message = L"未找到ELSE标签对应的IF头";
 			}
 			else if (nesting[nesting_ptr - 1]->tag_number == 1) {
-				result->error_message = L"在定义ELSE标签前请先定义THEN标签";
+				result.error_message = L"在定义ELSE标签前请先定义THEN标签";
 			}
 			else if (nesting[nesting_ptr - 1]->tag_number == 3) {
-				result->error_message = L"重定义ELSE标签是非法的";
+				result.error_message = L"重定义ELSE标签是非法的";
 			}
 			else {
 				nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
-				result->args = new void* [] {
-					nesting[nesting_ptr - 1],
-				};
+				result.args = new void* [] { nesting[nesting_ptr - 1] };
 			}
 		}
 		return result;
 	}
-	RESULT* case_of_header(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT case_of_header(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keyword = L"CASE OF ";
 		if (match_keyword(expr, keyword) == 0) {
 			RPN_EXP* rpn_out = nullptr;
 			if (Element::expression(expr + 8, &rpn_out)) {
 				if (nesting_ptr == 128) {
-					result->error_message = L"嵌套深度达到上限";
+					result.error_message = L"嵌套深度达到上限";
 				}
 				else {
-					result->matched = true;
+					result.matched = true;
 					nesting[nesting_ptr] = new Nesting(Nesting::CASE, current_instruction_index);
 					nesting[nesting_ptr]->nest_info->case_of_info.number_of_values = 0;
-					result->args = new void* [] {
+					result.args = new void* [] {
 						nesting[nesting_ptr],
-							rpn_out,
+						rpn_out,
 					};
 					nesting_ptr++;
 				}
@@ -3024,22 +3041,22 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* case_tag(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT case_tag(wchar_t* expr) {
+		RESULT result;
 		if (expr[wcslen(expr) - 1] == 58) {
 			expr[wcslen(expr) - 1] = 0;
 			RPN_EXP* rpn_out = nullptr;
 			bool is_expression = Element::expression(expr, &rpn_out);
 			expr[wcslen(expr) - 1] = 58;
 			if (is_expression) {
-				result->matched = true;
+				result.matched = true;
 				if (not nesting_ptr) {
 					release_rpn(rpn_out);
-					result->error_message = L"未找到CASE分支对应的CASE OF头";
+					result.error_message = L"未找到CASE分支对应的CASE OF头";
 				}
 				else if (nesting[nesting_ptr - 1]->nest_type != Nesting::CASE) {
 					release_rpn(rpn_out);
-					result->error_message = L"未找到CASE分支对应的CASE OF头";
+					result.error_message = L"未找到CASE分支对应的CASE OF头";
 				}
 				else {
 					nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
@@ -3048,41 +3065,37 @@ namespace Construct {
 					new_rpn_list[nesting[nesting_ptr - 1]->tag_number - 2] = rpn_out;
 					nesting[nesting_ptr - 1]->nest_info->case_of_info.values = new_rpn_list;
 					nesting[nesting_ptr - 1]->nest_info->case_of_info.number_of_values++;
-					result->args = new void* [] {
-						nesting[nesting_ptr - 1],
-					};
+					result.args = new void* [] { nesting[nesting_ptr - 1] };
 				}
 			}
 		}
 		return result;
 	}
-	RESULT* otherwise_tag(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT otherwise_tag(wchar_t* expr) {
+		RESULT result;
 		if (wcslen(expr) != 9) { return result; }
 		static const wchar_t* keyword = L"OTHERWISE";
 		if (match_keyword(expr, keyword) == 0) {
-			result->matched = true;
+			result.matched = true;
 			if (not nesting_ptr) {
-				result->error_message = L"未找到OTHERWISE分支对应的CASE OF头";
+				result.error_message = L"未找到OTHERWISE分支对应的CASE OF头";
 			}
 			else if (nesting[nesting_ptr - 1]->nest_type != Nesting::CASE) {
-				result->error_message = L"未找到OTHERWISE分支对应的CASE OF头";
+				result.error_message = L"未找到OTHERWISE分支对应的CASE OF头";
 			}
 			else if (nesting[nesting_ptr - 1]->tag_number == 1) {
-				result->error_message = L"未定义任何分支的情况下定义OTHERWISE标签是非法的";
+				result.error_message = L"未定义任何分支的情况下定义OTHERWISE标签是非法的";
 			}
 			else {
 				nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
-				result->args = new void* [] {
-					nesting[nesting_ptr - 1],
-				};
+				result.args = new void* [] { nesting[nesting_ptr - 1] };
 			}
 		}
 		return result;
 	}
-	RESULT* for_header_1(wchar_t* expr) {
+	RESULT for_header_1(wchar_t* expr) {
 		// FOR <variable> ← <lower_bound> TO <upper_bound>
-		RESULT* result = new RESULT;
+		RESULT result;
 		static const wchar_t* keywords[] = { L"FOR ", L"←", L" TO " };
 		long long positions[3] = {};
 		for (USHORT index = 0; index != 3; index++) {
@@ -3118,15 +3131,15 @@ namespace Construct {
 			if (rpn_upper_bound) { release_rpn(rpn_upper_bound); }
 		}
 		else {
-			result->matched = true;
+			result.matched = true;
 			if (nesting_ptr == 128) {
-				result->error_message = L"嵌套深度达到上限";
+				result.error_message = L"嵌套深度达到上限";
 			}
 			else {
 				nesting[nesting_ptr] = new Nesting(Nesting::FOR, current_instruction_index);
 				nesting[nesting_ptr]->nest_info->for_info.init = false;
 				nesting[nesting_ptr]->nest_info->for_info.step = nullptr;
-				result->args = new void* [] {
+				result.args = new void* [] {
 					nesting[nesting_ptr],
 					variable_part,
 					rpn_lower_bound,
@@ -3137,9 +3150,9 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* for_header_2(wchar_t* expr) {
+	RESULT for_header_2(wchar_t* expr) {
 		// FOR <variable> ← <lower_bound> TO <upper_bound> STEP <step>
-		RESULT* result = new RESULT;
+		RESULT result;
 		static const wchar_t* keyword = L" STEP ";
 		long long position = match_keyword(expr, keyword);
 		if (position != -1) {
@@ -3151,37 +3164,35 @@ namespace Construct {
 				delete[] former_part;
 				return result;
 			}
-			RESULT* former_result = for_header_1(former_part);
-			if (not former_result->matched) {
+			RESULT former_result = for_header_1(former_part);
+			if (not former_result.matched) {
 				delete[] former_part;
 				delete rpn_out;
-				delete former_result;
 				return result;
 			}
-			result->matched = true;
+			result.matched = true;
 			nesting[nesting_ptr - 1]->nest_info->for_info.step = rpn_out;
-			result->args = former_result->args;
-			delete former_result;
+			result.args = former_result.args;
 		}
 		return result;
 	}
-	RESULT* for_ender(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT for_ender(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keyword = L"NEXT ";
 		if (match_keyword(expr, keyword) == 0) {
 			if (Element::valid_variable_path(expr + 5)) {
-				result->matched = true;
+				result.matched = true;
 				if (not nesting_ptr) {
-					result->error_message = L"未找到NEXT标签对应的FOR头";
+					result.error_message = L"未找到NEXT标签对应的FOR头";
 				}
 				else if (nesting[nesting_ptr - 1]->nest_type != Nesting::FOR) {
-					result->error_message = L"未找到NEXT标签对应的FOR头";
+					result.error_message = L"未找到NEXT标签对应的FOR头";
 				}
 				else {
 					nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
-					result->args = new void* [] {
+					result.args = new void* [] {
 						nesting[nesting_ptr - 1],
-						expr + 5,
+						expr + 5, // do not free
 					};
 					nesting_ptr--;
 				}
@@ -3189,8 +3200,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* while_header(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT while_header(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keywords[] = { L"WHILE ", L" DO" };
 		long long positions[2] = {};
 		positions[0] = match_keyword(expr, keywords[0]);
@@ -3204,13 +3215,13 @@ namespace Construct {
 		bool matched_result = Element::expression(condition, &rpn_out);
 		delete[] condition;
 		if (matched_result) {
-			result->matched = true;
+			result.matched = true;
 			if (nesting_ptr == 128) {
-				result->error_message = L"嵌套深度达到上限";
+				result.error_message = L"嵌套深度达到上限";
 				return result;
 			}
 			nesting[nesting_ptr] = new Nesting(Nesting::WHILE, current_instruction_index);
-			result->args = new void* [] {
+			result.args = new void* [] {
 				nesting[nesting_ptr],
 				rpn_out,
 			};
@@ -3218,41 +3229,41 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* repeat_header(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT repeat_header(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keyword = L"REPEAT";
 		if (match_keyword(expr, keyword) == 0) {
-			result->matched = true;
+			result.matched = true;
 			if (nesting_ptr == 128) {
-				result->error_message = L"嵌套深度达到上限";
+				result.error_message = L"嵌套深度达到上限";
 				return result;
 			}
 			nesting[nesting_ptr] = new Nesting(Nesting::REPEAT, current_instruction_index);
-			result->args = new void* [] {
+			result.args = new void* [] {
 				nesting[nesting_ptr],
 			};
 			nesting_ptr++;
 		}
 		return result;
 	}
-	RESULT* repeat_ender(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT repeat_ender(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keyword = L"UNTIL ";
 		if (match_keyword(expr, keyword) == 0) {
 			RPN_EXP* rpn_out = nullptr;
 			if (Element::expression(expr + 6, &rpn_out)) {
-				result->matched = true;
+				result.matched = true;
 				if (not nesting_ptr) {
-					result->error_message = L"未找到UNTIL标签对应的REPEAT头";
+					result.error_message = L"未找到UNTIL标签对应的REPEAT头";
 				}
 				else if (nesting[nesting_ptr - 1]->nest_type != Nesting::REPEAT) {
-					result->error_message = L"未找到UNTIL标签对应的REPEAT头";
+					result.error_message = L"未找到UNTIL标签对应的REPEAT头";
 				}
 				else {
 					nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
-					result->args = new void* [] {
+					result.args = new void* [] {
 						nesting[nesting_ptr - 1],
-							rpn_out,
+						rpn_out,
 					};
 					nesting_ptr--;
 				}
@@ -3260,21 +3271,21 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* ender(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT ender(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keywords[] = { L"ENDIF", L"ENDCASE", L"ENDWHILE", L"ENDTRY"};
 		for (USHORT index = 0; index != 4; index++) {
 			if (match_keyword(expr, keywords[index]) == 0){
-				result->matched = true;
+				result.matched = true;
 				switch (index) {
 				case 0:
 				{
 					if (not nesting_ptr) {
-						result->error_message = L"未找到ENDIF标签对应的IF头";
+						result.error_message = L"未找到ENDIF标签对应的IF头";
 						return result;
 					}
 					else if (nesting[nesting_ptr - 1]->nest_type != Nesting::IF) {
-						result->error_message = L"未找到ENDIF标签对应的IF头";
+						result.error_message = L"未找到ENDIF标签对应的IF头";
 						return result;
 					}
 					break;
@@ -3282,11 +3293,11 @@ namespace Construct {
 				case 1:
 				{
 					if (not nesting_ptr) {
-						result->error_message = L"未找到ENDCASE标签对应的CASE OF头";
+						result.error_message = L"未找到ENDCASE标签对应的CASE OF头";
 						return result;
 					}
 					else if (nesting[nesting_ptr - 1]->nest_type != Nesting::CASE) {
-						result->error_message = L"未找到ENDCASE标签对应的CASE OF头";
+						result.error_message = L"未找到ENDCASE标签对应的CASE OF头";
 						return result;
 					}
 					break;
@@ -3294,11 +3305,11 @@ namespace Construct {
 				case 2:
 				{
 					if (not nesting_ptr) {
-						result->error_message = L"未找到ENDWHILE标签对应的WHILE头";
+						result.error_message = L"未找到ENDWHILE标签对应的WHILE头";
 						return result;
 					}
 					else if (nesting[nesting_ptr - 1]->nest_type != Nesting::WHILE) {
-						result->error_message = L"未找到ENDWHILE标签对应的WHILE头";
+						result.error_message = L"未找到ENDWHILE标签对应的WHILE头";
 						return result;
 					}
 					break;
@@ -3306,18 +3317,18 @@ namespace Construct {
 				case 3:
 				{
 					if (not nesting_ptr) {
-						result->error_message = L"未找到ENDTRY标签对应的TRY头";
+						result.error_message = L"未找到ENDTRY标签对应的TRY头";
 						return result;
 					}
 					else if (nesting[nesting_ptr - 1]->nest_type != Nesting::TRY) {
-						result->error_message = L"未找到ENDTRY标签对应的TRY头";
+						result.error_message = L"未找到ENDTRY标签对应的TRY头";
 						return result;
 					}
 					break;
 				}
 				}
 				nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
-				result->args = new void* [] {
+				result.args = new void* [] {
 					new USHORT{index},
 					nesting[nesting_ptr - 1]
 				};
@@ -3326,8 +3337,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* procedure_header(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT procedure_header(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keyword = L"PROCEDURE ";
 		if (match_keyword(expr, keyword) == 0 and expr[wcslen(expr) - 1] == 41) {
 			for (size_t index = 0; expr[index] != 0; index++) {
@@ -3343,7 +3354,7 @@ namespace Construct {
 					wchar_t* parameter_string = new wchar_t[wcslen(expr) - index + 1];
 					memcpy(parameter_string, expr + index, (wcslen(expr) - index) * 2);
 					parameter_string[wcslen(expr) - index] = 0;
-					Parameter* params = nullptr;
+					PARAMETER* params = nullptr;
 					USHORT number_of_args = 0;
 					bool valid_parameter_list = Element::parameter_list(parameter_string, &params, &number_of_args);
 					delete[] parameter_string;
@@ -3351,9 +3362,9 @@ namespace Construct {
 						delete[] function_name;
 						return result;
 					}
-					result->matched = true;
+					result.matched = true;
 					if (nesting_ptr == 128) {
-						result->error_message = L"嵌套深度达到上限";
+						result.error_message = L"嵌套深度达到上限";
 						delete[] function_name;
 						for (USHORT arg_index = 0; arg_index != number_of_args; arg_index++) {
 							delete[] params[arg_index].name;
@@ -3362,7 +3373,7 @@ namespace Construct {
 						return result;
 					}
 					nesting[nesting_ptr] = new Nesting(Nesting::PROCEDURE, current_instruction_index);
-					result->args = new void* [] {
+					result.args = new void* [] {
 						nesting[nesting_ptr],
 						function_name,
 						new USHORT{ number_of_args },
@@ -3375,20 +3386,20 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* procedure_ender(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT procedure_ender(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keyword = L"ENDPROCEDURE";
 		if (match_keyword(expr, keyword) == 0) {
-			result->matched = true;
+			result.matched = true;
 			if (not nesting_ptr) {
-				result->error_message = L"未找到ENDPROCEDURE标签对应的PROCEDURE头";
+				result.error_message = L"未找到ENDPROCEDURE标签对应的PROCEDURE头";
 			}
 			else if (nesting[nesting_ptr - 1]->nest_type != Nesting::PROCEDURE) {
-				result->error_message = L"未找到ENDPROCEDURE标签对应的PROCEDURE头";
+				result.error_message = L"未找到ENDPROCEDURE标签对应的PROCEDURE头";
 			}
 			else {
 				nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
-				result->args = new void* [] {
+				result.args = new void* [] {
 					nesting[nesting_ptr - 1],
 				};
 				nesting_ptr--;
@@ -3396,12 +3407,10 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* function_header(wchar_t* expr) {
-		RESULT* result = new RESULT;
-		static const wchar_t* keyword = L"FUNCTION ";
-		if (match_keyword(expr, keyword) == 0) {
-			static const wchar_t* return_keyword = L" RETURNS ";
-			long long position = match_keyword(expr, return_keyword);
+	RESULT function_header(wchar_t* expr) {
+		RESULT result;
+		if (match_keyword(expr, L"FUNCTION ") == 0) {
+			long long position = match_keyword(expr, L" RETURNS ");
 			for (size_t index = 9; expr[index] != 0; index++) {
 				if (expr[index] == 40) {
 					wchar_t* function_name = new wchar_t[index - 8];
@@ -3413,7 +3422,7 @@ namespace Construct {
 					function_name[index - 9] = 0;
 					parameter_part[position - index] = 0;
 					return_type[wcslen(expr) - position - 9] = 0;
-					Parameter* params = nullptr;
+					PARAMETER* params = nullptr;
 					USHORT number_of_args = 0;
 					bool valid_name = Element::variable(function_name) and Element::variable(return_type);
 					if (not valid_name) {
@@ -3425,9 +3434,9 @@ namespace Construct {
 					bool match_result = Element::parameter_list(parameter_part, &params, &number_of_args);
 					delete[] parameter_part;
 					if (match_result) {
-						result->matched = true;
+						result.matched = true;
 						if (nesting_ptr == 128) {
-							result->error_message = L"嵌套深度达到上限";
+							result.error_message = L"嵌套深度达到上限";
 							delete[] function_name;
 							for (USHORT arg_index = 0; arg_index != number_of_args; arg_index++) {
 								delete[] params[arg_index].name;
@@ -3436,7 +3445,7 @@ namespace Construct {
 							return result;
 						}
 						nesting[nesting_ptr] = new Nesting(Nesting::FUNCTION, current_instruction_index);
-						result->args = new void* [] {
+						result.args = new void* [] {
 							nesting[nesting_ptr],
 							function_name,
 							new USHORT{ number_of_args },
@@ -3455,20 +3464,20 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* function_ender(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT function_ender(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keyword = L"ENDFUNCTION";
 		if (match_keyword(expr, keyword) == 0) {
-			result->matched = true;
+			result.matched = true;
 			if (not nesting_ptr) {
-				result->error_message = L"未找到ENDFUNCTION标签对应的FUNCTION头";
+				result.error_message = L"未找到ENDFUNCTION标签对应的FUNCTION头";
 			}
 			else if (nesting[nesting_ptr - 1]->nest_type != Nesting::FUNCTION) {
-				result->error_message = L"未找到ENDFUNCTION标签对应的FUNCTION头";
+				result.error_message = L"未找到ENDFUNCTION标签对应的FUNCTION头";
 			}
 			else {
 				nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
-				result->args = new void* [] {
+				result.args = new void* [] {
 					nesting[nesting_ptr - 1],
 				};
 				nesting_ptr--;
@@ -3476,72 +3485,71 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* continue_tag(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT continue_tag(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keyword = L"CONTINUE";
 		if (match_keyword(expr, keyword) == 0) {
-			result->matched = true;
+			result.matched = true;
 			if (not nesting_ptr) {
-				result->error_message = L"未找到CONTINUE标签对应的FOR, WHILE或REPEAT头";
+				result.error_message = L"未找到CONTINUE标签对应的FOR, WHILE或REPEAT头";
 			}
 			else {
 				for (USHORT depth = nesting_ptr - 1;; depth--) {
 					if (nesting[depth]->nest_type == Nesting::FOR or
 						nesting[depth]->nest_type == Nesting::WHILE or
 						nesting[depth]->nest_type == Nesting::REPEAT) {
-						result->args = new void* [] {
+						result.args = new void* [] {
 							nesting[depth]
 						};
 						return result;
 					}
 					if (depth == 0) { break; }
 				}
-				result->error_message = L"未找到CONTINUE标签对应的FOR, WHILE或REPEAT头";
+				result.error_message = L"未找到CONTINUE标签对应的FOR, WHILE或REPEAT头";
 			}
 		}
 		return result;
 	}
-	RESULT* break_tag(wchar_t* expr) {
-		RESULT* result = new RESULT;
-		static const wchar_t* keyword = L"BREAK";
-		if (match_keyword(expr, keyword) == 0) {
-			result->matched = true;
+	RESULT break_tag(wchar_t* expr) {
+		RESULT result;
+		if (match_keyword(expr, L"BREAK") == 0) {
+			result.matched = true;
 			if (not nesting_ptr) {
-				result->error_message = L"未找到BREAK标签对应的FOR, WHILE或REPEAT头";
+				result.error_message = L"未找到BREAK标签对应的FOR, WHILE或REPEAT头";
 			}
 			else {
 				for (USHORT depth = nesting_ptr - 1;; depth--) {
 					if (nesting[depth]->nest_type == Nesting::FOR or
 						nesting[depth]->nest_type == Nesting::WHILE or
 						nesting[depth]->nest_type == Nesting::REPEAT) {
-						result->args = new void* [] {
+						result.args = new void* [] {
 							nesting[depth]
 						};
 						return result;
 					}
 					if (depth == 0) { break; }
 				}
-				result->error_message = L"未找到BREAK标签对应的FOR, WHILE或REPEAT头";
+				result.error_message = L"未找到BREAK标签对应的FOR, WHILE或REPEAT头";
 			}
 		}
 		return result;
 	}
-	RESULT* return_statement(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT return_statement(wchar_t* expr) {
+		RESULT result;
 		if (match_keyword(expr, L"RETURN") == 0) {
 			if (wcslen(expr) > 6) {
 				if (expr[6] != L' ') {
 					return result;
 				}
 			}
-			result->matched = true;
+			result.matched = true;
 			for (USHORT depth = nesting_ptr - 1;; depth--) {
 				if (nesting[depth]->nest_type == Nesting::PROCEDURE or
 					nesting[depth]->nest_type == Nesting::FUNCTION) {
 					if (wcslen(expr) > 7) {
 						RPN_EXP* rpn_out = nullptr;
 						if (Element::expression(expr + 7, &rpn_out)) {
-							result->args = new void* [] {
+							result.args = new void* [] {
 								new bool{ true },
 								nesting[nesting_ptr - 1],
 								rpn_out,
@@ -3550,7 +3558,7 @@ namespace Construct {
 						}
 					}
 					else {
-						result->args = new void* [] {
+						result.args = new void* [] {
 							new bool{ false },
 							nesting[nesting_ptr - 1],
 						};
@@ -3558,21 +3566,21 @@ namespace Construct {
 				}
 				if (depth == 0) { break; }
 			}
-			result->error_message = L"未找到RETURN标签对应的PROCEDRUE或FUNCTION头";
+			result.error_message = L"未找到RETURN标签对应的PROCEDRUE或FUNCTION头";
 		}
 		return result;
 	}
-	RESULT* try_header(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT try_header(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keyword = L"TRY";
 		if (match_keyword(expr, keyword) == 0) {
-			result->matched = true;
+			result.matched = true;
 			if (nesting_ptr == 128) {
-				result->error_message = L"嵌套深度达到上限";
+				result.error_message = L"嵌套深度达到上限";
 			}
 			else {
 				nesting[nesting_ptr] = new Nesting(Nesting::TRY, current_instruction_index);
-				result->args = new void* [] {
+				result.args = new void* [] {
 					nesting[nesting_ptr],
 				};
 				nesting_ptr++;
@@ -3580,31 +3588,31 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* except_tag(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT except_tag(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keyword = L"EXCEPT";
 		if (match_keyword(expr, keyword) == 0) {
-			result->matched = true;
+			result.matched = true;
 			if (not nesting_ptr) {
-				result->error_message = L"未找到与EXCEPT标签对应的TRY头";
+				result.error_message = L"未找到与EXCEPT标签对应的TRY头";
 			}
 			else if (nesting[nesting_ptr - 1]->nest_type != Nesting::TRY) {
-				result->error_message = L"未找到与EXCEPT标签对应的TRY头";
+				result.error_message = L"未找到与EXCEPT标签对应的TRY头";
 			}
 			else if (nesting[nesting_ptr - 1]->tag_number != 1) {
-				result->error_message = L"重定义EXCEPT标签是非法的";
+				result.error_message = L"重定义EXCEPT标签是非法的";
 			}
 			else {
 				nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
-				result->args = new void* [] {
+				result.args = new void* [] {
 					nesting[nesting_ptr - 1],
 				};
 			}
 		}
 		return result;
 	}
-	RESULT* openfile_statement(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT openfile_statement(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keyword_openfile = L"OPENFILE ";
 		if (match_keyword(expr, keyword_openfile) == 0) {
 			static const wchar_t* keyword_for = L" FOR ";
@@ -3623,8 +3631,8 @@ namespace Construct {
 					static const wchar_t* modes[] = { L"READ", L"WRITE", L"APPEND" };
 					for (USHORT mode_index = 0; mode_index != 3; mode_index++) {
 						if (match_keyword(expr + position + 5, modes[mode_index])) {
-							result->matched = true;
-							result->args = new void* [] {
+							result.matched = true;
+							result.args = new void* [] {
 								rpn_out,
 								new USHORT{mode_index},
 							};
@@ -3636,8 +3644,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* readfile_statement(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT readfile_statement(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keyword = L"READFILE ";
 		if (match_keyword(expr, keyword) == 0) {
 			for (size_t index = 9; expr[index] != 0; index++) {
@@ -3654,8 +3662,8 @@ namespace Construct {
 					bool match_result = Element::expression(filename, &rpn_out) and Element::valid_variable_path(variable_path);
 					delete[] filename;
 					if (match_result) {
-						result->matched = true;
-						result->args = new void* [] {
+						result.matched = true;
+						result.args = new void* [] {
 							rpn_out,
 							variable_path,
 						};
@@ -3672,8 +3680,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* writefile_statement(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT writefile_statement(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keyword = L"WRITEFILE ";
 		if (match_keyword(expr, keyword) == 0) {
 			for (size_t index = 10; expr[index] != 0; index++) {
@@ -3692,8 +3700,8 @@ namespace Construct {
 					delete[] filename_string;
 					delete[] message;
 					if (match_result) {
-						result->matched = true;
-						result->args = new void* [] {
+						result.matched = true;
+						result.args = new void* [] {
 							rpn_out_filename,
 							rpn_out_message,
 						};
@@ -3713,26 +3721,24 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* closefile_statement(wchar_t* expr) {
-		RESULT* result = new RESULT;
-		static const wchar_t* keyword = L"CLOSEFILE";
-		if (match_keyword(expr, keyword) == 0) {
+	RESULT closefile_statement(wchar_t* expr) {
+		RESULT result;
+		if (match_keyword(expr, L"CLOSEFILE ") == 0) {
 			RPN_EXP* rpn_out = nullptr;
 			if (Element::expression(expr + 10, &rpn_out)) {
-				result->matched = true;
-				result->args = new void* [] {
+				result.matched = true;
+				result.args = new void* [] {
 					rpn_out,
 				};
 			}
 		}
 		return result;
 	}
-	RESULT* seek_statement(wchar_t* expr) {
-		RESULT* result = new RESULT;
-		static const wchar_t* keyword = L"SEEK ";
-		if (match_keyword(expr, keyword) == 0) {
+	RESULT seek_statement(wchar_t* expr) {
+		RESULT result;
+		if (match_keyword(expr, L"SEEK ") == 0) {
 			for (size_t index = 5; expr[index] != 0; index++) {
-				if (expr[index] == 44) {
+				if (expr[index] == L',') {
 					wchar_t* filename_string = new wchar_t[index - 4];
 					wchar_t* address_expression = new wchar_t[wcslen(expr) - index];
 					memcpy(filename_string, expr + 5, (index - 5) * 2);
@@ -3747,8 +3753,8 @@ namespace Construct {
 						Element::expression(address_expression, &rpn_out_address);
 					delete[] filename_string;
 					if (match_result) {
-						result->matched = true;
-						result->args = new void* [] {
+						result.matched = true;
+						result.args = new void* [] {
 							rpn_out_filename,
 							rpn_out_address
 						};
@@ -3767,12 +3773,11 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* getrecord_statement(wchar_t* expr) {
-		RESULT* result = new RESULT;
-		static const wchar_t* keyword = L"GETRECORD ";
-		if (match_keyword(expr, keyword) == 0) {
+	RESULT getrecord_statement(wchar_t* expr) {
+		RESULT result;
+		if (match_keyword(expr, L"GETRECORD ") == 0) {
 			for (size_t index = 10; expr[index] != 0; index++) {
-				if (expr[index] == 44) {
+				if (expr[index] == L',') {
 					wchar_t* filename = new wchar_t[index - 8];
 					wchar_t* variable_path = new wchar_t[wcslen(expr) - index];
 					memcpy(filename, expr + 9, (index - 9) * 2);
@@ -3785,10 +3790,10 @@ namespace Construct {
 					bool match_result = Element::expression(filename, &rpn_out) and Element::valid_variable_path(variable_path);
 					delete[] filename;
 					if (match_result) {
-						result->matched = true;
-						result->args = new void* [] {
+						result.matched = true;
+						result.args = new void* [] {
 							rpn_out,
-								variable_path,
+							variable_path,
 						};
 					}
 					else {
@@ -3803,8 +3808,8 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* putrecord_statement(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT putrecord_statement(wchar_t* expr) {
+		RESULT result;
 		static const wchar_t* keyword = L"PUTRECORD ";
 		if (match_keyword(expr, keyword) == 0) {
 			for (size_t index = 10; expr[index] != 0; index++) {
@@ -3823,10 +3828,10 @@ namespace Construct {
 					delete[] filename_string;
 					delete[] message;
 					if (match_result) {
-						result->matched = true;
-						result->args = new void* [] {
+						result.matched = true;
+						result.args = new void* [] {
 							rpn_out_filename,
-								rpn_out_message,
+							rpn_out_message,
 						};
 						return result;
 					}
@@ -3844,17 +3849,18 @@ namespace Construct {
 		}
 		return result;
 	}
-	RESULT* single_expression(wchar_t* expr) {
-		RESULT* result = new RESULT;
+	RESULT single_expression(wchar_t* expr) {
+		RESULT result;
 		RPN_EXP* rpn_out = nullptr;
 		if (Element::expression(expr, &rpn_out)) {
-			result->matched = true;
-			result->args = new void* [] {
+			result.matched = true;
+			result.args = new void* [] {
 				rpn_out,
 			};
 		}
 		return result;
 	}
+	// if new constructs are added, add deconstruction to Definitions.h, struct CONSTRUCT
 	void* constructs[] = { empty_line, declaration, constant, type_header, type_ender, pointer_type_header,
 		enumerated_type_header, assignment, output, input, if_header_1, if_header_2, then_tag,
 		else_tag, case_of_header, case_tag, otherwise_tag, for_header_1, for_header_2, for_ender,
@@ -3865,14 +3871,11 @@ namespace Construct {
 	USHORT number_of_constructs = sizeof(constructs) / sizeof(void*);
 	CONSTRUCT parse(wchar_t* line) {
 		for (USHORT index = 0; index != number_of_constructs; index++) {
-			RESULT* result = ((RESULT* (*)(wchar_t*))constructs[index])(line);
-			if (result->matched) {
+			RESULT result = ((RESULT (*)(wchar_t*))constructs[index])(line);
+			if (result.matched) {
 				return CONSTRUCT{ index, result };
 			}
-			else {
-				delete result;
-			}
 		}
-		return CONSTRUCT{ NULL, nullptr };
+		return CONSTRUCT{ NULL, RESULT{} };
 	}
 }

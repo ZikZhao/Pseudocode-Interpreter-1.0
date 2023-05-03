@@ -14,72 +14,264 @@ enum TOKENTYPE {
 	Expression,
 	Integer,
 	String,
+	Enumeration,
 	Comment,
 };
 
+// each single element in a line
 struct TOKEN {
 	USHORT length;
 	TOKENTYPE type;
 };
 
 struct ADVANCED_TOKEN {
-	USHORT indentation; // 前置缩进/空格字符长度
-	TOKEN* tokens; // 所有令牌
-	UINT comment; // 注释起始位置
+	USHORT indentation; // number of indentations
+	TOKEN* tokens; // array of tokens
+	UINT comment; // start of comment in character units
 };
 
-struct RESULT { // result of a construct matching
-	bool matched = false;
+// result of a construct matching
+struct RESULT {
+	bool matched = false; // whether current line matches with the syntax
 	void** args = nullptr; // arguments to be passed to execution functions
 	TOKEN* tokens = nullptr; // positions of elements used to highlight grammar
 	const wchar_t* error_message = nullptr; // when syntax is matched but error may be caused, this field is used
 };
 
-struct Data {
+// structure that represents a data in pseudocode
+struct DATA {
 	USHORT type = 65535;
 	void* value = nullptr;
 	bool variable_data = false;
 };
 
+// strcuture that stores a reverse polish notation expression
 struct RPN_EXP {
 	wchar_t* rpn = nullptr;
 	USHORT number_of_element = 0;
 };
 
-struct Parameter {
+// structure that represent a parameter of a function
+struct PARAMETER {
 	wchar_t* name = nullptr;
 	union {
 		wchar_t* type_string = nullptr;
-		Data* type;
+		DATA* type;
 	};
 	bool passed_by_ref = false;
 };
 
+void release_rpn(RPN_EXP* rpn_exp); // forward declaration
+
+class Nesting {
+public:
+	enum NestType {
+		NotInitialised,
+		IF,
+		CASE,
+		WHILE,
+		FOR,
+		REPEAT,
+		TRY,
+		PROCEDURE,
+		FUNCTION,
+	} nest_type;
+	union Info {
+		struct { // used by CASE OF
+			USHORT number_of_values;
+			RPN_EXP** values;
+		} case_of_info;
+		struct FOR_INFO { // used by FOR
+			bool init;
+			DATA* upper_bound;
+			RPN_EXP* step;
+		} for_info;
+	};
+	USHORT tag_number;
+	UINT* line_numbers;
+	Info* nest_info = nullptr;
+	Nesting() {
+		this->nest_type = NotInitialised;
+		this->tag_number = 0;
+		this->line_numbers = nullptr;
+	}
+	Nesting(NestType type, UINT first_tag_line_number) {
+		this->nest_type = type;
+		this->tag_number = 1;
+		this->line_numbers = new UINT[1]{ first_tag_line_number };
+		if (this->nest_type == CASE or this->nest_type == FOR or
+			this->nest_type == PROCEDURE or this->nest_type == FUNCTION) {
+			this->nest_info = new Info;
+		}
+	}
+	~Nesting() {
+		delete[] this->line_numbers;
+		if (this->nest_info) {
+			delete this->nest_info;
+		}
+	}
+	inline void add_tag(UINT new_tag_line_number) {
+		UINT* temp_line_numbers = new UINT[this->tag_number + 1];
+		memcpy(temp_line_numbers, this->line_numbers, sizeof(UINT) * this->tag_number);
+		temp_line_numbers[this->tag_number] = new_tag_line_number;
+		delete[] this->line_numbers;
+		this->line_numbers = temp_line_numbers;
+		this->tag_number++;
+	}
+};
+
+// a whole structure representing a construct
 struct CONSTRUCT {
 	USHORT syntax_index;
-	RESULT* result;
+	RESULT result;
+	~CONSTRUCT() {
+		if (not result.matched) { return; }
+		switch (syntax_index) {
+		case 1:
+			for (USHORT index = 0; index != *(USHORT*)result.args[1]; index++) {
+				delete[] ((wchar_t**)result.args[2])[index];
+			}
+			delete result.args[1];
+			delete[] result.args[2];
+			delete[] result.args[3];
+			if (((wchar_t*)result.args[0])[0] == L'A') {
+				delete[] result.args[4];
+			}
+			break;
+		case 2:
+			delete[] result.args[0];
+			release_rpn((RPN_EXP*)result.args[1]);
+			break;
+		case 3:
+			delete[] result.args[0];
+			break;
+		case 5:
+			delete[] result.args[0];
+			delete[] result.args[1];
+			break;
+		case 6:
+			delete[] result.args[0];
+			delete[] result.args[1];
+			break;
+		case 7:
+			delete[] result.args[0];
+			release_rpn((RPN_EXP*)result.args[1]);
+			break;
+		case 8:
+			release_rpn((RPN_EXP*)result.args[0]);
+			break;
+		case 9:
+			delete[] result.args[0];
+			break;
+		case 10: case 11:
+			release_rpn((RPN_EXP*)result.args[1]);
+			break;
+		case 14:
+			release_rpn((RPN_EXP*)result.args[1]);
+			break;
+		case 17: case 18:
+			delete[] result.args[1];
+			release_rpn((RPN_EXP*)result.args[2]);
+			release_rpn((RPN_EXP*)result.args[3]);
+			break;
+		case 19:
+			delete (Nesting*)result.args[0];
+			break;
+		case 20:
+			release_rpn((RPN_EXP*)result.args[1]);
+			break;
+		case 22:
+			delete (Nesting*)result.args[0];
+			release_rpn((RPN_EXP*)result.args[1]);
+			break;
+		case 23:
+			delete result.args[0];
+			delete (Nesting*)result.args[1];
+			break;
+		case 24:
+			delete[] result.args[1];
+			for (USHORT index = 0; index != *(USHORT*)result.args[2]; index++) {
+				delete[] ((wchar_t**)result.args[3])[index];
+			}
+			delete result.args[2];
+			break;
+		case 25:
+			delete (Nesting*)result.args[0];
+			break;
+		case 26:
+			delete[] result.args[1];
+			for (USHORT index = 0; index != *(USHORT*)result.args[2]; index++) {
+				delete[]((wchar_t**)result.args[3])[index];
+			}
+			delete result.args[2];
+			delete[] result.args[4];
+			break;
+		case 27:
+			delete (Nesting*)result.args[0];
+			break;
+		case 30:
+			if (((bool*)result.args[0])) {
+				release_rpn((RPN_EXP*)result.args[2]);
+			}
+			break;
+		case 33:
+			release_rpn((RPN_EXP*)result.args[0]);
+			delete result.args[1];
+			break;
+		case 34:
+			release_rpn((RPN_EXP*)result.args[0]);
+			delete[] result.args[1];
+			break;
+		case 35:
+			release_rpn((RPN_EXP*)result.args[0]);
+			release_rpn((RPN_EXP*)result.args[1]);
+			break;
+		case 36:
+			release_rpn((RPN_EXP*)result.args[0]);
+			break;
+		case 37:
+			release_rpn((RPN_EXP*)result.args[0]);
+			release_rpn((RPN_EXP*)result.args[1]);
+			break;
+		case 38:
+			release_rpn((RPN_EXP*)result.args[0]);
+			delete[] result.args[1];
+			break;
+		case 39:
+			release_rpn((RPN_EXP*)result.args[0]);
+			release_rpn((RPN_EXP*)result.args[1]);
+			break;
+		case 40:
+			release_rpn((RPN_EXP*)result.args[0]);
+			break;
+		}
+		delete[] result.args;
+	}
+	void release_tokens() {
+		delete result.tokens;
+	}
 };
 
 class BinaryTree {
 public:
 	// remind:
 	// node						pointer of BinaryTree::Node struct
-	// node->value				pointer of Data struct
+	// node->value				pointer of DATA struct
 	// node->value->value		pointer of instance of class in DataType namespace (naturally void pointer)
 	struct Node {
 		wchar_t* key = nullptr;
-		Data* value = nullptr;
+		DATA* value = nullptr;
 		bool constant = false;
 		Node* left = nullptr;
 		Node* right = nullptr;
-		Data* last_pointer = nullptr; // see DataType::Pointer
+		DATA* last_pointer = nullptr; // see DataType::Pointer
 	};
 	Node* root = nullptr;
 	USHORT number = 0;
 	size_t error_handling_indexes[128]{};
 	USHORT error_handling_ptr = 0;
 	BinaryTree() {};
-	void insert(wchar_t* key, Data* value, bool constant = false) {
+	void insert(wchar_t* key, DATA* value, bool constant = false) {
 		Node* node = new Node{ key, value, constant };
 		if (this->root == nullptr) {
 			this->root = node;
@@ -184,57 +376,6 @@ public:
 		delete this->root;
 		this->root = nullptr;
 		this->number = 0;
-	}
-};
-
-class Nesting {
-public:
-	enum NestType {
-		NotInitialised,
-		IF,
-		CASE,
-		WHILE,
-		FOR,
-		REPEAT,
-		TRY,
-		PROCEDURE,
-		FUNCTION,
-	} nest_type;
-	union Info {
-		struct { // used by CASE OF
-			USHORT number_of_values;
-			RPN_EXP** values;
-		} case_of_info;
-		struct FOR_INFO { // used by FOR
-			bool init;
-			Data* upper_bound;
-			RPN_EXP* step;
-		} for_info;
-	};
-	USHORT tag_number;
-	size_t* line_numbers;
-	Info* nest_info = nullptr;
-	Nesting() {
-		this->nest_type = NotInitialised;
-		this->tag_number = 0;
-		this->line_numbers = nullptr;
-	}
-	Nesting(NestType type, size_t first_tag_line_number) {
-		this->nest_type = type;
-		this->tag_number = 1;
-		this->line_numbers = new size_t[1]{ first_tag_line_number };
-		if (this->nest_type == CASE or this->nest_type == FOR or
-			this->nest_type == PROCEDURE or this->nest_type == FUNCTION) {
-			this->nest_info = new Info;
-		}
-	}
-	inline void add_tag(size_t new_tag_line_number) {
-		size_t* temp_line_numbers = new size_t[this->tag_number + 1];
-		memcpy(temp_line_numbers, this->line_numbers, sizeof(size_t) * this->tag_number);
-		temp_line_numbers[this->tag_number] = new_tag_line_number;
-		delete[] this->line_numbers;
-		this->line_numbers = temp_line_numbers;
-		this->tag_number++;
 	}
 };
 
@@ -421,7 +562,7 @@ struct CALLFRAME {
 	BinaryTree* local_variables;
 };
 
-struct CallStack {
+struct CALLSTACK {
 	CALLFRAME* call;
 	USHORT ptr;
 };

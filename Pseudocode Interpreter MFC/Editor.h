@@ -89,6 +89,7 @@ protected:
 	void MoveView(); // 移动垂直与水平进度来显示到当前指针
 	void CentralView(LONG64 line_index); // 移动视图到指定行并居中
 	ADVANCED_TOKEN LineSplit(wchar_t* line); // 将一行中的缩进和注释分离
+	void ExpandToken(wchar_t* line, ADVANCED_TOKEN& token); // 将表达式或是枚举类型令牌展开以进行渲染
 	void ParseLine(); // 解析一行语法
 	// 以下函数用于后台
 	static DWORD BackendTasking(LPVOID); // 后台处理程序（负责调用以下函数）
