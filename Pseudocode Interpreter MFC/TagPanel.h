@@ -13,6 +13,7 @@ public:
 	IndexedList<wchar_t*> m_Lines;
 	IndexedList<wchar_t*>::iterator m_CurrentLine;
 	IndexedList<ADVANCED_TOKEN>* m_Tokens;
+	bool m_bParsed; // 所有代码是否都已解析
 protected:
 	CDC m_Source;
 	wchar_t* m_Path;

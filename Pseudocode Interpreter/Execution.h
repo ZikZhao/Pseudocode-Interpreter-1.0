@@ -18,7 +18,7 @@ void SendSignal(UINT message, WPARAM wParam, LPARAM lParam);
 bool CheckBreakpoint(ULONG64 line_index);
 typedef void (*FUNCTION_PTR)(RESULT);
 
-CONSTRUCT* parsed_code = nullptr;
+CONSTRUCT** parsed_code = nullptr;
 BinaryTree* current_locals = nullptr;
 BinaryTree* globals = new BinaryTree;
 BinaryTree* enumerations = new BinaryTree; // a binary tree storing all the enumerated constants
@@ -1798,7 +1798,7 @@ DATA* function_calling(wchar_t* function_name, USHORT number_of_args, DATA** arg
 					}
 				}
 				try {
-					((FUNCTION_PTR)Execution::executions[parsed_code[current_instruction_index].syntax_index])(parsed_code[current_instruction_index].result);
+					((FUNCTION_PTR)Execution::executions[parsed_code[current_instruction_index]->syntax_index])(parsed_code[current_instruction_index]->result);
 				}
 				catch (Error& error){
 					if (current_locals->error_handling_ptr) {

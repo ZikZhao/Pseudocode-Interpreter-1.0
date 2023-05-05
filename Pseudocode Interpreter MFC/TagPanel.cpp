@@ -105,7 +105,6 @@ int CFileTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 }
 void CFileTag::OnSize(UINT nType, int cx, int cy)
 {
-	CWnd::OnSize(nType, cx, cy);
 	m_Width = cx;
 	CDC* pWindowDC = GetDC();
 
@@ -122,6 +121,7 @@ void CFileTag::OnSize(UINT nType, int cx, int cy)
 	rect.bottom = 60;
 	m_Source.SelectObject(m_Font2);
 	m_Source.DrawTextW(m_Directory, &rect, DT_END_ELLIPSIS);
+	CWnd::OnSize(nType, cx, cy);
 }
 BOOL CFileTag::OnEraseBkgnd(CDC* pDC)
 {
@@ -294,6 +294,7 @@ int CTagPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 void CTagPanel::OnSize(UINT nType, int cx, int cy)
 {
 	CWnd::OnSize(nType, cx, cy);
+
 	m_Width = cx;
 	CDC* pWindowDC = GetDC();
 

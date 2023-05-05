@@ -3,9 +3,10 @@
 #ifdef TRY
 #undef TRY
 #endif
-#define ENDTOKEN { 0, TOKENTYPE::Punctuation }
+#define ENDTOKEN { 0, TOKENTYPE::Null }
 
 enum TOKENTYPE {
+	Null,
 	Punctuation,
 	Keyword,
 	Variable,

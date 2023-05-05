@@ -40,8 +40,8 @@ BOOL App::InitInstance()
 	InitTooltipManager();
 
 	m_pMainWnd = new CMainFrame;
-	m_pMainWnd->CreateEx(NULL, NULL, L"Pseudocode Interpreter", WS_OVERLAPPEDWINDOW, CRect(0, 0, 0, 0), nullptr, NULL);
-	m_pMainWnd->ShowWindow(m_nCmdShow);
+	m_pMainWnd->CreateEx(NULL, NULL, L"Pseudocode Interpreter", WS_OVERLAPPEDWINDOW, CRect(), nullptr, NULL);
+	m_pMainWnd->ShowWindow(SW_SHOW);
 	m_pMainWnd->UpdateWindow();
 	m_pMainWnd->DragAcceptFiles();
 	CTagPanel::pObject->LoadOpenedFiles();

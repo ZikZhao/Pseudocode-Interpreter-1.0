@@ -96,15 +96,16 @@ int CEditor::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_HSlider.SetDeflateCallback(DeflationCallback);
 
 	// 启动后台任务
+	PAUSE_BACKEND()
 	CreateThread(NULL, NULL, BackendTasking, nullptr, NULL, NULL);
-	SetTimer(NULL, 1000, nullptr);
 
 	return 0;
 }
 void CEditor::OnSize(UINT nType, int cx, int cy)
 {
-	PAUSE_BACKEND()
 	CWnd::OnSize(nType, cx, cy);
+
+	PAUSE_BACKEND()
 	if (cx == 0) { return; }
 	m_Width = cx - 10;
 	m_Height = cy - 10;
@@ -503,6 +504,7 @@ void CEditor::ArrangeRenderedText()
 	UINT start_line_index = start_line;
 	// 绘制代码
 	static COLORREF colours[] = {
+		RGB(255, 255, 255), // 空
 		RGB(255, 255, 255), // 标点符号
 		RGB(216, 160, 223), // 关键字
 		RGB(156, 220, 254), // 变量
@@ -510,7 +512,7 @@ void CEditor::ArrangeRenderedText()
 		RGB(220, 220, 147), // 子程序
 		RGB(255, 255, 255), // 表达式（分解成整数和字符串）
 		RGB(181, 206, 168), // 整数
-		RGB(203, 201, 187), // 字符串
+		RGB(214, 157, 133), // 字符串
 		RGB(255, 255, 255), // 枚举（分解成整数常量）
 		RGB(77, 166, 74), // 注释
 	};
@@ -521,12 +523,12 @@ void CEditor::ArrangeRenderedText()
 	for (; this_line != m_CurrentTag->m_Lines.end();) {
 		int current_x_offset = x_offset;
 		int char_offset = 0;
-		if (this_advanced_token->tokens->length) {
+		if (this_advanced_token->tokens[0].type != TOKENTYPE::Null) {
 			// 计算缩进偏移量
 			current_x_offset += GET_TEXT_WIDTH(*this_line, this_advanced_token->indentation);
 			char_offset += this_advanced_token->indentation;
 			// 渲染提取的令牌
-			for (TOKEN* this_token = this_advanced_token->tokens; this_token->length != 0; this_token++) {
+			for (TOKEN* this_token = this_advanced_token->tokens; this_token->type != TOKENTYPE::Null; this_token++) {
 				m_Source.SetTextColor(colours[this_token->type]);
 				LONG width = GET_TEXT_WIDTH(*this_line + char_offset, this_token->length);
 				TabbedTextOutW(m_Source, current_x_offset, y_offset, *this_line + char_offset, this_token->length, 1, &tab_position, x_offset);
@@ -535,11 +537,14 @@ void CEditor::ArrangeRenderedText()
 			}
 		}
 		else {
-			// 语法无法识别
+			// 无法识别的语法以白色绘制
 			m_Source.SetTextColor(RGB(255, 255, 255));
-			TabbedTextOutW(m_Source, current_x_offset, y_offset, *this_line, this_advanced_token->comment, 1, &tab_position, x_offset);
+			TabbedTextOutW(m_Source, current_x_offset, y_offset, *this_line, wcslen(*this_line), 1, &tab_position, x_offset);
 		}
 		// 渲染注释
+		m_Source.SetTextColor(colours[10]);
+		TabbedTextOutW(m_Source, current_x_offset, y_offset, *this_line + this_advanced_token->comment, wcslen(*this_line) - this_advanced_token->comment, 1, &tab_position, x_offset);
+
 		y_offset += m_CharSize.cy;
 		if (y_offset >= m_Height) {
 			break;
@@ -935,7 +940,7 @@ void CEditor::ExpandToken(wchar_t* line, ADVANCED_TOKEN& token)
 			}
 			else if (expr[index] == L'\"' or expr[index] == L'\'') {
 				size_t skipped = skip_string(expr + index);
-				index += skipped - 1;
+				index += skipped;
 				count += 2; // 每个相邻元素间一个
 			}
 			else if (expr[index] >= L'a' and expr[index] <= L'z' or
@@ -952,31 +957,31 @@ void CEditor::ExpandToken(wchar_t* line, ADVANCED_TOKEN& token)
 		}
 		TOKEN* part_token = new TOKEN[count];
 		count = 0;
-		USHORT last_element = 0;
+		SHORT last_element = -1;
 		for (USHORT index = 0; index != number; index++) {
 			if (expr[index] >= 48 and expr[index] <= 57) {
-				part_token[count] = TOKEN{ (USHORT)(index - last_element), TOKENTYPE::Punctuation };
+				part_token[count] = TOKEN{ (USHORT)(index - last_element - 1), TOKENTYPE::Punctuation };
 				count++;
 				USHORT index2 = index;
 				for (; expr[index2] >= 48 and expr[index2] <= 57 or expr[index2] == L'e'; index2++);
-				part_token[count] = TOKEN{ (USHORT)(index2 - index - 1), TOKENTYPE::Integer };
+				part_token[count] = TOKEN{ (USHORT)(index2 - index), TOKENTYPE::Integer };
 				count++;
 				index = index2 - 1;
 				last_element = index;
 			}
 			else if (expr[index] == L'\"' or expr[index] == L'\'') {
-				part_token[count] = TOKEN{ (USHORT)(index - last_element), TOKENTYPE::Punctuation };
+				part_token[count] = TOKEN{ (USHORT)(index - last_element - 1), TOKENTYPE::Punctuation };
 				count++;
 				size_t skipped = skip_string(expr + index);
-				part_token[count] = TOKEN{ (USHORT)skipped, TOKENTYPE::String };
-				index += skipped - 1;
+				part_token[count] = TOKEN{ (USHORT)(skipped + 1), TOKENTYPE::String };
+				index += skipped;
 				count++;
 				last_element = index;
 			}
 			else if (expr[index] >= L'a' and expr[index] <= L'z' or
 				expr[index] >= L'A' and expr[index] <= L'Z' or
 				expr[index] == L'_') {
-				part_token[count] = TOKEN{ (USHORT)(index - last_element), TOKENTYPE::Punctuation };
+				part_token[count] = TOKEN{ (USHORT)(index - last_element - 1), TOKENTYPE::Punctuation };
 				count++;
 				USHORT index2 = index;
 				for (; expr[index2] >= L'a' and expr[index2] <= L'z' or
@@ -984,14 +989,14 @@ void CEditor::ExpandToken(wchar_t* line, ADVANCED_TOKEN& token)
 					expr[index2] >= L'0' and expr[index2] <= L'9' or
 					expr[index2] == L'_';
 					index2++);
-				part_token[count] = TOKEN{ (USHORT)(index2 - index - 1), TOKENTYPE::Variable };
+				part_token[count] = TOKEN{ (USHORT)(index2 - index), TOKENTYPE::Variable };
 				count++;
 				index = index2 - 1;
 				last_element = index;
 			}
 		}
-		part_token[count] = TOKEN{ (USHORT)(wcslen(expr) - last_element), TOKENTYPE::Punctuation };
-		number = count;
+		part_token[count] = TOKEN{ (USHORT)(number - last_element - 1), TOKENTYPE::Punctuation };
+		number = count + 1;
 		return part_token;
 	};
 	auto expand_enumeration = [=](wchar_t* expr, USHORT& number) -> TOKEN* {
@@ -1021,16 +1026,14 @@ void CEditor::ExpandToken(wchar_t* line, ADVANCED_TOKEN& token)
 	USHORT offset = 0;
 	USHORT index = 0;
 	USHORT size = 1;
-	for (TOKEN* this_token = token.tokens; this_token->length != 0; this_token++) {
+	for (TOKEN* this_token = token.tokens; this_token->type != TOKENTYPE::Null; this_token++) {
 		size++;
 	}
-	for (TOKEN* this_token = token.tokens; this_token->length != 0; this_token++) {
+	for (TOKEN* this_token = token.tokens; this_token->type != TOKENTYPE::Null; this_token++) {
 		if (this_token->type == TOKENTYPE::Expression) {
 			USHORT spaces = 0;
-			for (spaces = 0; line[offset + spaces] == L' '; spaces++);
-			USHORT number = this_token->length - spaces;
-			TOKEN* part_token = expand_expression(line + offset + spaces, number);
-			part_token[0].length += spaces;
+			USHORT number = this_token->length;
+			TOKEN* part_token = expand_expression(line + offset, number);
 			TOKEN* new_token = new TOKEN[size + number - 1];
 			memcpy(new_token, token.tokens, sizeof(TOKEN) * index);
 			memcpy(new_token + index, part_token, sizeof(TOKEN) * number);
@@ -1066,14 +1069,15 @@ void CEditor::ExpandToken(wchar_t* line, ADVANCED_TOKEN& token)
 inline void CEditor::ParseLine()
 {
 	ADVANCED_TOKEN token = LineSplit(*m_CurrentTag->m_CurrentLine);
-	CONSTRUCT construct = Construct::parse(reinterpret_cast<wchar_t*>(token.tokens));
+	CONSTRUCT* construct = Construct::parse(reinterpret_cast<wchar_t*>(token.tokens));
 	delete[] reinterpret_cast<wchar_t*>(token.tokens);
-	if (construct.result.tokens) {
-		token.tokens = construct.result.tokens;
+	if (construct->result.tokens) {
+		token.tokens = construct->result.tokens;
 	}
 	else {
 		token.tokens = new TOKEN[]{ ENDTOKEN };
 	}
+	delete construct;
 	ExpandToken(*m_CurrentTag->m_CurrentLine, token);
 	delete (*(*m_CurrentTag->m_Tokens)[m_PointerPoint.y]).tokens;
 	*(*m_CurrentTag->m_Tokens)[m_PointerPoint.y] = token;
@@ -1119,14 +1123,15 @@ void CEditor::ParseAll()
 	for (IndexedList<wchar_t*>::iterator this_line = m_CurrentTag->m_Lines.begin(); this_line != m_CurrentTag->m_Lines.end(); this_line++) {
 		if (m_bBackendEnabled) {
 			ADVANCED_TOKEN token = LineSplit(*this_line);
-			CONSTRUCT construct = Construct::parse(reinterpret_cast<wchar_t*>(token.tokens));
+			CONSTRUCT* construct = Construct::parse(reinterpret_cast<wchar_t*>(token.tokens));
 			delete[] reinterpret_cast<wchar_t*>(token.tokens);
-			if (construct.result.tokens) {
-				token.tokens = construct.result.tokens;
+			if (construct->result.tokens) {
+				token.tokens = construct->result.tokens;
 			}
 			else {
 				token.tokens = new TOKEN[]{ ENDTOKEN };
 			}
+			delete construct;
 			ExpandToken(*this_line, token);
 			new_token_list->append(token);
 		}
@@ -1137,17 +1142,17 @@ void CEditor::ParseAll()
 	}
 	new_token_list->set_construction(false);
 	if (m_bBackendEnabled) {
-		bool state = m_CurrentTag->m_Tokens->size() == 0;
 		for (IndexedList<ADVANCED_TOKEN>::iterator iter = m_CurrentTag->m_Tokens->begin(); iter != m_CurrentTag->m_Tokens->end(); iter++) {
 			delete[] iter->tokens;
 		}
 		delete m_CurrentTag->m_Tokens;
 		m_CurrentTag->m_Tokens = new_token_list;
-		if (state) {
+		if (not m_CurrentTag->m_bParsed) {
 			double start_line = m_PercentageVertical * m_CurrentTag->m_Lines.size();
 			int x_offset = LINE_NUMBER_OFFSET + m_LineNumberWidth - (long)(m_PercentageHorizontal * m_FullWidth);
 			ArrangeRenderedText();
-			Invalidate(FALSE);
+			REDRAW_WINDOW();
+			m_CurrentTag->m_bParsed = true;
 		}
 		// 即使令牌并未发生改变，重新构造跳跃式链表也会使得访问速度提升
 	}

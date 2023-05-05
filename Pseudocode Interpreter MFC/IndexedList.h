@@ -1,4 +1,5 @@
 #pragma once
+#include <assert.h>
 #define INDEXEDLIST_SKIP 10 // 跳跃长度
 
 template<typename Type>
@@ -43,15 +44,15 @@ public:
 			return m_Node != iter.m_Node;
 		}
 		void operator --(int arg) {
-			ASSERT(m_Node->previous);
+			assert(m_Node->previous);
 			m_Node = m_Node->previous;
 		}
 		void operator ++(int arg) {
-			ASSERT(m_Node);
+			assert(m_Node);
 			m_Node = m_Node->next;
 		}
 		iterator operator ++() {
-			ASSERT(m_Node);
+			assert(m_Node);
 			m_Node = m_Node->next;
 			return iterator(m_Node);
 		}
@@ -95,7 +96,7 @@ public:
 		if (index < 0) {
 			index = index + m_Size;
 		}
-		ASSERT(index >= 0 and index < m_Size);
+		assert(index >= 0 and index < m_Size);
 		IndexNode* this_index_node = m_IndexRoot;
 		while (true) {
 			if (this_index_node->next) {
@@ -182,8 +183,8 @@ public:
 		m_Size++;
 	}
 	void insert(UINT index, Type value) {
-		ASSERT(m_ConstructionMode == false);
-		ASSERT(index >= 0 and index <= m_Size);
+		assert(m_ConstructionMode == false);
+		assert(index >= 0 and index <= m_Size);
 		if (index == m_Size) {
 			append(value);
 			return;
@@ -259,8 +260,8 @@ public:
 		}
 	}
 	Type pop(UINT index) {
-		ASSERT(index >= 0 and index < m_Size);
-		ASSERT(m_Size != 0);
+		assert(index >= 0 and index < m_Size);
+		assert(m_Size != 0);
 		IndexNode** stack = new IndexNode* [m_Depth] {nullptr}; // 用于更新之后节点的索引
 		USHORT stack_ptr = 0;
 		IndexNode* this_index_node = m_IndexRoot;
@@ -371,7 +372,7 @@ public:
 	inline void set_construction(bool state) {
 		m_ConstructionMode = state;
 		if (state) {
-			ASSERT(m_Size == 0 or m_Size == 1); // 只有一个元素的链表的索引层也是有效的
+			assert(m_Size == 0 or m_Size == 1); // 只有一个元素的链表的索引层也是有效的
 			if (m_Size == 1) {
 				m_ConstructionStack = new IndexNode* [] {m_IndexRoot};
 			}

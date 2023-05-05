@@ -24,9 +24,6 @@ CControlPanelTag::~CControlPanelTag()
 }
 int CControlPanelTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
-	if (CWnd::OnCreate(lpCreateStruct) == -1)
-		return -1;
-
 	// 创建主源DC
 	CDC* pWindowDC = GetDC();
 	m_Source.CreateCompatibleDC(pWindowDC);
@@ -63,6 +60,9 @@ int CControlPanelTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	temp.RoundRect(0, 0, m_Width, 3, 2, 2);
 	m_Selected.BitBlt(0, m_Height - 4, m_Width, 3, &temp, 0, 0, SRCCOPY);
 	m_Selected.TransparentBlt(0, 0, m_Width, m_Height, &m_Hover, 0, 0, m_Width, m_Height, RGB(30, 30, 30));
+
+	if (CWnd::OnCreate(lpCreateStruct) == -1)
+		return -1;
 
 	return 0;
 }
@@ -137,9 +137,6 @@ CControlPanelButton::~CControlPanelButton()
 }
 int CControlPanelButton::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
-	if (CWnd::OnCreate(lpCreateStruct) == -1)
-		return -1;
-
 	CDC* windowDC = GetDC();
 	// 创建主源DC
 	m_Source.CreateCompatibleDC(windowDC);
@@ -183,6 +180,10 @@ int CControlPanelButton::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	button_bitmap->SetBitmapBits(bitmap.bmHeight * bitmap.bmWidthBytes, buffer);
 	m_SourceDisabled.SelectObject(button_bitmap);
 	delete[] buffer;
+
+	if (CWnd::OnCreate(lpCreateStruct) == -1)
+		return -1;
+
 	return 0;
 }
 BOOL CControlPanelButton::OnEraseBkgnd(CDC* pDC)
@@ -276,13 +277,13 @@ int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			BUTTON(ID_FILE_SAVE, IDB_FILE_SAVE, L"保存", 160)
 			BUTTON(ID_FILE_SAVEAS, IDB_FILE_SAVEAS, L"另存为", 240)
 		END_GROUP()
-		return 0;
+		break;
 	case 1:
 		BEGIN_GROUP(ID_EDIT)
 			BUTTON(ID_EDIT_UNDO, IDB_EDIT_UNDO, L"撤销", 0)
 			BUTTON(ID_EDIT_REDO, IDB_EDIT_REDO, L"重做", 80)
 		END_GROUP()
-		return 0;
+		break;
 	case 2:
 		BEGIN_GROUP(ID_DEBUG)
 			BUTTON(ID_DEBUG_RUN, IDB_DEBUG_RUN, L"运行", 0)
@@ -295,12 +296,16 @@ int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			BUTTON(ID_DEBUG_STEPOUT, IDB_DEBUG_STEPOUT, L"步出", 412)
 		END_GROUP()
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_HIDE);
-		return 0;
+		break;
 	case 3:
-		return 0;
+		break;
 	case 4:
-		return 0;
+		break;
 	}
+	if (CWnd::OnCreate(lpCreateStruct) == -1)
+		return -1;
+
+	return 0;
 }
 CControlPanelButton* CControlPanelGroup::GetButton(UINT id)
 {
@@ -399,6 +404,7 @@ int CControlPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Groups[3].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_GENERATE);
 	m_Groups[4].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_SETTINGS);
 	ShiftTag(0);
+
 	return 0;
 }
 BOOL CControlPanel::OnEraseBkgnd(CDC* pDC)

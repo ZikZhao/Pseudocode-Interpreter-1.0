@@ -3,10 +3,13 @@
 #include <cmath>
 #include <ctime>
 #include <list>
+#include <strsafe.h>
+#include "..\Pseudocode Interpreter MFC\IndexedList.h"
 #include "Definitions.h"
 #include "Debug.h"
 #include "SyntaxCheck.h"
 #include "Execution.h"
+#define SEGMENT_SIZE 1024 // bytes read from file each time
 
 using namespace std;
 HANDLE standard_input;
@@ -14,6 +17,7 @@ HANDLE standard_output;
 HANDLE standard_error;
 HANDLE signal_in = 0; // used for debugging mode
 HANDLE signal_out = 0; // used for debugging mode
+IndexedList<wchar_t*> lines;
 size_t& CII = current_instruction_index;
 
 // these are used for debugging mode
@@ -24,99 +28,166 @@ DWORD step_type;
 USHORT step_depth = 0; // in which call stepping is made (-1 means step in)
 HANDLE step_handled = CreateEvent(0, true, false, 0);
 
+// load physical files and store in a wide char buffer
+wchar_t* LoadFile(wchar_t* filename) {
+	HANDLE hfile = CreateFileW(filename, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
+	if (hfile == INVALID_HANDLE_VALUE) {
+		WRITE_CONSOLE(standard_error, L"伪代码文件未能打开", 9);
+		abort();
+	}
+	LARGE_INTEGER filesize{};
+	GetFileSizeEx(hfile, &filesize);
+	if (filesize.QuadPart >= 1ul << (sizeof(int) * 8 - 1)) {
+		WRITE_CONSOLE(standard_error, L"文件过大", 4);
+		abort();
+	}
+	char* buffer = new char[filesize.QuadPart];
+	static DWORD read;
+	if (not ReadFile(hfile, buffer, (DWORD)filesize.QuadPart, &read, NULL)) {
+		WRITE_CONSOLE(standard_error, L"读取失败", 4);
+		abort();
+	}
+	if (read != filesize.QuadPart) {
+		WRITE_CONSOLE(standard_error, L"读取异常", 4);
+		abort();
+	}
+	int size = MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, buffer, read, nullptr, 0);
+	wchar_t* wchar_buffer = new wchar_t[size + 1];
+	MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, buffer, read, wchar_buffer, size);
+	wchar_buffer[size] = 0;
+	delete[] buffer;
+	return wchar_buffer;
+}
+
 // format codes in physical files
-wchar_t** FormatCode(wchar_t* code, _Out_ size_t* count_out) {
-	// first stage formatting
-	size_t count = 0;
-	size_t total_length = 0;
-	size_t* lengths = new size_t[1000] {};
-	size_t* indentations = new size_t[1000] {};
-	size_t* comment = new size_t[1000] {};
-	size_t last_return = 0;
-	bool before_text = true;
-	long long after_text = -1;
-	size_t offset = 0; // skip first few empty lines or comments
-	for (size_t index = 0;; index++) {
-		if (code[index] == 13 and code[index + 1] == 10) {
-			lengths[count] = index - last_return;
-			total_length += lengths[count] + 2;
-			if (after_text == -1) {
-				comment[count] = 0;
+//wchar_t** FormatCode(wchar_t* code, _Out_ size_t* count_out) {
+//	// first stage formatting
+//	size_t count = 0;
+//	size_t total_length = 0;
+//	size_t* lengths = new size_t[1000] {};
+//	size_t* indentations = new size_t[1000] {};
+//	size_t* comment = new size_t[1000] {};
+//	size_t last_return = 0;
+//	bool before_text = true;
+//	long long after_text = -1;
+//	size_t offset = 0; // skip first few empty lines or comments
+//	for (size_t index = 0;; index++) {
+//		if (code[index] == 13 and code[index + 1] == 10) {
+//			lengths[count] = index - last_return;
+//			total_length += lengths[count] + 2;
+//			if (after_text == -1) {
+//				comment[count] = 0;
+//			}
+//			else {
+//				comment[count] = index - after_text;
+//			}
+//			last_return = index + 2;
+//			index++;
+//			count++;
+//			before_text = true;
+//			after_text = -1;
+//			if (count % 1000 == 0) {
+//				size_t* tag = new size_t[count + 1000]{};
+//				memcpy(tag, lengths, count * sizeof(size_t));
+//				delete[] lengths;
+//				lengths = tag;
+//				size_t* tag2 = new size_t[count + 1000]{};
+//				memcpy(tag2, indentations, count * sizeof(size_t));
+//				delete[] indentations;
+//				indentations = tag2;
+//				size_t* tag3 = new size_t[count + 1000]{};
+//				memcpy(tag3, comment, count * sizeof(size_t));
+//				delete[] comment;
+//				comment = tag3;
+//			}
+//		}
+//		else if ((code[index] == 9 or code[index] == 32) and before_text) {
+//			indentations[count]++;
+//		}
+//		else if (code[index] == 47 and code[index + 1] == 47 and after_text == -1){
+//			after_text = index;
+//			if (!before_text) {
+//				for (unsigned long long index2 = index - 1; index2 != -1; index2--) {
+//					if (code[index2] == 32 or code[index2] == 9) {
+//						after_text--;
+//					}
+//					else {
+//						break;
+//					}
+//				}
+//			}
+//			before_text = false;
+//		}
+//		else if (code[index] == 0) { // EOF
+//			lengths[count] = index - last_return;
+//			total_length += lengths[count];
+//			if (after_text == -1) {
+//				comment[count] = 0;
+//			}
+//			else {
+//				comment[count] = index - after_text;
+//			}
+//			count++;
+//			break;
+//		}
+//		else {
+//			before_text = false;
+//		}
+//	}
+//	// split into lines
+//	wchar_t** lines = new wchar_t* [count];
+//	for (size_t index = 0; index != count; index++) {
+//		wchar_t* line = new wchar_t[lengths[index] - indentations[index] - comment[index] + 1];
+//		memcpy(line, code + offset + indentations[index],
+//			(size_t)(lengths[index] - indentations[index] - comment[index]) * 2);
+//		line[lengths[index] - indentations[index] - comment[index]] = 0;
+//		strip(line);
+//		lines[index] = line;
+//		offset += lengths[index] + 2;
+//	}
+//	*count_out = count;
+//	return lines;
+//}
+
+void FormatCode(wchar_t* data) {
+	auto LineStrip = [](wchar_t* line, size_t size) {
+		ULONG index;
+		for (index = 0; line[index] != 0; index++) {
+			if (line[index] != L' ' and line[index] != L'\t') {
+				break;
+			}
+		}
+		memcpy(line, line + index, size - index);
+		for (index = 0; line[index] != 0; index++) {
+			if (line[index] == L'\\' and line[index + 1] == L'\\') {
+				break;
+			}
+		}
+		line[index] = 0;
+	};
+	lines.set_construction(true);
+	ULONG64 last_return = 0;
+	for (ULONG64 index = 0;; index++) {
+		if (data[index] == L'\r' or data[index] == 0) {
+			wchar_t* line_buffer = new wchar_t[index - last_return + 1];
+			memcpy(line_buffer, data + last_return, ((size_t)index - last_return) * 2);
+			line_buffer[index - last_return] = 0;
+			LineStrip(line_buffer, index - last_return);
+			lines.append(line_buffer);
+			if (data[index] == 0) {
+				break;
 			}
 			else {
-				comment[count] = index - after_text;
+				last_return = index + 2;
 			}
-			last_return = index + 2;
-			index++;
-			count++;
-			before_text = true;
-			after_text = -1;
-			if (count % 1000 == 0) {
-				size_t* tag = new size_t[count + 1000]{};
-				memcpy(tag, lengths, count * sizeof(size_t));
-				delete[] lengths;
-				lengths = tag;
-				size_t* tag2 = new size_t[count + 1000]{};
-				memcpy(tag2, indentations, count * sizeof(size_t));
-				delete[] indentations;
-				indentations = tag2;
-				size_t* tag3 = new size_t[count + 1000]{};
-				memcpy(tag3, comment, count * sizeof(size_t));
-				delete[] comment;
-				comment = tag3;
-			}
-		}
-		else if ((code[index] == 9 or code[index] == 32) and before_text) {
-			indentations[count]++;
-		}
-		else if (code[index] == 47 and code[index + 1] == 47 and after_text == -1){
-			after_text = index;
-			if (!before_text) {
-				for (unsigned long long index2 = index - 1; index2 != -1; index2--) {
-					if (code[index2] == 32 or code[index2] == 9) {
-						after_text--;
-					}
-					else {
-						break;
-					}
-				}
-			}
-			before_text = false;
-		}
-		else if (code[index] == 0) { // EOF
-			lengths[count] = index - last_return;
-			total_length += lengths[count];
-			if (after_text == -1) {
-				comment[count] = 0;
-			}
-			else {
-				comment[count] = index - after_text;
-			}
-			count++;
-			break;
-		}
-		else {
-			before_text = false;
 		}
 	}
-	// split into lines
-	wchar_t** lines = new wchar_t* [count];
-	for (size_t index = 0; index != count; index++) {
-		wchar_t* line = new wchar_t[lengths[index] - indentations[index] - comment[index] + 1];
-		memcpy(line, code + offset + indentations[index],
-			(size_t)(lengths[index] - indentations[index] - comment[index]) * 2);
-		line[lengths[index] - indentations[index] - comment[index]] = 0;
-		strip(line);
-		lines[index] = line;
-		offset += lengths[index] + 2;
-	}
-	*count_out = count;
-	return lines;
+	lines.set_construction(false);
 }
 
 // format error message when an error is detected
-void FormatErrorMessage(Error error, wchar_t** lines) {
-	const wchar_t* error_type[] = {
+void FormatErrorMessage(Error error) {
+	static const wchar_t* error_type[] = {
 		L"",
 		L"语法错误(Syntax Error)",
 		L"变量错误(Variable Error)",
@@ -157,10 +228,10 @@ void FormatErrorMessage(Error error, wchar_t** lines) {
 	buffer[size + 2] = '\n';
 	WriteFile(standard_error, buffer, size + 3, nullptr, 0);
 	delete[] buffer;
-	size = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, lines[current_line_number], (int)wcslen(lines[current_line_number]), nullptr, 0, nullptr, 0);
+	size = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, *lines[current_line_number], (int)wcslen(*lines[current_line_number]), nullptr, 0, nullptr, 0);
 	buffer = new char[size + 5];
 	memcpy(buffer, second_indentation, 4);
-	WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, lines[current_line_number], (int)wcslen(lines[current_line_number]), buffer + 4, size, nullptr, 0);
+	WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, *lines[current_line_number], (int)wcslen(*lines[current_line_number]), buffer + 4, size, nullptr, 0);
 	buffer[size + 4] = '\n';
 	WriteFile(standard_error, buffer, size + 5, nullptr, 0);
 	delete[] buffer;
@@ -184,10 +255,10 @@ void FormatErrorMessage(Error error, wchar_t** lines) {
 		buffer[size + 2] = '\n';
 		WriteFile(standard_error, buffer, size + 3, nullptr, 0);
 		delete[] buffer;
-		size = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, lines[current_line_number], (int)wcslen(lines[current_line_number]), nullptr, 0, nullptr, 0);
+		size = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, *lines[current_line_number], (int)wcslen(*lines[current_line_number]), nullptr, 0, nullptr, 0);
 		buffer = new char[size + 5];
 		memcpy(buffer, second_indentation, 4);
-		WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, lines[current_line_number], (int)wcslen(lines[current_line_number]), buffer + 4, size, nullptr, 0);
+		WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, *lines[current_line_number], (int)wcslen(*lines[current_line_number]), buffer + 4, size, nullptr, 0);
 		buffer[size + 4] = '\n';
 		WriteFile(standard_error, buffer, size + 5, nullptr, 0);
 		delete[] buffer;
@@ -202,11 +273,11 @@ void FormatErrorMessage(Error error, wchar_t** lines) {
 }
 
 // perform sequence check (e.g. there must be only declaration statements inside record definition)
-void SequenceCheck(size_t length) {
+void SequenceCheck() {
 	bool define_type = false;
 	bool define_subroutine = false;
-	for (size_t index = 0; index != length; index++) {
-		USHORT& syntax_index = parsed_code[index].syntax_index;
+	for (size_t index = 0; index != lines.size(); index++) {
+		USHORT& syntax_index = parsed_code[index]->syntax_index;
 		if (Construct::constructs[syntax_index] == Construct::type_ender) { define_type = false; continue; }
 		if (Construct::constructs[syntax_index] == Construct::procedure_ender or
 			Construct::constructs[syntax_index] == Construct::function_ender) {
@@ -239,37 +310,37 @@ void SequenceCheck(size_t length) {
 }
 
 // perform syntax check for each line and extract key information
-bool SyntaxCheck(size_t length, wchar_t** lines) {
+bool SyntaxCheck() {
 	calling_ptr = 0;
-	parsed_code = new CONSTRUCT[length];
-	for (CII = 0; CII != length; CII++) {
-		CONSTRUCT construct = Construct::parse(lines[CII]);
+	parsed_code = new CONSTRUCT*[lines.size()];
+	for (CII = 0; CII != lines.size(); CII++) {
+		CONSTRUCT* construct = Construct::parse(*lines[CII]);
 		parsed_code[CII] = construct;
-		if (construct.result.matched) {
-			if (construct.result.error_message) {
-				Error error(SyntaxError, construct.result.error_message);
-				FormatErrorMessage(error, lines);
+		if (construct->result.matched) {
+			if (construct->result.error_message) {
+				Error error(SyntaxError, construct->result.error_message);
+				FormatErrorMessage(error);
 				delete[] parsed_code;
 				return false;
 			}
 		}
 		else {
 			Error error(SyntaxError, L"无法识别的语法");
-			FormatErrorMessage(error, lines);
+			FormatErrorMessage(error);
 			delete[] parsed_code;
 			return false;
 		}
 	}
 	if (nesting_ptr) {
 		Error error(SyntaxError, L"出乎意料的EOF：嵌套结构未结束");
-		CII = length - 1;
-		FormatErrorMessage(error, lines);
+		CII = lines.size() - 1;
+		FormatErrorMessage(error);
 		delete[] parsed_code;
 		return false;
 	}
-	try { SequenceCheck(length); }
+	try { SequenceCheck(); }
 	catch(Error& error){
-		FormatErrorMessage(error, lines);
+		FormatErrorMessage(error);
 		delete[] parsed_code;
 		return false;
 	}
@@ -359,14 +430,14 @@ inline bool CheckBreakpoint(ULONG64 line_index) {
 }
 
 // interprete and execute the code without debugging the code
-int ExecuteNormal(size_t length, wchar_t** lines) {
+int ExecuteNormal() {
 	calling_ptr = 0;
-	if (not SyntaxCheck(length, lines)) {
+	if (not SyntaxCheck()) {
 		return -1;
 	}
-	for (CII = 0; CII != length; CII++) {
+	for (CII = 0; CII != lines.size(); CII++) {
 		try {
-			((FUNCTION_PTR)Execution::executions[parsed_code[CII].syntax_index])(parsed_code[CII].result);
+			((FUNCTION_PTR)Execution::executions[parsed_code[CII]->syntax_index])(parsed_code[CII]->result);
 		}
 		catch (Error& error) {
 			if (globals->error_handling_ptr) {
@@ -374,24 +445,25 @@ int ExecuteNormal(size_t length, wchar_t** lines) {
 				current_instruction_index = globals->error_handling_indexes[globals->error_handling_ptr];
 			}
 			else {
-				FormatErrorMessage(error, lines);
+				FormatErrorMessage(error);
 				return -1;
 			}
 		}
 	}
-	for (ULONG index = 0; index != length; index++) {
-		parsed_code[index].release_tokens();
+	for (ULONG index = 0; index != lines.size(); index++) {
+		parsed_code[index]->release_tokens();
+		delete parsed_code[index];
 	}
 	return 0;
 }
 
-// interprete and execute the code in debugging mode
-int ExecuteDubug(size_t length, wchar_t** lines) {
+// interpret and execute the code in debugging mode
+int ExecuteDubug() {
 	calling_ptr = 0;
-	if (not SyntaxCheck(length, lines)) {
+	if (not SyntaxCheck()) {
 		return - 1;
 	}
-	for (CII = 0; CII != length; CII++) {
+	for (CII = 0; CII != lines.size(); CII++) {
 		if (CheckBreakpoint(current_instruction_index)) {
 			ResetEvent(breakpoint_handled);
 			SendSignal(SIGNAL_BREAKPOINT, BREAKPOINT_HIT, CII);
@@ -403,7 +475,7 @@ int ExecuteDubug(size_t length, wchar_t** lines) {
 			WaitForSingleObject(step_handled, INFINITE);
 		}
 		try {
-			((FUNCTION_PTR)Execution::executions[parsed_code[CII].syntax_index])(parsed_code[CII].result);
+			((FUNCTION_PTR)Execution::executions[parsed_code[CII]->syntax_index])(parsed_code[CII]->result);
 		}
 		catch (Error& error) {
 			if (globals->error_handling_ptr) {
@@ -411,15 +483,15 @@ int ExecuteDubug(size_t length, wchar_t** lines) {
 				current_instruction_index = globals->error_handling_indexes[globals->error_handling_ptr];
 			}
 			else {
-				FormatErrorMessage(error, lines);
+				FormatErrorMessage(error);
 				SendSignal(SIGNAL_CONNECTION, CONNECTION_EXIT, 0);
 				return -1;
 			}
 		}
 	}
 	SendSignal(SIGNAL_CONNECTION, CONNECTION_EXIT, 0);
-	for (ULONG index = 0; index != length; index++) {
-		parsed_code[index].release_tokens();
+	for (ULONG index = 0; index != lines.size(); index++) {
+		parsed_code[index]->release_tokens();
 	}
 	return 0;
 }
@@ -514,37 +586,17 @@ int wmain(int argc, wchar_t** args)
 			}
 		}
 	}
-	HANDLE hfile = CreateFileW(args[1], GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
-	if (hfile == INVALID_HANDLE_VALUE) {
-		static const wchar_t* error_message = L"伪代码文件未能打开";
-		WRITE_CONSOLE(standard_error, error_message, 9);
-		return 1;
-	}
-	LARGE_INTEGER filesize{};
-	GetFileSizeEx(hfile, &filesize);
-	char* buffer = new char[filesize.QuadPart + 1];
-	buffer[filesize.QuadPart] = 0;
-	DWORD read = 0;
-	if (not ReadFile(hfile, buffer, (DWORD)filesize.QuadPart, &read, 0)) {
-		static const wchar_t* error_message = L"读取失败";
-		WRITE_CONSOLE(standard_error, error_message, 4);
-		return 1;
-	}
-	int size = MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, buffer, -1, nullptr, 0);
-	wchar_t* wchar_buffer = new wchar_t[size];
-	MultiByteToWideChar(CP_UTF8, MB_COMPOSITE, buffer, -1, wchar_buffer, size);
-	delete[] buffer;
-	size_t line_number = 0;
-	wchar_t** lines = FormatCode(wchar_buffer, &line_number);
+	wchar_t* data = LoadFile(args[1]);
+	FormatCode(data);
 	if (debug) {
 		static char signal_handle[8];
 		ReadFile(standard_input, signal_handle, 8, nullptr, nullptr);
 		signal_in = *(HANDLE*)signal_handle;
 		CreateThread(0, 0, SignalThread, 0, 0, 0);
 		WaitForSingleObject(breakpoint_handled, INFINITE);
-		return ExecuteDubug(line_number, lines);
+		return ExecuteDubug();
 	}
 	else {
-		return ExecuteNormal(line_number, lines);
+		return ExecuteNormal();
 	}
 }

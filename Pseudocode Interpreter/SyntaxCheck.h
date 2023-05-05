@@ -15,12 +15,7 @@ AUTOMATIC_NEW_LINE_IN_WRITE;
 unsigned settings = default_settings;
 
 void release_rpn(RPN_EXP* rpn) {
-	size_t offset = 0;
-	for (USHORT element_index = 0; element_index != rpn->number_of_element; element_index++) {
-		size_t this_size = wcslen(rpn->rpn + offset);
-		delete[] (wchar_t*)(rpn->rpn + offset);
-		offset += this_size;
-	}
+	delete[] rpn->rpn;
 	delete rpn;
 }
 
@@ -2864,6 +2859,12 @@ namespace Construct {
 						variable_part,
 						rpn_out,
 					};
+					result.tokens = new TOKEN[]{
+						{ (USHORT)index, TOKENTYPE::Variable },
+						{ 1, TOKENTYPE::Punctuation },
+						{ (USHORT)(wcslen(expr) - index - 1), TOKENTYPE::Expression },
+						ENDTOKEN,
+					};
 				}
 				else {
 					delete[] variable_part;
@@ -2888,6 +2889,11 @@ namespace Construct {
 				delete[] expr_part;
 				result.matched = true;
 				result.args = new void* [1] { rpn_out };
+				result.tokens = new TOKEN[]{
+					{ 7, TOKENTYPE::Keyword },
+					{ (USHORT)(wcslen(expr) - 7), TOKENTYPE::Expression },
+					ENDTOKEN,
+				};
 			}
 			else {
 				delete[] expr_part;
@@ -3869,13 +3875,13 @@ namespace Construct {
 		except_tag, openfile_statement, readfile_statement, writefile_statement, closefile_statement,
 		seek_statement, getrecord_statement, putrecord_statement, single_expression };
 	USHORT number_of_constructs = sizeof(constructs) / sizeof(void*);
-	CONSTRUCT parse(wchar_t* line) {
+	CONSTRUCT* parse(wchar_t* line) {
 		for (USHORT index = 0; index != number_of_constructs; index++) {
 			RESULT result = ((RESULT (*)(wchar_t*))constructs[index])(line);
 			if (result.matched) {
-				return CONSTRUCT{ index, result };
+				return new CONSTRUCT{ index, result };
 			}
 		}
-		return CONSTRUCT{ NULL, RESULT{} };
+		return new CONSTRUCT{ NULL, RESULT{} };
 	}
 }

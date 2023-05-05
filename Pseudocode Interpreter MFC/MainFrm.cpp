@@ -52,12 +52,14 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Editor.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
 	m_InfoView.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 200), this, NULL);
 	m_StatusBar.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
+	m_ControlPanel.REDRAW_WINDOW();
 
 	// 再创建窗口
 	if (CFrameWndEx::OnCreate(lpCreateStruct))
 		return -1;
 
 	ModifyStyleEx(WS_EX_CLIENTEDGE, 0, SWP_FRAMECHANGED);
+	ModifyStyleEx(WS_CLIPCHILDREN, 0, SWP_FRAMECHANGED);
 	LoadAccelTable(MAKEINTRESOURCE(IDR_MAINFRAME));
 	SetIcon(AfxGetApp()->LoadIconW(MAKEINTRESOURCE(IDI_PI)), true);
 	SetIcon(AfxGetApp()->LoadIconW(MAKEINTRESOURCE(IDI_PI)), false);
@@ -66,24 +68,27 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 }
 BOOL CMainFrame::OnEraseBkgnd(CDC* pDC)
 {
+	CRect rect(0, 0, 1920, 1080);
+	pDC->FillRect(&rect, pGreyBlackBrush);
 	return TRUE;
 }
 void CMainFrame::OnSize(UINT nType, int cx, int cy)
 {
+	CFrameWndEx::OnSize(nType, cx, cy);
+
 	CRect rect;
 	m_InfoView.GetClientRect(&rect);
 	int original_height = rect.bottom - rect.top;
 	rect = CRect(0, 0, cx, 150);
-	m_ControlPanel.MoveWindow(rect, TRUE);
+	m_ControlPanel.MoveWindow(rect);
 	rect = CRect(0, 150, 300, cy - 24);
-	m_TagPanel.MoveWindow(rect, TRUE);
+	m_TagPanel.MoveWindow(rect);
 	rect = CRect(300, 150, cx, cy - 24 - original_height);
 	m_Editor.MoveWindow(rect);
 	rect = CRect(300, 150 + cy - 174 - original_height, cx, cy - 24);
-	m_InfoView.MoveWindow(rect, TRUE);
+	m_InfoView.MoveWindow(rect);
 	rect = CRect(0, cy - 24, cx, cy);
-	m_StatusBar.MoveWindow(rect, TRUE);
-	CFrameWndEx::OnSize(nType, cx, cy);
+	m_StatusBar.MoveWindow(rect);
 }
 void CMainFrame::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 {
