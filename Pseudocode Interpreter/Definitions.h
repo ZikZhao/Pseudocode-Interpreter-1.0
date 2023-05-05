@@ -36,7 +36,6 @@ struct RESULT {
 	bool matched = false; // whether current line matches with the syntax
 	void** args = nullptr; // arguments to be passed to execution functions
 	TOKEN* tokens = nullptr; // positions of elements used to highlight grammar
-	const wchar_t* error_message = nullptr; // when syntax is matched but error may be caused, this field is used
 };
 
 // structure that represents a data in pseudocode

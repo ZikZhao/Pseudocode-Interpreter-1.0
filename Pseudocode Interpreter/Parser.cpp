@@ -317,8 +317,8 @@ bool SyntaxCheck() {
 		CONSTRUCT* construct = Construct::parse(*lines[CII]);
 		parsed_code[CII] = construct;
 		if (construct->result.matched) {
-			if (construct->result.error_message) {
-				Error error(SyntaxError, construct->result.error_message);
+			if (error_message) {
+				Error error(SyntaxError, error_message);
 				FormatErrorMessage(error);
 				delete[] parsed_code;
 				return false;

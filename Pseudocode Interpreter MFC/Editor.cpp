@@ -1068,6 +1068,7 @@ void CEditor::ExpandToken(wchar_t* line, ADVANCED_TOKEN& token)
 }
 inline void CEditor::ParseLine()
 {
+	reset_syntax_system();
 	ADVANCED_TOKEN token = LineSplit(*m_CurrentTag->m_CurrentLine);
 	CONSTRUCT* construct = Construct::parse(reinterpret_cast<wchar_t*>(token.tokens));
 	delete[] reinterpret_cast<wchar_t*>(token.tokens);
@@ -1118,6 +1119,7 @@ void CEditor::RecalcWidth()
 void CEditor::ParseAll()
 {
 	if (not m_CurrentTag) { return; }
+	reset_syntax_system();
 	IndexedList<ADVANCED_TOKEN>* new_token_list = new IndexedList<ADVANCED_TOKEN>;
 	new_token_list->set_construction(true);
 	for (IndexedList<wchar_t*>::iterator this_line = m_CurrentTag->m_Lines.begin(); this_line != m_CurrentTag->m_Lines.end(); this_line++) {

@@ -20,10 +20,17 @@ void release_rpn(RPN_EXP* rpn) {
 }
 
 size_t current_instruction_index = 0;
-Nesting** nesting = new Nesting*[128]; // maximum nesting depth : 128
+Nesting** nesting = new Nesting*[129]; // maximum nesting depth : 128
 USHORT nesting_ptr = 0;
 File* files = new File[8]; // maximum 8 files opened at the same time
 USHORT file_ptr = 0;
+const wchar_t* error_message = nullptr; // stores error message during parsing (syntax are recognizable but contains error)
+
+inline void reset_syntax_system() {
+	// reset variables when one parsing loop is finished
+	// only IDE is able to call
+	nesting_ptr = 0;
+}
 
 void strip(wchar_t* line) {
 	size_t start = 0;
@@ -145,15 +152,15 @@ size_t skip_string(wchar_t* expr) {
 	return wcslen(expr) - 1;
 }
 
-long long match_keyword(wchar_t* expr, const wchar_t* keyword) {
+long match_keyword(wchar_t* expr, const wchar_t* keyword) {
 	// find keyword in a string and returns its starting index
 	if (wcslen(expr) < wcslen(keyword)) { return -1; }
-	size_t upper_bound = wcslen(expr) - wcslen(keyword) + 1;
+	long upper_bound = wcslen(expr) - wcslen(keyword) + 1;
 	size_t length = wcslen(keyword);
-	for (size_t index = 0; index != upper_bound; index++) {
+	for (long index = 0; index != upper_bound; index++) {
 		if (expr[index] == keyword[0]) {
 			bool matched = true;
-			for (size_t index2 = 0; index2 != length; index2++) {
+			for (long index2 = 0; index2 != length; index2++) {
 				if (keyword[index2] != expr[index + index2]) {
 					matched = false;
 					break;
@@ -2910,6 +2917,11 @@ namespace Construct {
 				variable_part[wcslen(expr) - 6] = 0;
 				result.matched = true;
 				result.args = new void* [1] { variable_part };
+				result.tokens = new TOKEN[]{
+					{ 6, TOKENTYPE::Keyword },
+					{ (USHORT)(wcslen(expr) - 6), TOKENTYPE::Expression },
+					ENDTOKEN,
+				};
 			}
 		}
 		return result;
@@ -2918,23 +2930,24 @@ namespace Construct {
 		// IF <condition>
 		//    THEN ...
 		RESULT result;
-		static const wchar_t* keyword = L"IF ";
-		if (match_keyword(expr, keyword) == 0) {
+		if (match_keyword(expr, L"IF ") == 0) {
 			RPN_EXP* rpn_out = nullptr;
 			if (Element::expression(expr + 3, &rpn_out)) {
 				result.matched = true;
 				if (nesting_ptr == 128) {
-					release_rpn(rpn_out);
-					result.error_message = L"嵌套深度达到上限";
+					error_message = L"嵌套深度达到上限";
 				}
-				else {
-					nesting[nesting_ptr] = new Nesting(Nesting::IF, current_instruction_index);
-					result.args = new void* [] {
-						nesting[nesting_ptr],
-						rpn_out,
-					};
-					nesting_ptr++;
-				}
+				nesting[nesting_ptr] = new Nesting(Nesting::IF, current_instruction_index);
+				result.args = new void* [] {
+					nesting[nesting_ptr],
+					rpn_out,
+				};
+				result.tokens = new TOKEN[]{
+					{ 3, TOKENTYPE::Keyword },
+					{ (USHORT)(wcslen(expr) - 3), TOKENTYPE::Expression },
+					ENDTOKEN,
+				};
+				nesting_ptr++;
 			}
 		}
 		return result;
@@ -2943,38 +2956,39 @@ namespace Construct {
 		// IF <condition> THEN
 		//     ...
 		RESULT result;
-		static const wchar_t* keywords[] = { L"IF ", L" THEN" };
-		for (USHORT index = 0; index != 3; index++) {
-			if (keywords[0][index] != expr[index]) {
-				return result;
-			}
+		long start = match_keyword(expr, L"IF ");
+		long end = match_keyword(expr, L" THEN");
+		if (start == -1 or end == -1) {
+			return result;
 		}
-		for (USHORT index = 0; index != 5; index++) {
-			if (keywords[1][index] != expr[wcslen(expr) - 5 + index]) {
-				return result;
-			}
+		if (start != 0 or end != wcslen(expr) - 5) {
+			return result;
 		}
-		wchar_t* condition = new wchar_t[wcslen(expr) - 7];
-		memcpy(condition, expr + 3, (wcslen(expr) - 8) * 2);
-		condition[wcslen(expr) - 8] = 0;
+		start += 2;
+		wchar_t* condition = new wchar_t[end - start];
+		memcpy(condition, expr + 3, (end - start - 1) * 2);
+		condition[end - start - 1] = 0;
 		RPN_EXP* rpn_out = nullptr;
 		bool is_expression = Element::expression(condition, &rpn_out);
 		delete[] condition;
 		if (is_expression) {
 			result.matched = true;
 			if (nesting_ptr == 128) {
-				release_rpn(rpn_out);
-				result.error_message = L"嵌套深度达到上限";
+				error_message = L"嵌套深度达到上限";
 			}
-			else {
-				nesting[nesting_ptr] = new Nesting(Nesting::IF, current_instruction_index);
-				nesting[nesting_ptr]->add_tag(current_instruction_index);
-				result.args = new void* [] {
-					nesting[nesting_ptr],
-					rpn_out,
-				};
-				nesting_ptr++;
-			}
+			nesting[nesting_ptr] = new Nesting(Nesting::IF, current_instruction_index);
+			nesting[nesting_ptr]->add_tag(current_instruction_index);
+			result.args = new void* [] {
+				nesting[nesting_ptr],
+				rpn_out,
+			};
+			result.tokens = new TOKEN[]{
+				{ 3, TOKENTYPE::Keyword },
+				{ (USHORT)(end - start), TOKENTYPE::Expression },
+				{ 5, TOKENTYPE::Keyword },
+				ENDTOKEN,
+			};
+			nesting_ptr++;
 		}
 		return result;
 	}
@@ -2982,21 +2996,27 @@ namespace Construct {
 		// THEN
 		//     <statements>
 		RESULT result;
-		static const wchar_t* keyword = L"THEN";
-		if (match_keyword(expr, keyword) == 0) {
-			result.matched = true;
-			if (not nesting_ptr) {
-				result.error_message = L"未找到THEN标签对应的语法头";
+		if (match_keyword(expr, L"THEN") == 0) {
+			if (wcslen(expr) != 4) {
+				return result;
 			}
-			if (nesting[nesting_ptr - 1]->nest_type != Nesting::IF) {
-				result.error_message = L"未找到THEN标签对应的语法头";
+			if (not nesting_ptr) {
+				error_message = L"未找到THEN标签对应的语法头";
+			}
+			else if (nesting[nesting_ptr - 1]->nest_type != Nesting::IF) {
+				error_message = L"未找到THEN标签对应的语法头";
 			}
 			else if (nesting[nesting_ptr - 1]->tag_number != 1) {
-				result.error_message = L"重定义THEN标签是非法的";
+				error_message = L"重定义THEN标签是非法的";
 			}
 			else {
+				result.matched = true;
 				nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
 				result.args = new void* [] { nesting[nesting_ptr - 1] };
+				result.tokens = new TOKEN[]{
+					{ 4, TOKENTYPE::Keyword },
+					ENDTOKEN,
+				};
 			}
 		}
 		return result;
@@ -3005,22 +3025,24 @@ namespace Construct {
 		// ELSE
 		//     <statements>
 		RESULT result;
-		static const wchar_t* keyword = L"ELSE";
-		if (match_keyword(expr, keyword) == 0) {
+		if (match_keyword(expr, L"ELSE") == 0) {
+			if (wcslen(expr) != 4) {
+				return result;
+			}
 			result.matched = true;
 			if (not nesting_ptr) {
-				result.error_message = L"未找到ELSE标签对应的IF头";
+				error_message = L"未找到ELSE标签对应的IF头";
 			}
 			else if (nesting[nesting_ptr - 1]->tag_number == 1) {
-				result.error_message = L"在定义ELSE标签前请先定义THEN标签";
+				error_message = L"在定义ELSE标签前请先定义THEN标签";
 			}
 			else if (nesting[nesting_ptr - 1]->tag_number == 3) {
-				result.error_message = L"重定义ELSE标签是非法的";
+				error_message = L"重定义ELSE标签是非法的";
 			}
 			else {
 				nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
-				result.args = new void* [] { nesting[nesting_ptr - 1] };
 			}
+			result.args = new void* [] { nesting[nesting_ptr - 1] };
 		}
 		return result;
 	}
@@ -3031,7 +3053,7 @@ namespace Construct {
 			RPN_EXP* rpn_out = nullptr;
 			if (Element::expression(expr + 8, &rpn_out)) {
 				if (nesting_ptr == 128) {
-					result.error_message = L"嵌套深度达到上限";
+					error_message = L"嵌套深度达到上限";
 				}
 				else {
 					result.matched = true;
@@ -3058,11 +3080,11 @@ namespace Construct {
 				result.matched = true;
 				if (not nesting_ptr) {
 					release_rpn(rpn_out);
-					result.error_message = L"未找到CASE分支对应的CASE OF头";
+					error_message = L"未找到CASE分支对应的CASE OF头";
 				}
 				else if (nesting[nesting_ptr - 1]->nest_type != Nesting::CASE) {
 					release_rpn(rpn_out);
-					result.error_message = L"未找到CASE分支对应的CASE OF头";
+					error_message = L"未找到CASE分支对应的CASE OF头";
 				}
 				else {
 					nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
@@ -3084,13 +3106,13 @@ namespace Construct {
 		if (match_keyword(expr, keyword) == 0) {
 			result.matched = true;
 			if (not nesting_ptr) {
-				result.error_message = L"未找到OTHERWISE分支对应的CASE OF头";
+				error_message = L"未找到OTHERWISE分支对应的CASE OF头";
 			}
 			else if (nesting[nesting_ptr - 1]->nest_type != Nesting::CASE) {
-				result.error_message = L"未找到OTHERWISE分支对应的CASE OF头";
+				error_message = L"未找到OTHERWISE分支对应的CASE OF头";
 			}
 			else if (nesting[nesting_ptr - 1]->tag_number == 1) {
-				result.error_message = L"未定义任何分支的情况下定义OTHERWISE标签是非法的";
+				error_message = L"未定义任何分支的情况下定义OTHERWISE标签是非法的";
 			}
 			else {
 				nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
@@ -3139,7 +3161,7 @@ namespace Construct {
 		else {
 			result.matched = true;
 			if (nesting_ptr == 128) {
-				result.error_message = L"嵌套深度达到上限";
+				error_message = L"嵌套深度达到上限";
 			}
 			else {
 				nesting[nesting_ptr] = new Nesting(Nesting::FOR, current_instruction_index);
@@ -3189,10 +3211,10 @@ namespace Construct {
 			if (Element::valid_variable_path(expr + 5)) {
 				result.matched = true;
 				if (not nesting_ptr) {
-					result.error_message = L"未找到NEXT标签对应的FOR头";
+					error_message = L"未找到NEXT标签对应的FOR头";
 				}
 				else if (nesting[nesting_ptr - 1]->nest_type != Nesting::FOR) {
-					result.error_message = L"未找到NEXT标签对应的FOR头";
+					error_message = L"未找到NEXT标签对应的FOR头";
 				}
 				else {
 					nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
@@ -3223,7 +3245,7 @@ namespace Construct {
 		if (matched_result) {
 			result.matched = true;
 			if (nesting_ptr == 128) {
-				result.error_message = L"嵌套深度达到上限";
+				error_message = L"嵌套深度达到上限";
 				return result;
 			}
 			nesting[nesting_ptr] = new Nesting(Nesting::WHILE, current_instruction_index);
@@ -3241,7 +3263,7 @@ namespace Construct {
 		if (match_keyword(expr, keyword) == 0) {
 			result.matched = true;
 			if (nesting_ptr == 128) {
-				result.error_message = L"嵌套深度达到上限";
+				error_message = L"嵌套深度达到上限";
 				return result;
 			}
 			nesting[nesting_ptr] = new Nesting(Nesting::REPEAT, current_instruction_index);
@@ -3260,10 +3282,10 @@ namespace Construct {
 			if (Element::expression(expr + 6, &rpn_out)) {
 				result.matched = true;
 				if (not nesting_ptr) {
-					result.error_message = L"未找到UNTIL标签对应的REPEAT头";
+					error_message = L"未找到UNTIL标签对应的REPEAT头";
 				}
 				else if (nesting[nesting_ptr - 1]->nest_type != Nesting::REPEAT) {
-					result.error_message = L"未找到UNTIL标签对应的REPEAT头";
+					error_message = L"未找到UNTIL标签对应的REPEAT头";
 				}
 				else {
 					nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
@@ -3287,11 +3309,11 @@ namespace Construct {
 				case 0:
 				{
 					if (not nesting_ptr) {
-						result.error_message = L"未找到ENDIF标签对应的IF头";
+						error_message = L"未找到ENDIF标签对应的IF头";
 						return result;
 					}
 					else if (nesting[nesting_ptr - 1]->nest_type != Nesting::IF) {
-						result.error_message = L"未找到ENDIF标签对应的IF头";
+						error_message = L"未找到ENDIF标签对应的IF头";
 						return result;
 					}
 					break;
@@ -3299,11 +3321,11 @@ namespace Construct {
 				case 1:
 				{
 					if (not nesting_ptr) {
-						result.error_message = L"未找到ENDCASE标签对应的CASE OF头";
+						error_message = L"未找到ENDCASE标签对应的CASE OF头";
 						return result;
 					}
 					else if (nesting[nesting_ptr - 1]->nest_type != Nesting::CASE) {
-						result.error_message = L"未找到ENDCASE标签对应的CASE OF头";
+						error_message = L"未找到ENDCASE标签对应的CASE OF头";
 						return result;
 					}
 					break;
@@ -3311,11 +3333,11 @@ namespace Construct {
 				case 2:
 				{
 					if (not nesting_ptr) {
-						result.error_message = L"未找到ENDWHILE标签对应的WHILE头";
+						error_message = L"未找到ENDWHILE标签对应的WHILE头";
 						return result;
 					}
 					else if (nesting[nesting_ptr - 1]->nest_type != Nesting::WHILE) {
-						result.error_message = L"未找到ENDWHILE标签对应的WHILE头";
+						error_message = L"未找到ENDWHILE标签对应的WHILE头";
 						return result;
 					}
 					break;
@@ -3323,11 +3345,11 @@ namespace Construct {
 				case 3:
 				{
 					if (not nesting_ptr) {
-						result.error_message = L"未找到ENDTRY标签对应的TRY头";
+						error_message = L"未找到ENDTRY标签对应的TRY头";
 						return result;
 					}
 					else if (nesting[nesting_ptr - 1]->nest_type != Nesting::TRY) {
-						result.error_message = L"未找到ENDTRY标签对应的TRY头";
+						error_message = L"未找到ENDTRY标签对应的TRY头";
 						return result;
 					}
 					break;
@@ -3370,7 +3392,7 @@ namespace Construct {
 					}
 					result.matched = true;
 					if (nesting_ptr == 128) {
-						result.error_message = L"嵌套深度达到上限";
+						error_message = L"嵌套深度达到上限";
 						delete[] function_name;
 						for (USHORT arg_index = 0; arg_index != number_of_args; arg_index++) {
 							delete[] params[arg_index].name;
@@ -3398,10 +3420,10 @@ namespace Construct {
 		if (match_keyword(expr, keyword) == 0) {
 			result.matched = true;
 			if (not nesting_ptr) {
-				result.error_message = L"未找到ENDPROCEDURE标签对应的PROCEDURE头";
+				error_message = L"未找到ENDPROCEDURE标签对应的PROCEDURE头";
 			}
 			else if (nesting[nesting_ptr - 1]->nest_type != Nesting::PROCEDURE) {
-				result.error_message = L"未找到ENDPROCEDURE标签对应的PROCEDURE头";
+				error_message = L"未找到ENDPROCEDURE标签对应的PROCEDURE头";
 			}
 			else {
 				nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
@@ -3442,7 +3464,7 @@ namespace Construct {
 					if (match_result) {
 						result.matched = true;
 						if (nesting_ptr == 128) {
-							result.error_message = L"嵌套深度达到上限";
+							error_message = L"嵌套深度达到上限";
 							delete[] function_name;
 							for (USHORT arg_index = 0; arg_index != number_of_args; arg_index++) {
 								delete[] params[arg_index].name;
@@ -3476,10 +3498,10 @@ namespace Construct {
 		if (match_keyword(expr, keyword) == 0) {
 			result.matched = true;
 			if (not nesting_ptr) {
-				result.error_message = L"未找到ENDFUNCTION标签对应的FUNCTION头";
+				error_message = L"未找到ENDFUNCTION标签对应的FUNCTION头";
 			}
 			else if (nesting[nesting_ptr - 1]->nest_type != Nesting::FUNCTION) {
-				result.error_message = L"未找到ENDFUNCTION标签对应的FUNCTION头";
+				error_message = L"未找到ENDFUNCTION标签对应的FUNCTION头";
 			}
 			else {
 				nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
@@ -3497,7 +3519,7 @@ namespace Construct {
 		if (match_keyword(expr, keyword) == 0) {
 			result.matched = true;
 			if (not nesting_ptr) {
-				result.error_message = L"未找到CONTINUE标签对应的FOR, WHILE或REPEAT头";
+				error_message = L"未找到CONTINUE标签对应的FOR, WHILE或REPEAT头";
 			}
 			else {
 				for (USHORT depth = nesting_ptr - 1;; depth--) {
@@ -3511,7 +3533,7 @@ namespace Construct {
 					}
 					if (depth == 0) { break; }
 				}
-				result.error_message = L"未找到CONTINUE标签对应的FOR, WHILE或REPEAT头";
+				error_message = L"未找到CONTINUE标签对应的FOR, WHILE或REPEAT头";
 			}
 		}
 		return result;
@@ -3521,7 +3543,7 @@ namespace Construct {
 		if (match_keyword(expr, L"BREAK") == 0) {
 			result.matched = true;
 			if (not nesting_ptr) {
-				result.error_message = L"未找到BREAK标签对应的FOR, WHILE或REPEAT头";
+				error_message = L"未找到BREAK标签对应的FOR, WHILE或REPEAT头";
 			}
 			else {
 				for (USHORT depth = nesting_ptr - 1;; depth--) {
@@ -3535,7 +3557,7 @@ namespace Construct {
 					}
 					if (depth == 0) { break; }
 				}
-				result.error_message = L"未找到BREAK标签对应的FOR, WHILE或REPEAT头";
+				error_message = L"未找到BREAK标签对应的FOR, WHILE或REPEAT头";
 			}
 		}
 		return result;
@@ -3572,7 +3594,7 @@ namespace Construct {
 				}
 				if (depth == 0) { break; }
 			}
-			result.error_message = L"未找到RETURN标签对应的PROCEDRUE或FUNCTION头";
+			error_message = L"未找到RETURN标签对应的PROCEDRUE或FUNCTION头";
 		}
 		return result;
 	}
@@ -3582,7 +3604,7 @@ namespace Construct {
 		if (match_keyword(expr, keyword) == 0) {
 			result.matched = true;
 			if (nesting_ptr == 128) {
-				result.error_message = L"嵌套深度达到上限";
+				error_message = L"嵌套深度达到上限";
 			}
 			else {
 				nesting[nesting_ptr] = new Nesting(Nesting::TRY, current_instruction_index);
@@ -3600,13 +3622,13 @@ namespace Construct {
 		if (match_keyword(expr, keyword) == 0) {
 			result.matched = true;
 			if (not nesting_ptr) {
-				result.error_message = L"未找到与EXCEPT标签对应的TRY头";
+				error_message = L"未找到与EXCEPT标签对应的TRY头";
 			}
 			else if (nesting[nesting_ptr - 1]->nest_type != Nesting::TRY) {
-				result.error_message = L"未找到与EXCEPT标签对应的TRY头";
+				error_message = L"未找到与EXCEPT标签对应的TRY头";
 			}
 			else if (nesting[nesting_ptr - 1]->tag_number != 1) {
-				result.error_message = L"重定义EXCEPT标签是非法的";
+				error_message = L"重定义EXCEPT标签是非法的";
 			}
 			else {
 				nesting[nesting_ptr - 1]->add_tag(current_instruction_index);
