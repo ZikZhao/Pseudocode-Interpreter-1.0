@@ -5,9 +5,13 @@
 #define new DEBUG_NEW
 #endif
 
+CDC MemoryDC;
+CDC* pWindowDC;
 CBrush* pThemeColorBrush = new CBrush(RGB(254, 74, 99));
 CBrush* pGreyBlackBrush = new CBrush(RGB(30, 30, 30));
 CPen* pNullPen = new CPen(PS_NULL, 0, RGB(0, 0, 0));
+int SCREEN_WIDTH = 0;
+int SCREEN_HEIGHT = 0;
 
 // CMainFrame
 BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
@@ -15,6 +19,7 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_WM_ERASEBKGND()
 	ON_WM_SIZE()
 	ON_WM_GETMINMAXINFO()
+	ON_WM_DROPFILES()
 	ON_COMMAND_RANGE(0, 65535, CMainFrame::OnDispatchCommand)
 END_MESSAGE_MAP()
 CMainFrame::CMainFrame() noexcept
@@ -38,6 +43,10 @@ BOOL CMainFrame::PreTranslateMessage(MSG* pMsg)
 }
 int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
+	// 为所有组件创建内存DC
+	pWindowDC = GetDC();
+	MemoryDC.CreateCompatibleDC(GetDC());
+
 	// 创建提示文本
 	m_Tip.Create(this, TTS_ALWAYSTIP);
 	m_Tip.SetTipBkColor(RGB(30, 30, 30));
@@ -59,7 +68,6 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return -1;
 
 	ModifyStyleEx(WS_EX_CLIENTEDGE, 0, SWP_FRAMECHANGED);
-	ModifyStyleEx(WS_CLIPCHILDREN, 0, SWP_FRAMECHANGED);
 	LoadAccelTable(MAKEINTRESOURCE(IDR_MAINFRAME));
 	SetIcon(AfxGetApp()->LoadIconW(MAKEINTRESOURCE(IDI_PI)), true);
 	SetIcon(AfxGetApp()->LoadIconW(MAKEINTRESOURCE(IDI_PI)), false);
@@ -75,6 +83,13 @@ BOOL CMainFrame::OnEraseBkgnd(CDC* pDC)
 void CMainFrame::OnSize(UINT nType, int cx, int cy)
 {
 	CFrameWndEx::OnSize(nType, cx, cy);
+
+	CBitmap* pBitmap = new CBitmap;
+	pBitmap->CreateCompatibleBitmap(pWindowDC, cx, cy);
+	CBitmap* pOldBitmap = MemoryDC.SelectObject(pBitmap);
+	if (pOldBitmap) {
+		pOldBitmap->DeleteObject();
+	}
 
 	CRect rect;
 	m_InfoView.GetClientRect(&rect);
@@ -94,6 +109,16 @@ void CMainFrame::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 {
 	lpMMI->ptMinTrackSize = POINT(300, 300);
 }
+void CMainFrame::OnDropFiles(HDROP hDropInfo)
+{
+	UINT count = DragQueryFileW(hDropInfo, (UINT)-1, NULL, NULL);
+	for (UINT index = 0; index != count; index++) {
+		UINT size = DragQueryFileW(hDropInfo, index, NULL, NULL) + 1;
+		wchar_t* path = new wchar_t[size];
+		DragQueryFileW(hDropInfo, index, path, size);
+		m_TagPanel.OpenFile(path);
+	}
+}
 void CMainFrame::OnDispatchCommand(UINT uID)
 {
 	switch (uID) {
@@ -111,11 +136,6 @@ void CMainFrame::OnDispatchCommand(UINT uID)
 		DISPATCH_CASE(ID_DEBUG_STEPOVER, CConsole, OnDebugStepover)
 		DISPATCH_CASE(ID_DEBUG_STEPOUT, CConsole, OnDebugStepout)
 	}
-}
-void CMainFrame::UpdateStatus(bool state, const wchar_t* text)
-{
-	m_StatusBar.UpdateState(state);
-	m_StatusBar.UpdateMessage(const_cast<wchar_t*>(text));
 }
 void CMainFrame::UpdateStatus(bool state, wchar_t* text)
 {

@@ -7,6 +7,14 @@
 #define REDRAW_WINDOW() RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW)
 #define WM_STEP WM_USER + 1 // 单步执行消息
 
+extern CDC MemoryDC;
+extern CDC* pWindowDC;
+extern CBrush* pThemeColorBrush;
+extern CBrush* pGreyBlackBrush;
+extern CPen* pNullPen;
+extern int SCREEN_WIDTH;
+extern int SCREEN_HEIGHT;
+
 class CMainFrame : public CFrameWndEx
 {
 	DECLARE_MESSAGE_MAP()
@@ -28,7 +36,7 @@ public:
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
+	afx_msg void OnDropFiles(HDROP hDropInfo);
 	afx_msg void OnDispatchCommand(UINT uID); // 命令消息分发（因为执行函数需要this指针）
 	void UpdateStatus(bool state, wchar_t* text); // 用于更新状态栏来指示子进程状态
-	void UpdateStatus(bool state, const wchar_t* text); // 用于更新状态栏来指示子进程状态
 };

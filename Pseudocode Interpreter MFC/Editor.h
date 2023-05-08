@@ -17,14 +17,13 @@ protected:
 		size_t length; // 插入/删除长度
 		bool insert; // 是否为插入
 	};
-	CDC m_MemoryDC; // 内存缓冲DC
 	CDC m_Free; // 未选中文件时展示
 	CDC m_Source; // 渲染文字源
 	CDC m_Colour; // 语法高亮色块载体
-	CDC m_Pointer; // 文档指针源
 	CDC m_Selection; // 选区源
 	CDC m_Breakpoint; // 断点源
-	bool m_bFocus; //是否获得键盘输入
+	bool m_bFocus; // 是否获得键盘输入
+	bool m_bCaret; // 光标是否显示
 	CFont m_Font; // 文字字体
 	bool m_bDrag; // 是否正在拖拽
 	CBrush m_SelectionColor; //选区背景色
@@ -33,7 +32,6 @@ protected:
 	CFileTag* m_CurrentTag; // 当前文件对应标签
 	CPoint m_PointerPoint; // 文档指针字符位置
 	CPoint m_DragPointerPoint; // 选中起点
-	CPoint m_cPointer; //文档指针像素位置
 	CSize m_CharSize; // 单字符大小（宽度用于绘制换行符）
 	USHORT m_LineNumberWidth; // 行数信息所需像素宽度
 	UINT64 m_FullWidth, m_FullHeight; // 所有文字同时展示计算大小
@@ -41,6 +39,10 @@ protected:
 	CHSlider m_HSlider; // 水平滚动条
 	std::list<OPERATION> m_Operations; // 操作撤销/还原列表
 	std::list<OPERATION>::iterator m_CurrentOperation; // 当前操作
+	struct {
+		CPoint start;
+		wchar_t* content;
+	} m_TempOperation; // 在超时到达前所有的单字符输入都会记为一步
 	CBreakpointDlg* m_Dialog; // 断点对话框
 	LONG64 m_CurrentStepLineIndex; // 当前单步执行行数（包括断点）
 	CBrush m_BreakpointHitColor; // 断点命中颜色
@@ -60,6 +62,7 @@ public:
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 	afx_msg void OnRButtonUp(UINT nFlags, CPoint point);
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnChar(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
 	afx_msg void OnSetFocus(CWnd* pOldWnd);

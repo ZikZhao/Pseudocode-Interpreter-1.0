@@ -1,11 +1,10 @@
 #include "pch.h"
 
 BEGIN_MESSAGE_MAP(CFileTag, CWnd)
-	ON_WM_CREATE()
 	ON_WM_SIZE()
 	ON_WM_ERASEBKGND()
 	ON_WM_PAINT()
-	ON_WM_MBUTTONDOWN()
+	ON_WM_LBUTTONDOWN()
 	ON_WM_LBUTTONUP()
 	ON_WM_MOUSEMOVE()
 	ON_WM_MOUSELEAVE()
@@ -69,6 +68,8 @@ CFileTag::CFileTag(wchar_t* path)
 		throw L"文件无法访问";
 	}
 	m_bHover = false;
+	m_bHoverClose = false;
+	m_bEdited = false;
 	m_bSelected = false;
 	m_Tokens = new IndexedList<ADVANCED_TOKEN>;
 }
@@ -80,6 +81,8 @@ CFileTag::CFileTag()
 	m_Filename = new wchar_t[] {L"unnamed file"};
 	m_Handle = NULL;
 	m_bHover = false;
+	m_bHoverClose = false;
+	m_bEdited = false;
 	m_bSelected = false;
 	m_Lines.append(new wchar_t[1] {0});
 	m_CurrentLine = m_Lines.begin();
@@ -91,37 +94,13 @@ CFileTag::~CFileTag()
 	delete[] m_Directory;
 	delete[] m_Filename;
 }
-int CFileTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
-{
-	if (CWnd::OnCreate(lpCreateStruct) == -1)
-		return -1;
-
-	CDC* pWindowDC = GetDC();
-	m_Source.CreateCompatibleDC(pWindowDC);
-	m_Source.SetBkMode(TRANSPARENT);
-	m_Source.SetTextColor(RGB(255, 255, 255));
-
-	return 0;
-}
 void CFileTag::OnSize(UINT nType, int cx, int cy)
 {
-	m_Width = cx;
-	CDC* pWindowDC = GetDC();
-
-	CBitmap* pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, cx, cy);
-	CBitmap* pOldBitmap = m_Source.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
-	m_Source.SelectObject(m_Font1);
-	CRect rect(12, -6, cx, 24);
-	m_Source.DrawTextW(m_Filename, &rect, DT_END_ELLIPSIS);
-	rect.top = 24;
-	rect.bottom = 60;
-	m_Source.SelectObject(m_Font2);
-	m_Source.DrawTextW(m_Directory, &rect, DT_END_ELLIPSIS);
 	CWnd::OnSize(nType, cx, cy);
+
+	m_Width = cx;
+	;
+
 }
 BOOL CFileTag::OnEraseBkgnd(CDC* pDC)
 {
@@ -130,27 +109,68 @@ BOOL CFileTag::OnEraseBkgnd(CDC* pDC)
 void CFileTag::OnPaint()
 {
 	CPaintDC dc(this);
-	CRect rect(0, 0, 260, 45);
-	m_Memory.FillRect(&rect, &m_Brush);
-	if (m_bHover) {
-		m_Memory.BitBlt(0, 0, m_Width, 45, &m_Hover, 0, 0, SRCCOPY);
+	if (m_bHover or m_bSelected) {
+		MemoryDC.BitBlt(0, 0, m_Width, 55, &m_Hover, 0, 0, SRCCOPY);
+	}
+	else {
+		CRect rect(0, 0, 260, 55);
+		MemoryDC.FillRect(&rect, &m_Brush);
 	}
 	if (m_bSelected) {
-		m_Memory.BitBlt(0, 0, 5, 45, &m_Selected, 0, 0, SRCCOPY);
+		MemoryDC.BitBlt(0, 0, 5, 55, &m_Selected, 0, 0, SRCCOPY);
 	}
-	m_Memory.TransparentBlt(0, 0, m_Width, 45, &m_Source, 0, 0, m_Width, 45, 0);
-	dc.BitBlt(0, 0, m_Width, 45, &m_Memory, 0, 0, SRCCOPY);
+	if (m_bHover) {
+		CPen pen;
+		if (m_bHoverClose) {
+			pen.CreatePen(PS_SOLID, 2, RGB(200, 200, 200));
+		}
+		else {
+			pen.CreatePen(PS_SOLID, 2, RGB(100, 100, 100));
+		}
+		MemoryDC.SelectObject(pen);
+		MemoryDC.MoveTo(CPoint(m_Width - 25, 20));
+		MemoryDC.LineTo(CPoint(m_Width - 10, 35));
+		MemoryDC.MoveTo(CPoint(m_Width - 10, 20));
+		MemoryDC.LineTo(CPoint(m_Width - 25, 35));
+	}
+	if (m_Path) {
+		if (m_bEdited) {
+			MemoryDC.TransparentBlt(12, 6, 40, 20, &m_Edited, 0, 0, 40, 20, 0);
+		}
+		else {
+			MemoryDC.TransparentBlt(12, 6, 40, 20, &m_Lastest, 0, 0, 40, 20, 0);
+		}
+	}
+	else {
+		MemoryDC.TransparentBlt(12, 6, 40, 20, &m_Newed, 0, 0, 40, 20, 0);
+	}
+	MemoryDC.SetBkMode(TRANSPARENT);
+	MemoryDC.SetTextColor(RGB(255, 255, 255));
+	CRect rect(54, 0, m_Width, 30);
+	MemoryDC.SelectObject(m_Font1);
+	MemoryDC.DrawTextW(m_Filename, &rect, DT_END_ELLIPSIS);
+	rect.left = 12;
+	rect.top = 30;
+	rect.bottom = 65;
+	if (m_bHover) {
+		rect.right -= 30;
+	}
+	MemoryDC.SelectObject(m_Font2);
+	MemoryDC.DrawTextW(m_Directory, &rect, DT_END_ELLIPSIS);
+	dc.BitBlt(0, 0, m_Width, 55, &MemoryDC, 0, 0, SRCCOPY);
 }
-void CFileTag::OnMButtonDown(UINT nFlags, CPoint point)
+void CFileTag::OnLButtonDown(UINT nFlags, CPoint point)
 {
 	SetCapture();
 }
 void CFileTag::OnLButtonUp(UINT nFlags, CPoint point)
 {
 	ReleaseCapture();
-	if (point.x > 0 and point.x < m_Width and point.y > 0 and point.y < 45) {
-		UINT id = GetWindowLongPtrW(m_hWnd, GWLP_ID);
-		CTagPanel::pObject->ShiftTag(id - 1);
+	if (m_bHoverClose) {
+
+	}
+	else if (point.x > 0 and point.x < m_Width and point.y > 0 and point.y < 45) {
+		CTagPanel::pObject->ShiftTag(this);
 	}
 }
 void CFileTag::OnMouseMove(UINT nFlags, CPoint point)
@@ -164,13 +184,27 @@ void CFileTag::OnMouseMove(UINT nFlags, CPoint point)
 		m_bHover = true;
 		REDRAW_WINDOW();
 	}
+	else {
+		if (point.x > m_Width - 30 and point.x < m_Width) {
+			m_bHoverClose = true;
+		}
+		else {
+			m_bHoverClose = false;
+		}
+		REDRAW_WINDOW();
+	}
 }
 void CFileTag::OnMouseLeave()
 {
 	m_bHover = false;
 	REDRAW_WINDOW();
 }
-inline void CFileTag::SetState(bool state) {
+void CFileTag::SetEdited()
+{
+	m_bEdited = true;
+	REDRAW_WINDOW();
+}
+inline void CFileTag::SetSelected(bool state) {
 	m_bSelected = state;
 	REDRAW_WINDOW();
 }
@@ -180,6 +214,8 @@ const wchar_t* CFileTag::GetPath() const
 }
 void CFileTag::Save()
 {
+	m_bEdited = false;
+	REDRAW_WINDOW();
 	if (m_Handle) {
 		SetFilePointer(m_Handle, 0, 0, FILE_BEGIN);
 		for (IndexedList<wchar_t*>::iterator iter = m_Lines.begin();;) {
@@ -195,6 +231,7 @@ void CFileTag::Save()
 				WriteFile(m_Handle, "\r\n", 2, nullptr, nullptr);
 			}
 		}
+		FlushFileBuffers(m_Handle);
 		SetEndOfFile(m_Handle);
 	}
 	else {
@@ -218,6 +255,7 @@ void CFileTag::SaveAs(wchar_t* new_path)
 				WriteFile(handle, "\r\n", 2, nullptr, nullptr);
 			}
 		}
+		FlushFileBuffers(m_Handle);
 		SetEndOfFile(handle);
 	}
 	else {
@@ -233,33 +271,88 @@ BEGIN_MESSAGE_MAP(CTagPanel, CWnd)
 END_MESSAGE_MAP()
 CTagPanel::CTagPanel()
 {
-	m_Ptr = 0;
 	m_CurrentIndex = 0;
 	pObject = this;
 	m_Width = 0;
 }
 CTagPanel::~CTagPanel()
 {
+	for (IndexedList<CFileTag*>::iterator iter = m_Tags.begin(); iter != m_Tags.end(); iter++) {
+		delete* iter;
+	}
 }
 int CTagPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	CDC* pWindowDC = GetDC();
-
 	// 准备选中图案
-	CFileTag::m_Memory.CreateCompatibleDC(pWindowDC);
 	CFileTag::m_Hover.CreateCompatibleDC(pWindowDC);
 	CPen* pPen = new CPen(PS_SOLID, 1, RGB(61, 61, 61));
 	CFileTag::m_Hover.SelectObject(pPen);
 
 	CFileTag::m_Selected.CreateCompatibleDC(pWindowDC);
 	CBitmap* pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, 5, 45);
+	pBitmap->CreateCompatibleBitmap(pWindowDC, 5, 55);
 	CFileTag::m_Selected.SelectObject(pBitmap);
-	CRect rect(0, 0, 5, 45);
+	CRect rect(0, 0, 5, 55);
 	CFileTag::m_Selected.FillRect(&rect, pThemeColorBrush);
+
+	// 准备状态图案
+	CFileTag::m_Lastest.CreateCompatibleDC(pWindowDC);
+	pBitmap = new CBitmap;
+	pBitmap->CreateCompatibleBitmap(pWindowDC, 40, 20);
+	CFileTag::m_Lastest.SelectObject(pBitmap);
+	CFileTag::m_Newed.CreateCompatibleDC(pWindowDC);
+	pBitmap = new CBitmap;
+	pBitmap->CreateCompatibleBitmap(pWindowDC, 40, 20);
+	CFileTag::m_Newed.SelectObject(pBitmap);
+	CFileTag::m_Edited.CreateCompatibleDC(pWindowDC);
+	pBitmap = new CBitmap;
+	pBitmap->CreateCompatibleBitmap(pWindowDC, 40, 20);
+	CFileTag::m_Edited.SelectObject(pBitmap);
+	CDC temp;
+	temp.CreateCompatibleDC(pWindowDC);
+	CBitmap temp_bitmap;
+	temp_bitmap.CreateCompatibleBitmap(pWindowDC, 400, 200);
+	temp.SelectObject(&temp_bitmap);
+	rect = CRect(0, 0, 400, 200);
+	CFont font;
+	font.CreateFontW(180, 0, 0, 0, FW_NORMAL, false, false,
+		false, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS,
+		PROOF_QUALITY, DEFAULT_PITCH | FF_DONTCARE << 2, L"Microsoft Yahei UI");
+	temp.SelectObject(&font);
+	temp.SetBkMode(TRANSPARENT);
+	CBrush brush(RGB(107, 199, 164));
+	temp.SetTextColor(RGB(0, 0, 0));
+	temp.SelectObject(&brush);
+	temp.SelectObject(pNullPen);
+	temp.RoundRect(&rect, CPoint(75, 75));
+	temp.DrawTextW(L"最新", -1, &rect, DT_CENTER | DT_VCENTER);
+	CFileTag::m_Lastest.SetStretchBltMode(HALFTONE);
+	CFileTag::m_Lastest.StretchBlt(0, 0, 40, 20, &temp, 0, 0, 400, 200, SRCCOPY);
+	brush.DeleteObject();
+	brush.CreateSolidBrush(RGB(190, 183, 255));
+	temp.SetTextColor(RGB(0, 0, 0));
+	temp.SetBkMode(TRANSPARENT);
+	temp.SelectObject(&brush);
+	temp.SelectObject(pNullPen);
+	temp.RoundRect(&rect, CPoint(75, 75));
+	temp.SelectObject(font);
+	temp.DrawTextW(L"新建", -1, &rect, DT_CENTER);
+	CFileTag::m_Newed.SetStretchBltMode(HALFTONE);
+	CFileTag::m_Newed.StretchBlt(0, 0, 40, 20, &temp, 0, 0, 400, 200, SRCCOPY);
+	brush.DeleteObject();
+	brush.CreateSolidBrush(RGB(202, 205, 56));
+	temp.SetTextColor(RGB(0, 0, 0));
+	temp.SetBkMode(TRANSPARENT);
+	temp.SelectObject(&brush);
+	temp.SelectObject(pNullPen);
+	temp.RoundRect(&rect, CPoint(75, 75));
+	temp.SelectObject(font);
+	temp.DrawTextW(L"更新", -1, &rect, DT_CENTER);
+	CFileTag::m_Edited.SetStretchBltMode(HALFTONE);
+	CFileTag::m_Edited.StretchBlt(0, 0, 40, 20, &temp, 0, 0, 400, 200, SRCCOPY);
 
 	// 准备字体
 	CFileTag::m_Font1.CreateFontW(30, 0, 0, 0, FW_NORMAL, false, false,
@@ -276,7 +369,7 @@ int CTagPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Source.SelectObject(pBitmap);
 	m_Source.SetTextColor(RGB(240, 240, 240));
 	m_Source.SetBkMode(TRANSPARENT);
-	CFont font;
+	font.DeleteObject();
 	font.CreateFontW(30, 0, 0, 0, FW_BOLD, false, false,
 		false, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS,
 		ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE << 2, L"Microsoft Yahei UI");
@@ -296,28 +389,22 @@ void CTagPanel::OnSize(UINT nType, int cx, int cy)
 	CWnd::OnSize(nType, cx, cy);
 
 	m_Width = cx;
-	CDC* pWindowDC = GetDC();
+	;
 
 	CBitmap* pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, cx - 40, 45);
-	CBitmap* pOldBitmap = CFileTag::m_Memory.SelectObject(pBitmap);
+	pBitmap->CreateCompatibleBitmap(pWindowDC, cx - 40, 55);
+	CBitmap* pOldBitmap = CFileTag::m_Hover.SelectObject(pBitmap);
 	if (pOldBitmap) {
 		pOldBitmap->DeleteObject();
 	}
-	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, cx - 40, 45);
-	pOldBitmap = CFileTag::m_Hover.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
-	CRect rect(0, 0, cx - 40, 45);
-	static CBrush brush(RGB(50, 50, 50));
+	CRect rect(0, 0, cx - 40, 55);
+	static CBrush brush(RGB(56, 56, 56));
 	CFileTag::m_Hover.FillRect(&rect, &brush);
-	rect = CRect(20, 75, cx - 20, 120);
-	for (USHORT index = 0; index != m_Ptr; index++) {
-		m_Tags[index]->MoveWindow(&rect, TRUE);
-		rect.top += 75;
-		rect.bottom += 75;
+	rect = CRect(20, 75, cx - 20, 130);
+	for (USHORT index = 0; index != m_Tags.size(); index++) {
+		(*m_Tags[index])->MoveWindow(&rect, TRUE);
+		rect.top += 65;
+		rect.bottom += 65;
 	}
 }
 BOOL CTagPanel::OnEraseBkgnd(CDC* pDC)
@@ -331,10 +418,11 @@ void CTagPanel::OnPaint()
 }
 void CTagPanel::OnNew()
 {
-	m_Tags[m_Ptr] = new CFileTag;
-	m_Tags[m_Ptr]->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(20, 75 + m_Ptr * 75, m_Width - 20, 120 + m_Ptr * 75), this, m_Ptr + 1);
-	ShiftTag(m_Ptr);
-	m_Ptr++;
+	CFileTag* new_tag = new CFileTag;
+	m_Tags.append(new_tag);
+	USHORT index = m_Tags.size() - 1;
+	new_tag->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(20, 75 + index * 65, m_Width - 20, 130 + index * 65), this, NULL);
+	ShiftTag(index);
 }
 void CTagPanel::OnOpen()
 {
@@ -352,16 +440,11 @@ void CTagPanel::OnOpen()
 }
 void CTagPanel::OnSave()
 {
-	size_t length = wcslen(m_Tags[m_CurrentIndex]->GetPath());
-	wchar_t* message = new wchar_t[8 + length];
-	StringCchPrintfW(message, 8 + length, L"正在保存文件 %s", m_Tags[m_CurrentIndex]->GetPath());
-	CCustomStatusBar::pObject->UpdateMessage(message);
-	delete[] message;
+	size_t length = wcslen((*m_Tags[m_CurrentIndex])->GetPath());
 	GetCurrentTag()->Save();
-	message = new wchar_t[5 + length];
-	StringCchPrintfW(message, 5 + length, L"已保存 %s", m_Tags[m_CurrentIndex]->GetPath());
+	wchar_t* message = new wchar_t[5 + length];
+	StringCchPrintfW(message, 5 + length, L"已保存 %s", (*m_Tags[m_CurrentIndex])->GetPath());
 	CCustomStatusBar::pObject->UpdateMessage(message);
-	delete[] message;
 }
 void CTagPanel::OnSaveAs()
 {
@@ -373,39 +456,49 @@ void CTagPanel::OnSaveAs()
 	ofn.nMaxFile = MAX_PATH;
 	GetSaveFileNameW(&ofn);
 	if (*ofn.lpstrFile) {
-		size_t length = wcslen(ofn.lpstrFile);
-		wchar_t* message = new wchar_t[8 + length];
-		StringCchPrintfW(message, 8 + length, L"正在保存文件 %s", ofn.lpstrFile);
-		CCustomStatusBar::pObject->UpdateMessage(message);
-		delete[] message;
 		GetCurrentTag()->SaveAs(ofn.lpstrFile);
-		message = new wchar_t[5 + length];
+		size_t length = wcslen((*m_Tags[m_CurrentIndex])->GetPath());
+		wchar_t* message = new wchar_t[5 + length];
 		StringCchPrintfW(message, 5 + length, L"已保存 %s", ofn.lpstrFile);
 		CCustomStatusBar::pObject->UpdateMessage(message);
-		delete[] message;
 	}
 	delete[] ofn.lpstrFile;
 }
 void CTagPanel::OpenFile(wchar_t* filename)
 {
-	m_Tags[m_Ptr] = new CFileTag(filename);
-	m_Tags[m_Ptr]->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(20, 75 + m_Ptr * 75, m_Width - 20, 120 + m_Ptr * 75), this, m_Ptr + 1);
-	ShiftTag(m_Ptr);
-	m_Ptr++;
-	m_CurrentIndex = m_Ptr - 1;
+	CFileTag* new_tag = new CFileTag(filename);
+	m_Tags.append(new_tag);
+	USHORT index = m_Tags.size() - 1;
+	new_tag->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(20, 75 + index * 65, m_Width - 20, 130 + index * 65), this, NULL);
+	ShiftTag(index);
 }
 void CTagPanel::LoadOpenedFiles()
 {
-	OpenFile(const_cast<wchar_t*>(L"C:\\Users\\Zik\\OneDrive - 6666zik\\Desktop\\code.txt"));
+	OpenFile(new wchar_t[] { L"C:\\Users\\Zik\\OneDrive - 6666zik\\Desktop\\code.txt" });
 	CEditor::pObject->LoadFile(GetCurrentTag());
 }
 CFileTag* CTagPanel::GetCurrentTag()
 {
-	return m_Tags[m_CurrentIndex];
+	return *m_Tags[m_CurrentIndex];
 }
-inline void CTagPanel::ShiftTag(USHORT index) {
-	GetCurrentTag()->SetState(false);
+inline void CTagPanel::ShiftTag(USHORT index)
+{
+	GetCurrentTag()->SetSelected(false);
 	m_CurrentIndex = index;
-	GetCurrentTag()->SetState(true);
+	GetCurrentTag()->SetSelected(true);
 	CEditor::pObject->LoadFile(GetCurrentTag());
+}
+void CTagPanel::ShiftTag(CFileTag* tag)
+{
+	USHORT index = 0;
+	for (IndexedList<CFileTag*>::iterator iter = m_Tags.begin(); iter != m_Tags.end(); iter++) {
+		if (*iter == tag) {
+			GetCurrentTag()->SetSelected(false);
+			m_CurrentIndex = index;
+			tag->SetSelected(true);
+			CEditor::pObject->LoadFile(tag);
+			break;
+		}
+		index++;
+	}
 }

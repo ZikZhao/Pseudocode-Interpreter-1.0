@@ -12,7 +12,7 @@ CCustomStatusBar::CCustomStatusBar()
 {
 	m_Width = m_Height = 0;
 	m_bRun = false;
-	m_Text = const_cast<wchar_t*>(L"就绪");
+	m_Text = new wchar_t[] {L"就绪"};
 	pObject = this;
 }
 CCustomStatusBar::~CCustomStatusBar()
@@ -54,21 +54,23 @@ void CCustomStatusBar::OnSize(UINT nType, int cx, int cy)
 	CWnd::OnSize(nType, cx, cy);
 	m_Width = cx;
 	m_Height = cy;
-	RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+	REDRAW_WINDOW();
 }
 void CCustomStatusBar::OnTimer(UINT_PTR nIDEvent)
 {
-	m_Text = const_cast<wchar_t*>(L"就绪");
-	RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+	delete[] m_Text;
+	m_Text = new wchar_t[] {L"就绪"};
+	REDRAW_WINDOW();
 }
 void CCustomStatusBar::UpdateState(bool bRun)
 {
 	m_bRun = bRun;
-	RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+	REDRAW_WINDOW();
 }
 void CCustomStatusBar::UpdateMessage(wchar_t* text)
 {
+	delete[] m_Text;
 	m_Text = text;
-	RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+	REDRAW_WINDOW();
 	SetTimer(NULL, LASTING_TIME, nullptr);
 }

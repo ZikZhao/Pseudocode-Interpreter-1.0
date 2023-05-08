@@ -25,7 +25,7 @@ CControlPanelTag::~CControlPanelTag()
 int CControlPanelTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	// 创建主源DC
-	CDC* pWindowDC = GetDC();
+	;
 	m_Source.CreateCompatibleDC(pWindowDC);
 	CBitmap* pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
@@ -105,13 +105,13 @@ void CControlPanelTag::OnLButtonUp(UINT nFlags, CPoint point)
 {
 	CControlPanel::pObject->ShiftTag(m_TagIndex);
 }
-void CControlPanelTag::SetState(bool selected)
+void CControlPanelTag::SetSelected(bool selected)
 {
 	m_bSelected = selected;
 	REDRAW_WINDOW();
 }
 
-void CControlPanelComponent::SetState(bool state)
+void CControlPanelComponent::SetSelected(bool state)
 {
 }
 
@@ -235,7 +235,7 @@ void CControlPanelButton::OnLButtonUp(UINT nFlags, CPoint point)
 		CMainFrame::pObject->SendMessageW(WM_COMMAND, m_CommandID, NULL);
 	}
 }
-void CControlPanelButton::SetState(bool state)
+void CControlPanelButton::SetSelected(bool state)
 {
 	m_bDisabled = not state;
 	REDRAW_WINDOW();
@@ -362,7 +362,7 @@ int CControlPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	CDC* pWindowDC = GetDC();
+	;
 	// 创建悬浮于按钮之上时的高亮背景
 	CControlPanelButton::m_HoverBG.CreateCompatibleDC(pWindowDC);
 	CBitmap* pBitmap = new CBitmap;
@@ -418,10 +418,10 @@ void CControlPanel::OnPaint()
 	dc.FillRect(rect, pGreyBlackBrush);
 }
 void CControlPanel::ShiftTag(USHORT tag_index) {
-	m_Tags[m_CurrentTagIndex].SetState(false);
+	m_Tags[m_CurrentTagIndex].SetSelected(false);
 	m_Groups[m_CurrentTagIndex].ShowWindow(SW_HIDE);
 	m_CurrentTagIndex = tag_index;
-	m_Tags[m_CurrentTagIndex].SetState(true);
+	m_Tags[m_CurrentTagIndex].SetSelected(true);
 	m_Groups[m_CurrentTagIndex].ShowWindow(SW_NORMAL);
 }
 CControlPanelGroup* CControlPanel::GetGroup(UINT id)

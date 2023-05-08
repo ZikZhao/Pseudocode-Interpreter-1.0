@@ -4,41 +4,45 @@ class CFileTag : public CWnd
 {
 	DECLARE_MESSAGE_MAP()
 public:
-	static inline CDC m_Memory;
 	static inline CDC m_Selected;
 	static inline CDC m_Hover;
+	static inline CDC m_Lastest;
+	static inline CDC m_Newed;
+	static inline CDC m_Edited;
 	static inline CFont m_Font1;
 	static inline CFont m_Font2;
 	static inline CBrush m_Brush;
 	IndexedList<wchar_t*> m_Lines;
 	IndexedList<wchar_t*>::iterator m_CurrentLine;
 	IndexedList<ADVANCED_TOKEN>* m_Tokens;
+	bool m_bEdited; // 缓冲与物理文档是否有差别
 	bool m_bParsed; // 所有代码是否都已解析
 protected:
-	CDC m_Source;
 	wchar_t* m_Path;
 	wchar_t* m_Directory;
 	wchar_t* m_Filename;
 	HANDLE m_Handle;
 	int m_Width;
 	bool m_bHover;
+	bool m_bHoverClose;
 	bool m_bSelected;
 public:
 	CFileTag(wchar_t* path); // 物理文档
 	CFileTag(); // 内存文档
 	~CFileTag();
-	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	afx_msg void OnPaint();
-	afx_msg void OnMButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnMouseLeave();
-	void SetState(bool state);
+	void SetEdited();
+	void SetSelected(bool state);
 	const wchar_t* GetPath() const;
 	void Save();
 	void SaveAs(wchar_t* new_path);
+	void Close();
 };
 
 class CTagPanel : public CWnd
@@ -49,8 +53,7 @@ public:
 protected:
 	CDC m_Source;
 	int m_Width;
-	CFileTag* m_Tags[10] {};
-	USHORT m_Ptr;
+	IndexedList<CFileTag*> m_Tags;
 	USHORT m_CurrentIndex;
 public:
 	CTagPanel();
@@ -69,4 +72,5 @@ public:
 	void LoadOpenedFiles(); // 打开上次未关闭的文件
 	CFileTag* GetCurrentTag();
 	void ShiftTag(USHORT index);
+	void ShiftTag(CFileTag* tag);
 };

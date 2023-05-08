@@ -30,11 +30,8 @@ public:
 protected:
 	int m_Width, m_Height; // 窗口宽度/高度
 	ULONG m_FullLength; // 展示所有信息所需长度
-	CDC m_Temp; // 缓存源
 	CDC m_Source; // 渲染文字源
 	CDC m_Selection; // 选区源
-	CDC m_Pointer; // 指针源
-	bool m_bFocus; //是否获得键盘输入
 	IndexedList<LINE> m_Lines; // 所有缓冲行
 	IndexedList<LINE>::iterator m_CurrentLine; // 当前行
 	ULONG m_TotalHeightUnit; // 所有行高度合计
@@ -42,7 +39,6 @@ protected:
 	CSize m_CharSize; // 文字大小
 	CPoint m_PointerPoint; // 指针字符位置
 	CPoint m_DragPointerPoint; // 拖拽开始指针位置
-	CPoint m_cPointer; // 指针像素位置
 	bool m_bDrag; // 是否开始拖拽
 	std::mutex m_Lock; // 行缓冲读写锁（以及m_Source源的同步访问）
 	CVSlider m_Slider; // 纵向滚动条
@@ -81,11 +77,10 @@ class CConsoleInput : public CWnd
 	DECLARE_MESSAGE_MAP()
 protected:
 	int m_Width; // 窗口宽度
-	CDC m_Temp; // 缓存源
 	CDC m_Source; // 渲染文字源
 	CDC m_Selection; // 选区源
-	CDC m_Pointer; // 指针源
-	bool m_bFocus; //是否获得键盘输入
+	bool m_bFocus; // 是否获得键盘输入
+	bool m_bCaret; // 是否显示光标
 	size_t m_cchBuffer; // 输入缓存字符数量
 	wchar_t* m_Buffer; // 输入缓存
 	ULONG m_FullLength; // 文字全部显示所需长度
@@ -95,7 +90,6 @@ protected:
 	bool m_bDrag; // 是否正在拖拽
 	UINT m_cchDragPointer; // 拖拽开始时指针字符位置
 	UINT m_cchPointer; // 指针字符位置
-	CPoint m_cPointer; //指针像素位置
 public:
 	CConsoleInput();
 	~CConsoleInput();
@@ -136,9 +130,11 @@ protected:
 public:
 	CConsole();
 	virtual ~CConsole();
+	// 消息
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	afx_msg void OnSize(UINT nType, int cx, int cy);
+	// 命令
 	afx_msg void OnDebugRun();
 	afx_msg void OnDebugHalt();
 	afx_msg void OnDebugDebug();

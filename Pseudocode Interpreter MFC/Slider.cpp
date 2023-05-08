@@ -67,7 +67,7 @@ int CHSlider::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	CDC* pWindowDC = GetDC();
+	;
 
 	// 准备工具
 	m_Pen.CreatePen(PS_NULL, 0, RGB(0, 0, 0));
@@ -110,7 +110,7 @@ void CHSlider::OnPaint()
 void CHSlider::OnSize(UINT nType, int cx, int cy)
 {
 	m_Height = cx;
-	CDC* pWindowDC = GetDC();
+	;
 
 	CBitmap* pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Height, 10);
@@ -203,17 +203,21 @@ BOOL CHSlider::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 void CHSlider::SetRatio(double ratio)
 {
 	CSlider::SetRatio(ratio);
-	CDC* pWindowDC = GetDC();
+	;
 
 	m_SliderHeight = (USHORT)max(m_Height * m_Ratio, 10); // 按钮最小是个圆
 	CBitmap* pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, m_SliderHeight, 10);
 	CBitmap* pOldBitmap = m_Source.SelectObject(pBitmap);
-	pOldBitmap->DeleteObject();
+	if (pOldBitmap) {
+		pOldBitmap->DeleteObject();
+	}
 	pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, m_SliderHeight, 10);
 	pOldBitmap = m_Hover.SelectObject(pBitmap);
-	pOldBitmap->DeleteObject();
+	if (pOldBitmap) {
+		pOldBitmap->DeleteObject();
+	}
 	CRect rect(0, 0, m_SliderHeight, 10);
 	m_Source.RoundRect(&rect, CPoint(10, 10));
 	m_Hover.RoundRect(&rect, CPoint(10, 10));
@@ -253,7 +257,7 @@ int CVSlider::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	CDC* pWindowDC = GetDC();
+	;
 
 	// 准备工具
 	m_Pen.CreatePen(PS_NULL, 0, RGB(0, 0, 0));
@@ -296,16 +300,20 @@ void CVSlider::OnPaint()
 void CVSlider::OnSize(UINT nType, int cx, int cy)
 {
 	m_Height = cy;
-	CDC* pWindowDC = GetDC();
+	;
 
 	CBitmap* pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, 10, m_Height);
 	CBitmap* pOldBitmap = m_MemoryDC.SelectObject(pBitmap);
-	pOldBitmap->DeleteObject();
+	if (pOldBitmap) {
+		pOldBitmap->DeleteObject();
+	}
 	pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, 10, m_Height);
 	pOldBitmap = m_Bg.SelectObject(pBitmap);
-	pOldBitmap->DeleteObject();
+	if (pOldBitmap) {
+		pOldBitmap->DeleteObject();
+	}
 	CRect rect(0, 0, 10, m_Height);
 	m_Bg.FillRect(&rect, pGreyBlackBrush);
 	m_Bg.RoundRect(&rect, CPoint(10, 10));
@@ -382,7 +390,7 @@ BOOL CVSlider::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 void CVSlider::SetRatio(double ratio)
 {
 	CSlider::SetRatio(ratio);
-	CDC* pWindowDC = GetDC();
+	;
 	
 	m_SliderHeight = (USHORT)max(m_Height * m_Ratio, 10); // 按钮最小是个圆
 	CBitmap* pBitmap = new CBitmap;

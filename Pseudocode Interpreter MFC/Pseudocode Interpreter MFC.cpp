@@ -4,10 +4,6 @@
 #define new DEBUG_NEW
 #endif
 
-int SCREEN_WIDTH = 0;
-int SCREEN_HEIGHT = 0;
-
-
 BEGIN_MESSAGE_MAP(App, CWinAppEx)
 	ON_COMMAND(ID_APP_ABOUT, &App::OnAppAbout)
 	// 基于文件的标准文档命令

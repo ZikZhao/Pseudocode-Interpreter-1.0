@@ -26,7 +26,7 @@ int CInfoViewTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	CDC* pWindowDC = GetDC();
+	;
 	CRect rect;
 	GetClientRect(&rect);
 	m_Width = rect.right - rect.left;
@@ -120,7 +120,7 @@ void CInfoViewTag::OnLButtonUp(UINT nFlags, CPoint point)
 		CInfoView::pObject->ShiftTag(m_Index);
 	}
 }
-void CInfoViewTag::SetState(bool state)
+void CInfoViewTag::SetSelected(bool state)
 {
 	m_bSelected = state;
 	REDRAW_WINDOW();
@@ -151,7 +151,7 @@ int CInfoView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	CDC* pWindowDC = GetDC();
+	;
 
 	m_Console.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
 	m_SplitterPen.CreatePen(PS_SOLID, 1, RGB(254, 74, 99));
@@ -167,7 +167,7 @@ int CInfoView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Tags[0]->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 1, m_CharSize.cx * 3 + 8, m_CharSize.cy + 4), this, NULL);
 	m_Tags[1]->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(m_CharSize.cx * 3 + 16, 1, m_CharSize.cx * 6 + 24, m_CharSize.cy + 4), this, NULL);
 	m_Tags[2]->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(m_CharSize.cx * 6 + 32, 1, m_CharSize.cx * 10 + 40, m_CharSize.cy + 4), this, NULL);
-	m_Tags[0]->SetState(true);
+	m_Tags[0]->SetSelected(true);
 
 	return 0;
 }
@@ -200,14 +200,14 @@ void CInfoView::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 }
 void CInfoView::ShiftTag(USHORT index)
 {
-	m_Tags[m_CurrentIndex]->SetState(false);
+	m_Tags[m_CurrentIndex]->SetSelected(false);
 	switch (m_CurrentIndex) {
 	case 0:
 		m_Console.ShowWindow(SW_HIDE);
 		break;
 	}
 	m_CurrentIndex = index;
-	m_Tags[m_CurrentIndex]->SetState(true);
+	m_Tags[m_CurrentIndex]->SetSelected(true);
 	switch (m_CurrentIndex) {
 	case 0:
 		m_Console.ShowWindow(SW_SHOW);

@@ -26,7 +26,7 @@ public:
 	afx_msg void OnMouseLeave();
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
-	void SetState(bool state);
+	void SetSelected(bool state);
 };
 
 class CInfoView : public CWnd

@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "../Pseudocode Interpreter/SyntaxCheck.h"
+#include "../Pseudocode Interpreter/Parser.cpp"
 #define LINE_NUMBER_OFFSET 27 // 展示行数所需的额外偏移量
 #define SCROLL_UNIT 3 // 每次鼠标滚轮滚动时移动的行数
 #define PAUSE_BACKEND() { m_bBackendEnabled = false; WaitForSingleObject(*m_BackendPaused, INFINITE); SetTimer(NULL, 100, nullptr); } // 停止后台任务以避免访问冲突
@@ -17,6 +17,7 @@ BEGIN_MESSAGE_MAP(CEditor, CWnd)
 	ON_WM_LBUTTONUP()
 	ON_WM_RBUTTONUP()
 	ON_WM_MOUSEMOVE()
+	ON_WM_KEYDOWN()
 	ON_WM_CHAR()
 	ON_WM_SETCURSOR()
 	ON_WM_SETFOCUS()
@@ -27,6 +28,7 @@ END_MESSAGE_MAP()
 CEditor::CEditor()
 {
 	m_bFocus = false;
+	m_bCaret = false;
 	m_bDrag = false;
 	m_CurrentTag = nullptr;
 	m_Width = m_Height = 0;
@@ -48,11 +50,7 @@ int CEditor::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	CDC* pWindowDC = GetDC();
 	// 准备未选中文件时背景
-
-	// 准备内存缓冲源
-	m_MemoryDC.CreateCompatibleDC(pWindowDC);
 
 	// 准备渲染文字源
 	m_Source.CreateCompatibleDC(pWindowDC);
@@ -68,19 +66,10 @@ int CEditor::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	m_Colour.CreateCompatibleDC(pWindowDC);
 
-	// 准备文档指针源
-	m_Pointer.CreateCompatibleDC(pWindowDC);
-	CBitmap* pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, 1, m_CharSize.cy);
-	m_Pointer.SelectObject(pBitmap);
-	CRect rect(0, 0, 1, m_CharSize.cy);
-	CBrush brush(RGB(149, 149, 149));
-	m_Pointer.FillRect(&rect, &brush);
-
 	// 准备选区源
 	m_Selection.CreateCompatibleDC(pWindowDC);
 	m_SelectionColor.CreateSolidBrush(RGB(38, 79, 120));
-	rect = CRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+	CRect rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 	m_Selection.FillRect(&rect, pGreyBlackBrush);
 
 	// 准备断点源
@@ -97,7 +86,7 @@ int CEditor::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	// 启动后台任务
 	PAUSE_BACKEND()
-	CreateThread(NULL, NULL, BackendTasking, nullptr, NULL, NULL);
+		CreateThread(NULL, NULL, BackendTasking, nullptr, NULL, NULL);
 
 	return 0;
 }
@@ -109,17 +98,10 @@ void CEditor::OnSize(UINT nType, int cx, int cy)
 	if (cx == 0) { return; }
 	m_Width = cx - 10;
 	m_Height = cy - 10;
-	CDC* pWindowDC = GetDC();
 
 	CBitmap* pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
-	CBitmap* pOldBitmap = m_MemoryDC.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
-	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
-	pOldBitmap = m_Source.SelectObject(pBitmap);
+	CBitmap* pOldBitmap = m_Source.SelectObject(pBitmap);
 	if (pOldBitmap) {
 		pOldBitmap->DeleteObject();
 	}
@@ -155,20 +137,17 @@ BOOL CEditor::OnEraseBkgnd(CDC* pDC)
 void CEditor::OnPaint()
 {
 	CPaintDC dc(this);
-	m_MemoryDC.BitBlt(0, 0, m_Width, m_Height, &m_Selection, 0, 0, SRCCOPY);
-	m_MemoryDC.TransparentBlt(0, 0, m_Width, m_Height, &m_Source, 0, 0, m_Width, m_Height, 0);
-	m_MemoryDC.BitBlt(0, 0, m_Width, m_Height, &m_Breakpoint, 0, 0, SRCCOPY);
-	if (m_cPointer.x >= (LONG)m_LineNumberWidth + LINE_NUMBER_OFFSET and m_bFocus) {
-		m_MemoryDC.BitBlt(m_cPointer.x, m_cPointer.y, 1, m_CharSize.cy, &m_Pointer, 0, 0, SRCCOPY);
-	}
-	dc.BitBlt(0, 0, m_Width, m_Height, &m_MemoryDC, 0, 0, SRCCOPY);
+	MemoryDC.BitBlt(0, 0, m_Width, m_Height, &m_Selection, 0, 0, SRCCOPY);
+	MemoryDC.TransparentBlt(0, 0, m_Width, m_Height, &m_Source, 0, 0, m_Width, m_Height, 0);
+	MemoryDC.BitBlt(0, 0, m_Width, m_Height, &m_Breakpoint, 0, 0, SRCCOPY);
+	dc.BitBlt(0, 0, m_Width, m_Height, &MemoryDC, 0, 0, SRCCOPY);
 	CRect rect(m_Width, m_Height, m_Width + 10, m_Height + 10);
 	dc.FillRect(&rect, pGreyBlackBrush);
 }
 BOOL CEditor::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 {
 	PAUSE_BACKEND()
-	double after_scroll_percentage = (m_PercentageVertical * m_FullHeight + (zDelta > 0 ? (-m_CharSize.cy) : m_CharSize.cy) * SCROLL_UNIT) / m_FullHeight;
+		double after_scroll_percentage = (m_PercentageVertical * m_FullHeight + (zDelta > 0 ? (-m_CharSize.cy) : m_CharSize.cy) * SCROLL_UNIT) / m_FullHeight;
 	double adjusted_percentage = min(max(0.0, after_scroll_percentage), 1.0);
 	m_VSlider.SetPercentage(adjusted_percentage);
 	return TRUE;
@@ -176,7 +155,7 @@ BOOL CEditor::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 void CEditor::OnLButtonDown(UINT nFlags, CPoint point)
 {
 	PAUSE_BACKEND()
-	SetCapture();
+		SetCapture();
 	SetFocus();
 	if (point.x > m_LineNumberWidth + LINE_NUMBER_OFFSET) {
 		m_bDrag = true;
@@ -191,7 +170,7 @@ void CEditor::OnLButtonDown(UINT nFlags, CPoint point)
 void CEditor::OnLButtonUp(UINT nFlags, CPoint point)
 {
 	PAUSE_BACKEND()
-	ReleaseCapture();
+		ReleaseCapture();
 	if (not m_bDrag) {
 		if (point.x < 0 or point.x > LINE_NUMBER_OFFSET + m_LineNumberWidth) {
 			return;
@@ -222,8 +201,8 @@ void CEditor::OnLButtonUp(UINT nFlags, CPoint point)
 void CEditor::OnRButtonUp(UINT nFlags, CPoint point)
 {
 	PAUSE_BACKEND()
-	// 添加或删除断点
-	double start_line = m_PercentageVertical * m_CurrentTag->m_Lines.size();
+		// 添加或删除断点
+		double start_line = m_PercentageVertical * m_CurrentTag->m_Lines.size();
 	ULONG64 line_index = (ULONG64)((double)point.y / m_CharSize.cy + m_PercentageVertical);
 	std::list<BREAKPOINT>::iterator iter = m_Breakpoints.begin();
 	for (UINT index = 0; index != m_Breakpoints.size(); index++) {
@@ -242,83 +221,116 @@ void CEditor::OnRButtonUp(UINT nFlags, CPoint point)
 void CEditor::OnMouseMove(UINT nFlags, CPoint point)
 {
 	PAUSE_BACKEND()
-	if (m_bDrag) {
-		m_PointerPoint = TranslatePointer(point);
-		MoveView();
-		ArrangeText();
-		ArrangePointer();
-		ArrangeSelection();
-		REDRAW_WINDOW();
-		if (point.x < m_LineNumberWidth + LINE_NUMBER_OFFSET or point.x > m_Width + 10
-			or point.y < 0 or point.y > m_Height + 10) {
-			MSG msg;
-			if (not PeekMessageW(&msg, m_hWnd, WM_MOUSEMOVE, WM_MOUSEMOVE, PM_NOREMOVE)) {
-				PostMessageW(WM_MOUSEMOVE, nFlags, MAKELPARAM(point.x, point.y));
+		if (m_bDrag) {
+			m_PointerPoint = TranslatePointer(point);
+			MoveView();
+			ArrangeText();
+			ArrangePointer();
+			ArrangeSelection();
+			REDRAW_WINDOW();
+			if (point.x < m_LineNumberWidth + LINE_NUMBER_OFFSET or point.x > m_Width + 10
+				or point.y < 0 or point.y > m_Height + 10) {
+				MSG msg;
+				if (not PeekMessageW(&msg, m_hWnd, WM_MOUSEMOVE, WM_MOUSEMOVE, PM_NOREMOVE)) {
+					PostMessageW(WM_MOUSEMOVE, nFlags, MAKELPARAM(point.x, point.y));
+				}
 			}
 		}
+		else {
+			if (point.x > m_LineNumberWidth + LINE_NUMBER_OFFSET or m_bDrag) {
+				SetCursor(LoadCursorW(NULL, IDC_IBEAM));
+			}
+			else {
+				SetCursor(LoadCursorW(NULL, IDC_ARROW));
+			}
+		}
+}
+void CEditor::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
+{
+	PAUSE_BACKEND()
+	double start_line = m_PercentageVertical * m_CurrentTag->m_Lines.size();
+	double difference = m_PointerPoint.y - start_line;
+	CPoint point;
+	switch (nChar) {
+	case VK_UP:
+		point.y = (difference - 1) * m_CharSize.cy;
+		break;
+	case VK_DOWN:
+		point.y = (difference + 1) * m_CharSize.cy;
+		break;
+	case VK_LEFT:
+		point.x = GET_TEXT_WIDTH(*m_CurrentTag->m_CurrentLine, m_PointerPoint.x - 1) + m_LineNumberWidth + LINE_NUMBER_OFFSET;
+		break;
+	case VK_RIGHT:
+		point.x = GET_TEXT_WIDTH(*m_CurrentTag->m_CurrentLine, m_PointerPoint.x + 1) + m_LineNumberWidth + LINE_NUMBER_OFFSET;
+		break;
+	default:
+		return;
+	}
+	if (GetKeyState(VK_CONTROL) >> 8) {
+		m_PointerPoint = TranslatePointer(point);
 	}
 	else {
-		if (point.x > m_LineNumberWidth + LINE_NUMBER_OFFSET or m_bDrag) {
-			SetCursor(LoadCursorW(NULL, IDC_IBEAM));
-		}
-		else {
-			SetCursor(LoadCursorW(NULL, IDC_ARROW));
-		}
+		m_DragPointerPoint = m_PointerPoint = TranslatePointer(point);
 	}
+	ArrangePointer();
+	MoveView();
+	REDRAW_WINDOW();
 }
 void CEditor::OnChar(UINT nChar, UINT nRepCnt, UINT nFlags)
 {
+	m_CurrentTag->SetEdited();
 	PAUSE_BACKEND()
-	switch (nChar) {
-	case L'\b':
-	{
-		Delete();
-		break;
-	}
-	case L'\r':
-	{
-		if (m_PointerPoint != m_DragPointerPoint) {
+		switch (nChar) {
+		case L'\b':
+		{
 			Delete();
+			break;
 		}
-		wchar_t* buffer1 = new wchar_t[m_PointerPoint.x + 1];
-		wchar_t* buffer2 = new wchar_t[wcslen(*m_CurrentTag->m_CurrentLine) - m_PointerPoint.x + 1];
-		memcpy(buffer1, *m_CurrentTag->m_CurrentLine, m_PointerPoint.x * 2);
-		buffer1[m_PointerPoint.x] = 0;
-		memcpy(buffer2,
-			*m_CurrentTag->m_CurrentLine + m_PointerPoint.x,
-			(wcslen(*m_CurrentTag->m_CurrentLine) - m_PointerPoint.x + 1) * 2);
-		delete[] *m_CurrentTag->m_CurrentLine;
-		*m_CurrentTag->m_CurrentLine = buffer1;
-		m_CurrentTag->m_Lines.insert(m_PointerPoint.y + 1, buffer2);
-		m_CurrentTag->m_CurrentLine++;
-		m_CurrentTag->m_Tokens->insert(m_PointerPoint.y + 1, ADVANCED_TOKEN{});
-		m_PointerPoint.y++;
-		m_PointerPoint.x = 0;
-		m_DragPointerPoint = m_PointerPoint;
-		USHORT digits = (USHORT)log10(m_CurrentTag->m_Lines.size()) + 1;
-		m_LineNumberWidth = m_CharSize.cx * digits;
-		m_FullHeight += m_CharSize.cy;
-		break;
-	}
-	default:
-	{
-		if (m_PointerPoint != m_DragPointerPoint) {
-			Delete();
+		case L'\r':
+		{
+			if (m_PointerPoint != m_DragPointerPoint) {
+				Delete();
+			}
+			wchar_t* buffer1 = new wchar_t[m_PointerPoint.x + 1];
+			wchar_t* buffer2 = new wchar_t[wcslen(*m_CurrentTag->m_CurrentLine) - m_PointerPoint.x + 1];
+			memcpy(buffer1, *m_CurrentTag->m_CurrentLine, m_PointerPoint.x * 2);
+			buffer1[m_PointerPoint.x] = 0;
+			memcpy(buffer2,
+				*m_CurrentTag->m_CurrentLine + m_PointerPoint.x,
+				(wcslen(*m_CurrentTag->m_CurrentLine) - m_PointerPoint.x + 1) * 2);
+			delete[] * m_CurrentTag->m_CurrentLine;
+			*m_CurrentTag->m_CurrentLine = buffer1;
+			m_CurrentTag->m_Lines.insert(m_PointerPoint.y + 1, buffer2);
+			m_CurrentTag->m_CurrentLine++;
+			m_CurrentTag->m_Tokens->insert(m_PointerPoint.y + 1, ADVANCED_TOKEN{});
+			m_PointerPoint.y++;
+			m_PointerPoint.x = 0;
+			m_DragPointerPoint = m_PointerPoint;
+			USHORT digits = (USHORT)log10(m_CurrentTag->m_Lines.size()) + 1;
+			m_LineNumberWidth = m_CharSize.cx * digits;
+			m_FullHeight += m_CharSize.cy;
+			break;
 		}
-		wchar_t* buffer = new wchar_t[wcslen(*m_CurrentTag->m_CurrentLine) + 2];
-		memcpy(buffer, *m_CurrentTag->m_CurrentLine, (size_t)m_PointerPoint.x * 2);
-		buffer[m_PointerPoint.x] = nChar;
-		memcpy(buffer + m_PointerPoint.x + 1,
-			*m_CurrentTag->m_CurrentLine + m_PointerPoint.x,
-			(wcslen(*m_CurrentTag->m_CurrentLine) - m_PointerPoint.x + 1) * 2);
-		delete[] *m_CurrentTag->m_CurrentLine;
-		CSize size;
-		m_FullWidth = max(m_FullWidth, GET_TEXT_WIDTH(buffer, wcslen(buffer)) + m_CharSize.cx);
-		*m_CurrentTag->m_CurrentLine = buffer;
-		m_DragPointerPoint.x = ++m_PointerPoint.x;
-		break;
-	}
-	}
+		default:
+		{
+			if (m_PointerPoint != m_DragPointerPoint) {
+				Delete();
+			}
+			wchar_t* buffer = new wchar_t[wcslen(*m_CurrentTag->m_CurrentLine) + 2];
+			memcpy(buffer, *m_CurrentTag->m_CurrentLine, (size_t)m_PointerPoint.x * 2);
+			buffer[m_PointerPoint.x] = nChar;
+			memcpy(buffer + m_PointerPoint.x + 1,
+				*m_CurrentTag->m_CurrentLine + m_PointerPoint.x,
+				(wcslen(*m_CurrentTag->m_CurrentLine) - m_PointerPoint.x + 1) * 2);
+			delete[] * m_CurrentTag->m_CurrentLine;
+			CSize size;
+			m_FullWidth = max(m_FullWidth, GET_TEXT_WIDTH(buffer, wcslen(buffer)) + m_CharSize.cx);
+			*m_CurrentTag->m_CurrentLine = buffer;
+			m_DragPointerPoint.x = ++m_PointerPoint.x;
+			break;
+		}
+		}
 	ParseLine();
 	UpdateSlider();
 	MoveView();
@@ -330,17 +342,21 @@ BOOL CEditor::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 }
 void CEditor::OnSetFocus(CWnd* pOldWnd)
 {
-	PAUSE_BACKEND()
 	CWnd::OnSetFocus(pOldWnd);
+
+	PAUSE_BACKEND()
+	::CreateCaret(m_hWnd, NULL, 1, m_CharSize.cy);
 	m_bFocus = true;
-	REDRAW_WINDOW();
+	ArrangePointer();
 }
 void CEditor::OnKillFocus(CWnd* pNewWnd)
 {
-	PAUSE_BACKEND()
 	CWnd::OnKillFocus(pNewWnd);
+
+	PAUSE_BACKEND()
 	m_bFocus = false;
-	REDRAW_WINDOW();
+	m_bCaret = false;
+	DestroyCaret();
 }
 void CEditor::OnTimer(UINT_PTR nIDEvent)
 {
@@ -350,7 +366,7 @@ void CEditor::OnTimer(UINT_PTR nIDEvent)
 void CEditor::OnUndo()
 {
 	PAUSE_BACKEND()
-	m_CurrentOperation--;
+		m_CurrentOperation--;
 	if (m_CurrentOperation == m_Operations.begin()) {
 		m_CurrentOperation++;
 	}
@@ -366,51 +382,51 @@ void CEditor::OnUndo()
 			MovePointer(m_CurrentOperation->end);
 			Insert(m_CurrentOperation->content);
 		}
-		FIND_BUTTON(ID_EDIT, ID_EDIT_UNDO)->SetState(false);
+		FIND_BUTTON(ID_EDIT, ID_EDIT_UNDO)->SetSelected(false);
 	}
 }
 void CEditor::OnRedo()
 {
 	PAUSE_BACKEND()
-	if (m_CurrentOperation != m_Operations.end()) {
-		if (m_CurrentOperation->content) {
-			// 复原插入的内容
-			MovePointer(m_CurrentOperation->start);
-			Insert(m_CurrentOperation->content);
-			m_DragPointerPoint = m_PointerPoint;
+		if (m_CurrentOperation != m_Operations.end()) {
+			if (m_CurrentOperation->content) {
+				// 复原插入的内容
+				MovePointer(m_CurrentOperation->start);
+				Insert(m_CurrentOperation->content);
+				m_DragPointerPoint = m_PointerPoint;
+			}
+			else {
+				// 继续删除的内容
+				m_DragPointerPoint = m_CurrentOperation->start;
+				MovePointer(m_CurrentOperation->end);
+				Delete();
+			}
+			m_CurrentOperation++;
+			if (m_CurrentOperation == m_Operations.end()) {
+				FIND_BUTTON(ID_EDIT, ID_EDIT_REDO)->SetSelected(false);
+			}
 		}
-		else {
-			// 继续删除的内容
-			m_DragPointerPoint = m_CurrentOperation->start;
-			MovePointer(m_CurrentOperation->end);
-			Delete();
-		}
-		m_CurrentOperation++;
-		if (m_CurrentOperation == m_Operations.end()) {
-			FIND_BUTTON(ID_EDIT, ID_EDIT_REDO)->SetState(false);
-		}
-	}
 }
 LRESULT CEditor::OnStep(WPARAM wParam, LPARAM lParam)
 {
 	PAUSE_BACKEND()
-	m_CurrentStepLineIndex = lParam;
+		m_CurrentStepLineIndex = lParam;
 	CentralView(lParam);
 	ArrangeText();
 	ArrangePointer();
 	ArrangeSelection();
 	ArrangeBreakpoints();
 	REDRAW_WINDOW();
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetState(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetState(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetSelected(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetSelected(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetSelected(true);
 	return 0;
 }
 void CEditor::LoadFile(CFileTag* tag)
 {
 	PAUSE_BACKEND()
-	CDC* pWindowDC = GetDC();
+		;
 
 	m_CurrentTag = tag;
 	// 计算文字大小
@@ -454,10 +470,10 @@ void CEditor::ArrangeText()
 {
 	if (not m_CurrentTag) { return; }
 	PAUSE_BACKEND()
-	if (m_CurrentTag->m_Tokens->size()) {
-		ArrangeRenderedText();
-		return;
-	}
+		if (m_CurrentTag->m_Tokens->size()) {
+			ArrangeRenderedText();
+			return;
+		}
 	m_Source.PatBlt(0, 0, m_Width, m_Height, BLACKNESS);
 	// 计算出现在DC中的第一行行数
 	double start_line = m_PercentageVertical * m_CurrentTag->m_Lines.size();
@@ -514,6 +530,8 @@ void CEditor::ArrangeRenderedText()
 		RGB(181, 206, 168), // 整数
 		RGB(214, 157, 133), // 字符串
 		RGB(255, 255, 255), // 枚举（分解成整数常量）
+		RGB(255, 255, 255), // 参数列表（分解成变量和类型）
+		RGB(86, 156, 214), // 参数传递方式
 		RGB(77, 166, 74), // 注释
 	};
 	int x_offset = LINE_NUMBER_OFFSET + m_LineNumberWidth - (long)(m_PercentageHorizontal * m_FullWidth);
@@ -577,17 +595,32 @@ void CEditor::ArrangeRenderedText()
 void CEditor::ArrangePointer()
 {
 	if (not m_CurrentTag) { return; }
+	if (not m_bFocus) { return; }
 	PAUSE_BACKEND()
 	double start_line = m_PercentageVertical * m_CurrentTag->m_Lines.size();
 	LONG width = GET_TEXT_WIDTH(*m_CurrentTag->m_CurrentLine, m_PointerPoint.x);
-	m_cPointer.x = width + m_LineNumberWidth + LINE_NUMBER_OFFSET - m_FullWidth * m_PercentageHorizontal;
-	m_cPointer.y = (m_PointerPoint.y - start_line) * m_CharSize.cy;
+	CPoint point;
+	point.x = width + m_LineNumberWidth + LINE_NUMBER_OFFSET - m_FullWidth * m_PercentageHorizontal;
+	point.y = (m_PointerPoint.y - start_line) * m_CharSize.cy;
+	SetCaretPos(point);
+	if (point.x < m_LineNumberWidth + LINE_NUMBER_OFFSET) {
+		if (m_bCaret) {
+			m_bCaret = false;
+			HideCaret();
+		}
+	}
+	else {
+		if (not m_bCaret) {
+			m_bCaret = true;
+			ShowCaret();
+		}
+	}
 }
 void CEditor::ArrangeSelection()
 {
 	if (not m_CurrentTag) { return; }
 	PAUSE_BACKEND()
-	CRect rect(0, 0, m_Width, m_Height);
+		CRect rect(0, 0, m_Width, m_Height);
 	m_Selection.FillRect(&rect, pGreyBlackBrush);
 	double start_line = m_PercentageVertical * m_CurrentTag->m_Lines.size();
 	double difference = (double)m_PointerPoint.y - start_line;
@@ -598,7 +631,7 @@ void CEditor::ArrangeSelection()
 			wchar_t* line = *m_CurrentTag->m_CurrentLine;
 			LONG smaller = min(m_PointerPoint.x, m_DragPointerPoint.x);
 			LONG larger = max(m_PointerPoint.x, m_DragPointerPoint.x);
-			LONG start = GET_TEXT_WIDTH(line, smaller) + m_LineNumberWidth + LINE_NUMBER_OFFSET;
+			LONG start = GET_TEXT_WIDTH(line, smaller) + m_LineNumberWidth + LINE_NUMBER_OFFSET + 1;
 			LONG end = GET_TEXT_WIDTH(line, larger) + m_LineNumberWidth + LINE_NUMBER_OFFSET;
 			rect = CRect(
 				start - horizontal_offset,
@@ -641,7 +674,7 @@ void CEditor::ArrangeSelection()
 			m_Selection.FillRect(&rect, &m_SelectionColor);
 		}
 		else {
-			LONG start = GET_TEXT_WIDTH(*m_CurrentTag->m_CurrentLine, m_PointerPoint.x);
+			LONG start = GET_TEXT_WIDTH(*m_CurrentTag->m_CurrentLine, m_PointerPoint.x) + 1;
 			LONG end = GET_TEXT_WIDTH(*m_CurrentTag->m_CurrentLine, wcslen(*m_CurrentTag->m_CurrentLine));
 			rect = CRect(
 				LINE_NUMBER_OFFSET + m_LineNumberWidth + start - horizontal_offset,
@@ -674,7 +707,7 @@ void CEditor::ArrangeBreakpoints()
 {
 	if (not m_CurrentTag) { return; }
 	PAUSE_BACKEND()
-	CRect rect(0, 0, 15, SCREEN_HEIGHT);
+		CRect rect(0, 0, 15, SCREEN_HEIGHT);
 	m_Breakpoint.FillRect(&rect, pGreyBlackBrush);
 	double start_line = m_PercentageVertical * m_CurrentTag->m_Lines.size();
 	double end_line = start_line + (double)m_Height / m_CharSize.cy;
@@ -728,7 +761,7 @@ void CEditor::MovePointer(CPoint pointer)
 CPoint CEditor::TranslatePointer(CPoint point)
 {
 	PAUSE_BACKEND()
-	CPoint point_out;
+		CPoint point_out;
 	double start_line = m_PercentageVertical * m_CurrentTag->m_Lines.size();
 	size_t new_pointer_vertical = max(min(start_line + (double)point.y / m_CharSize.cy, m_CurrentTag->m_Lines.size() - 1), 0);
 	point.x += m_PercentageHorizontal * m_FullWidth - m_LineNumberWidth - LINE_NUMBER_OFFSET;
@@ -760,8 +793,9 @@ CPoint CEditor::TranslatePointer(CPoint point)
 }
 void CEditor::Insert(wchar_t* text)
 {
+	m_CurrentTag->SetEdited();
 	PAUSE_BACKEND()
-	LONG64 last_return = -1;
+		LONG64 last_return = -1;
 	for (ULONG64 index = 0;; index++) {
 		if (text[index] == 0 or text[index] == 10) {
 			wchar_t*& this_line = *m_CurrentTag->m_CurrentLine;
@@ -789,82 +823,85 @@ void CEditor::Insert(wchar_t* text)
 void CEditor::Delete()
 {
 	PAUSE_BACKEND()
-	if (m_PointerPoint == m_DragPointerPoint) {
-		// 删除单个字符
-		if (m_PointerPoint.x) {
-			// 该行还有字符
-			wchar_t* current_line = *m_CurrentTag->m_CurrentLine;
-			wchar_t* buffer = new wchar_t[wcslen(current_line)];
-			memcpy(buffer, current_line, (size_t)(m_PointerPoint.x - 1) * 2);
-			memcpy(buffer + m_PointerPoint.x - 1,
-				current_line + m_PointerPoint.x,
-				(wcslen(current_line) - m_PointerPoint.x + 1) * 2);
-			delete[] current_line;
-			*m_CurrentTag->m_CurrentLine = buffer;
-			m_PointerPoint.x--;
-		}
-		else {
-			// 删除换行符
-			if (m_PointerPoint.y) {
-				// 如果不是首行
-				m_CurrentTag->m_CurrentLine--;
-				m_CurrentTag->m_Lines.pop(m_PointerPoint.y);
-				m_PointerPoint.y--;
-				m_PointerPoint.x = wcslen(*m_CurrentTag->m_CurrentLine);
-				m_FullHeight -= m_CharSize.cy;
+		if (m_PointerPoint == m_DragPointerPoint) {
+			// 删除单个字符
+			if (m_PointerPoint.x) {
+				// 该行还有字符
+				wchar_t* current_line = *m_CurrentTag->m_CurrentLine;
+				wchar_t* buffer = new wchar_t[wcslen(current_line)];
+				memcpy(buffer, current_line, (size_t)(m_PointerPoint.x - 1) * 2);
+				memcpy(buffer + m_PointerPoint.x - 1,
+					current_line + m_PointerPoint.x,
+					(wcslen(current_line) - m_PointerPoint.x + 1) * 2);
+				delete[] current_line;
+				*m_CurrentTag->m_CurrentLine = buffer;
+				m_PointerPoint.x--;
 			}
-		}
-		m_DragPointerPoint = m_PointerPoint; // 确保无选区模式
-	}
-	else {
-		// 删除选区
-		if (m_PointerPoint.y == m_DragPointerPoint.y) {
-			// 单行选区
-			size_t smaller = min(m_PointerPoint.x, m_DragPointerPoint.x);
-			size_t larger = max(m_PointerPoint.x, m_DragPointerPoint.x);
-			wchar_t* buffer = new wchar_t[wcslen(*m_CurrentTag->m_CurrentLine) - (larger - smaller) + 1];
-			memcpy(buffer, *m_CurrentTag->m_CurrentLine, smaller * 2);
-			memcpy(buffer + smaller, *m_CurrentTag->m_CurrentLine + larger, (wcslen(*m_CurrentTag->m_CurrentLine) - larger + 1) * 2);
-			delete[] *(m_CurrentTag->m_CurrentLine);
-			*m_CurrentTag->m_CurrentLine = buffer;
-			m_PointerPoint.x = smaller;
-		}
-		else if (m_PointerPoint.y > m_DragPointerPoint.y) {
-			// 多行选区（正向）
-			for (UINT line_index = m_PointerPoint.y - 1; line_index != m_DragPointerPoint.y; line_index--) {
-				m_CurrentTag->m_Lines.pop(m_DragPointerPoint.y + 1);
+			else {
+				// 删除换行符
+				if (m_PointerPoint.y) {
+					// 如果不是首行
+					m_CurrentTag->m_CurrentLine--;
+					m_CurrentTag->m_Lines.pop(m_PointerPoint.y);
+					m_PointerPoint.y--;
+					m_PointerPoint.x = wcslen(*m_CurrentTag->m_CurrentLine);
+					m_FullHeight -= m_CharSize.cy;
+				}
 			}
-			m_FullHeight -= (m_PointerPoint.y - m_DragPointerPoint.y) * m_CharSize.cy;
-			IndexedList<wchar_t*>::iterator line_before_selection = m_CurrentTag->m_Lines[m_DragPointerPoint.y];
-			wchar_t* buffer = new wchar_t[m_DragPointerPoint.x + wcslen(*m_CurrentTag->m_CurrentLine) - m_PointerPoint.x + 2];
-			memcpy(buffer, *line_before_selection, m_DragPointerPoint.x * 2);
-			memcpy(buffer + m_DragPointerPoint.x,
-				*m_CurrentTag->m_CurrentLine + m_PointerPoint.x,
-				(wcslen(*m_CurrentTag->m_CurrentLine) - m_PointerPoint.x + 1) * 2);
-			delete[] *line_before_selection;
-			*line_before_selection = buffer;
-			m_CurrentTag->m_Lines.pop(m_DragPointerPoint.y + 1);
-			m_CurrentTag->m_CurrentLine = line_before_selection;
-			m_PointerPoint = m_DragPointerPoint; // 确保无选区模式
-		}
-		else {
-			// 多行选区（反向）
-			for (size_t line_index = m_PointerPoint.y + 1; line_index != m_DragPointerPoint.y; line_index++) {
-				m_CurrentTag->m_Lines.pop(m_PointerPoint.y + 1);
-			}
-			m_FullHeight -= (m_DragPointerPoint.y - m_PointerPoint.y) * m_CharSize.cy;
-			IndexedList<wchar_t*>::iterator line_after_selection = m_CurrentTag->m_Lines[m_PointerPoint.y + 1];
-			wchar_t* buffer = new wchar_t[m_PointerPoint.x + wcslen(*line_after_selection) - m_DragPointerPoint.x + 2];
-			memcpy(buffer, *m_CurrentTag->m_CurrentLine, (size_t)m_PointerPoint.x * 2);
-			memcpy(buffer + m_PointerPoint.x,
-				*line_after_selection + m_DragPointerPoint.x,
-				(wcslen(*line_after_selection) - m_DragPointerPoint.x + 1) * 2);
-			delete[] *(m_CurrentTag->m_CurrentLine);
-			*m_CurrentTag->m_CurrentLine = buffer;
-			m_CurrentTag->m_Lines.pop(m_PointerPoint.y + 1);
 			m_DragPointerPoint = m_PointerPoint; // 确保无选区模式
 		}
-	}
+		else {
+			// 删除选区
+			if (m_PointerPoint.y == m_DragPointerPoint.y) {
+				// 单行选区
+				size_t smaller = min(m_PointerPoint.x, m_DragPointerPoint.x);
+				size_t larger = max(m_PointerPoint.x, m_DragPointerPoint.x);
+				wchar_t* buffer = new wchar_t[wcslen(*m_CurrentTag->m_CurrentLine) - (larger - smaller) + 1];
+				memcpy(buffer, *m_CurrentTag->m_CurrentLine, smaller * 2);
+				memcpy(buffer + smaller, *m_CurrentTag->m_CurrentLine + larger, (wcslen(*m_CurrentTag->m_CurrentLine) - larger + 1) * 2);
+				delete[] * (m_CurrentTag->m_CurrentLine);
+				*m_CurrentTag->m_CurrentLine = buffer;
+				m_PointerPoint.x = smaller;
+			}
+			else if (m_PointerPoint.y > m_DragPointerPoint.y) {
+				// 多行选区（正向）
+				for (UINT line_index = m_PointerPoint.y - 1; line_index != m_DragPointerPoint.y; line_index--) {
+					m_CurrentTag->m_Lines.pop(m_DragPointerPoint.y + 1);
+				}
+				m_FullHeight -= (m_PointerPoint.y - m_DragPointerPoint.y) * m_CharSize.cy;
+				IndexedList<wchar_t*>::iterator line_before_selection = m_CurrentTag->m_Lines[m_DragPointerPoint.y];
+				wchar_t* buffer = new wchar_t[m_DragPointerPoint.x + wcslen(*m_CurrentTag->m_CurrentLine) - m_PointerPoint.x + 2];
+				memcpy(buffer, *line_before_selection, m_DragPointerPoint.x * 2);
+				memcpy(buffer + m_DragPointerPoint.x,
+					*m_CurrentTag->m_CurrentLine + m_PointerPoint.x,
+					(wcslen(*m_CurrentTag->m_CurrentLine) - m_PointerPoint.x + 1) * 2);
+				delete[] * line_before_selection;
+				*line_before_selection = buffer;
+				m_CurrentTag->m_Lines.pop(m_DragPointerPoint.y + 1);
+				m_CurrentTag->m_CurrentLine = line_before_selection;
+				m_PointerPoint = m_DragPointerPoint; // 确保无选区模式
+			}
+			else {
+				// 多行选区（反向）
+				for (size_t line_index = m_PointerPoint.y + 1; line_index != m_DragPointerPoint.y; line_index++) {
+					m_CurrentTag->m_Lines.pop(m_PointerPoint.y + 1);
+				}
+				m_FullHeight -= (m_DragPointerPoint.y - m_PointerPoint.y) * m_CharSize.cy;
+				IndexedList<wchar_t*>::iterator line_after_selection = m_CurrentTag->m_Lines[m_PointerPoint.y + 1];
+				wchar_t* buffer = new wchar_t[m_PointerPoint.x + wcslen(*line_after_selection) - m_DragPointerPoint.x + 2];
+				memcpy(buffer, *m_CurrentTag->m_CurrentLine, (size_t)m_PointerPoint.x * 2);
+				memcpy(buffer + m_PointerPoint.x,
+					*line_after_selection + m_DragPointerPoint.x,
+					(wcslen(*line_after_selection) - m_DragPointerPoint.x + 1) * 2);
+				delete[] * (m_CurrentTag->m_CurrentLine);
+				*m_CurrentTag->m_CurrentLine = buffer;
+				m_CurrentTag->m_Lines.pop(m_PointerPoint.y + 1);
+				m_DragPointerPoint = m_PointerPoint; // 确保无选区模式
+			}
+		}
+	// 重新计算行号长度
+	USHORT digits = (USHORT)log10(m_CurrentTag->m_Lines.size()) + 1;
+	m_LineNumberWidth = m_CharSize.cx * digits;
 }
 void CEditor::MoveView()
 {
@@ -925,6 +962,7 @@ ADVANCED_TOKEN CEditor::LineSplit(wchar_t* line)
 	wchar_t* content = new wchar_t[start_of_comment - end_of_indentation + 1];
 	memcpy(content, line + end_of_indentation, (start_of_comment - end_of_indentation) * 2);
 	content[start_of_comment - end_of_indentation] = 0;
+	strip(content); // 移除末尾空格
 	return ADVANCED_TOKEN{ (USHORT)end_of_indentation, reinterpret_cast<TOKEN*>(content), (USHORT)start_of_comment };
 }
 void CEditor::ExpandToken(wchar_t* line, ADVANCED_TOKEN& token)
@@ -989,7 +1027,16 @@ void CEditor::ExpandToken(wchar_t* line, ADVANCED_TOKEN& token)
 					expr[index2] >= L'0' and expr[index2] <= L'9' or
 					expr[index2] == L'_';
 					index2++);
-				part_token[count] = TOKEN{ (USHORT)(index2 - index), TOKENTYPE::Variable };
+				// 将TRUE和FALSE渲染为整数
+				if ((index2 - index) == 4 and match_keyword(expr + index, L"TRUE") == 0) {
+					part_token[count] = TOKEN{ 4, TOKENTYPE::Integer };
+				}
+				else if ((index2 - index) == 5 and match_keyword(expr + index, L"FALSE") == 0) {
+					part_token[count] = TOKEN{ 5, TOKENTYPE::Integer };
+				}
+				else {
+					part_token[count] = TOKEN{ (USHORT)(index2 - index), TOKENTYPE::Variable };
+				}
 				count++;
 				index = index2 - 1;
 				last_element = index;
@@ -1023,7 +1070,59 @@ void CEditor::ExpandToken(wchar_t* line, ADVANCED_TOKEN& token)
 		number = count;
 		return part_token;
 	};
-	USHORT offset = 0;
+	auto expand_parameters = [=](wchar_t* expr, USHORT& number) -> TOKEN* {
+		USHORT count = 1;
+		for (USHORT index = 1; index != number; index++) {
+			if (expr[index] == L',') {
+				count++;
+			}
+		}
+		count = count * 5 + 1; // 首尾各一个，每个参数四个，参数之间一个
+		TOKEN* part_token = new TOKEN[count];
+		part_token[0] = TOKEN{ 1, TOKENTYPE::Punctuation };
+		count = 1;
+		USHORT last_colon = 0;
+		USHORT last_splitter = 0;
+		for (USHORT index = 1; index != number; index++) {
+			switch (expr[index]) {
+			case L':':
+			{
+				USHORT space = last_splitter;
+				bool variable_scanned = false;
+				for (USHORT index2 = index - 1; index2 != 0; index2--) {
+					if (expr[index2] == L' ') {
+						if (variable_scanned) {
+							space = index2;
+							break;
+						}
+					}
+					else {
+						variable_scanned = true;
+					}
+				}
+				part_token[count] = TOKEN{ (USHORT)(space - last_splitter), TOKENTYPE::PassingMode };
+				count++;
+				part_token[count] = TOKEN{ (USHORT)(index - space - 1), TOKENTYPE::Variable };
+				count++;
+				part_token[count] = TOKEN{ 1, TOKENTYPE::Punctuation };
+				count++;
+				last_colon = index;
+				break;
+			}
+			case L',': case L')':
+				part_token[count] = TOKEN{ (USHORT)(index - last_colon - 1), TOKENTYPE::Type };
+				count++;
+				part_token[count] = TOKEN{ 1, TOKENTYPE::Punctuation };
+				count++;
+				last_splitter = index;
+				break;
+			}
+		}
+		part_token[count - 1].length += number - last_splitter - 1;
+		number = count;
+		return part_token;
+	};
+	USHORT offset = token.indentation;
 	USHORT index = 0;
 	USHORT size = 1;
 	for (TOKEN* this_token = token.tokens; this_token->type != TOKENTYPE::Null; this_token++) {
@@ -1031,7 +1130,6 @@ void CEditor::ExpandToken(wchar_t* line, ADVANCED_TOKEN& token)
 	}
 	for (TOKEN* this_token = token.tokens; this_token->type != TOKENTYPE::Null; this_token++) {
 		if (this_token->type == TOKENTYPE::Expression) {
-			USHORT spaces = 0;
 			USHORT number = this_token->length;
 			TOKEN* part_token = expand_expression(line + offset, number);
 			TOKEN* new_token = new TOKEN[size + number - 1];
@@ -1040,35 +1138,50 @@ void CEditor::ExpandToken(wchar_t* line, ADVANCED_TOKEN& token)
 			memcpy(new_token + index + number, token.tokens + index + 1, sizeof(TOKEN) * (size - index - 1));
 			size += number - 1;
 			index += number - 1;
+			offset += this_token->length;
 			delete[] part_token;
 			delete[] token.tokens;
 			token.tokens = new_token;
 			this_token = token.tokens + index;
 		}
 		else if (this_token->type == TOKENTYPE::Enumeration) {
-			USHORT spaces = 0;
-			for (spaces = 0; line[offset + spaces] == L' '; spaces++);
-			USHORT number = this_token->length - spaces;
-			TOKEN* part_token = expand_enumeration(line + offset + spaces, number);
-			part_token[0].length += spaces;
+			USHORT number = this_token->length;
+			TOKEN* part_token = expand_enumeration(line + offset, number);
 			TOKEN* new_token = new TOKEN[size + number - 1];
 			memcpy(new_token, token.tokens, sizeof(TOKEN) * index);
 			memcpy(new_token + index, part_token, sizeof(TOKEN) * number);
 			memcpy(new_token + index + number, token.tokens + index + 1, sizeof(TOKEN) * (size - index - 1));
 			size += number - 1;
 			index += number - 1;
+			offset += this_token->length;
 			delete[] part_token;
 			delete[] token.tokens;
 			token.tokens = new_token;
 			this_token = token.tokens + index;
 		}
-		offset += this_token->length;
+		else if (this_token->type == TOKENTYPE::Parameter) {
+			USHORT number = this_token->length;
+			TOKEN* part_token = expand_parameters(line + offset, number);
+			TOKEN* new_token = new TOKEN[size + number - 1];
+			memcpy(new_token, token.tokens, sizeof(TOKEN) * index);
+			memcpy(new_token + index, part_token, sizeof(TOKEN) * number);
+			memcpy(new_token + index + number, token.tokens + index + 1, sizeof(TOKEN) * (size - index - 1));
+			size += number - 1;
+			index += number - 1;
+			offset += this_token->length;
+			delete[] part_token;
+			delete[] token.tokens;
+			token.tokens = new_token;
+			this_token = token.tokens + index;
+		}
+		else {
+			offset += this_token->length;
+		}
 		index++;
 	}
 }
 inline void CEditor::ParseLine()
 {
-	reset_syntax_system();
 	ADVANCED_TOKEN token = LineSplit(*m_CurrentTag->m_CurrentLine);
 	CONSTRUCT* construct = Construct::parse(reinterpret_cast<wchar_t*>(token.tokens));
 	delete[] reinterpret_cast<wchar_t*>(token.tokens);
@@ -1119,7 +1232,6 @@ void CEditor::RecalcWidth()
 void CEditor::ParseAll()
 {
 	if (not m_CurrentTag) { return; }
-	reset_syntax_system();
 	IndexedList<ADVANCED_TOKEN>* new_token_list = new IndexedList<ADVANCED_TOKEN>;
 	new_token_list->set_construction(true);
 	for (IndexedList<wchar_t*>::iterator this_line = m_CurrentTag->m_Lines.begin(); this_line != m_CurrentTag->m_Lines.end(); this_line++) {

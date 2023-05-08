@@ -18,6 +18,10 @@ void SendSignal(UINT message, WPARAM wParam, LPARAM lParam);
 bool CheckBreakpoint(ULONG64 line_index);
 typedef void (*FUNCTION_PTR)(RESULT);
 
+
+File* files = new File[8]; // maximum 8 files opened at the same time
+USHORT file_ptr = 0;
+
 CONSTRUCT** parsed_code = nullptr;
 BinaryTree* current_locals = nullptr;
 BinaryTree* globals = new BinaryTree;
@@ -636,6 +640,9 @@ namespace Execution {
 	void else_tag(RESULT result) {
 		current_instruction_index = ((Nesting*)result.args[0])->line_numbers[3];
 	}
+	void if_ender(RESULT result) {
+		return;
+	}
 	void case_of_header(RESULT result) {
 		DATA* data = evaluate((RPN_EXP*)result.args[1]);
 		for (USHORT tag_index = 0; tag_index != ((Nesting*)result.args[0])->nest_info->case_of_info.number_of_values; tag_index++) {
@@ -661,6 +668,9 @@ namespace Execution {
 	}
 	void otherwise_tag(RESULT result) {
 		current_instruction_index = ((Nesting*)result.args[0])->line_numbers[((Nesting*)result.args[0])->tag_number - 1]; // ENDCASE
+	}
+	void case_of_ender(RESULT result) {
+		return;
 	}
 	void for_header_1(RESULT result) {
 		// only run in first loop as ender does not return to this statement
@@ -741,6 +751,9 @@ namespace Execution {
 		}
 		DataType::release_data(data);
 	}
+	void while_ender(RESULT result) {
+		current_instruction_index = ((Nesting*)result.args[1])->line_numbers[0] - 1;
+	}
 	void repeat_header(RESULT result) {
 		UNREFERENCED_PARAMETER(result);
 		return;
@@ -755,15 +768,6 @@ namespace Execution {
 			current_instruction_index = ((Nesting*)result.args[0])->line_numbers[0] - 1;
 		}
 		DataType::release_data(data);
-	}
-	void ender(RESULT result) {
-		switch (*(USHORT*)result.args[0]) {
-		case 0: case 1: case 3:
-			return;
-		case 2: // ENDWHILE
-			current_instruction_index = ((Nesting*)result.args[1])->line_numbers[0] - 1;
-			break;
-		}
 	}
 	void procedure_header(RESULT result) {
 		BinaryTree::Node* node = find_variable((wchar_t*)result.args[1]);
@@ -817,7 +821,7 @@ namespace Execution {
 		current_instruction_index = ((Nesting*)result.args[0])->line_numbers[1];
 	}
 	void return_statement(RESULT result) {
-		if (*(bool*)result.args[0]) {
+		if (*(bool*)result.args[1]) {
 			DATA* data = evaluate((RPN_EXP*)result.args[2]);
 			if (data->type == 7 or data->type == 9 or data->type == 11) {
 				throw Error(ValueError, L"类型不能作为函数返回值");
@@ -844,6 +848,9 @@ namespace Execution {
 		BinaryTree*& scope = current_locals ? current_locals : globals;
 		scope->error_handling_ptr--;
 		current_instruction_index = ((Nesting*)result.args[0])->line_numbers[2];
+	}
+	void try_ender(RESULT result) {
+		return;
 	}
 	void openfile_statement(RESULT result) {
 		DATA* filename_data = evaluate((RPN_EXP*)result.args[0]);
@@ -1117,13 +1124,14 @@ namespace Execution {
 			}
 		}
 	}
-	void* executions[] = { empty_line, declaration, constant, type_header, type_ender, pointer_type_header,
-		enumerated_type_header, assignment, output, input, if_header_1, if_header_2, then_tag,
-		else_tag, case_of_header, case_tag, otherwise_tag, for_header_1, for_header_2, for_ender,
-		while_header, repeat_header, repeat_ender, ender, procedure_header, procedure_ender,
-		function_header, function_ender, continue_tag, break_tag, return_statement, try_header,
-		except_tag, openfile_statement, readfile_statement, writefile_statement, closefile_statement,
-		seek_statement, getrecord_statement, putrecord_statement, single_expression };
+	void* executions[] = {
+		empty_line, declaration, constant, type_header, type_ender, pointer_type_header, enumerated_type_header,
+		assignment, output, input, if_header_1, if_header_2, then_tag, else_tag, if_ender, case_of_header,
+		case_tag, otherwise_tag, case_of_ender, for_header_1, for_header_2, for_ender, while_header, while_ender,
+		repeat_header, repeat_ender, procedure_header, procedure_ender, function_header, function_ender,
+		continue_tag, break_tag, return_statement, try_header, except_tag, try_ender, openfile_statement,
+		readfile_statement, writefile_statement, closefile_statement, seek_statement, getrecord_statement,
+		putrecord_statement, single_expression };
 	const USHORT instructions = sizeof(executions) / sizeof(void*);
 }
 

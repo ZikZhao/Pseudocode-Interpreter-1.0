@@ -99,6 +99,7 @@
       <FloatingPointModel>Strict</FloatingPointModel>
       <FloatingPointExceptions>true</FloatingPointExceptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -197,7 +198,6 @@
     <ClInclude Include="Console.h" />
     <ClInclude Include="ControlPanel.h" />
     <ClInclude Include="Editor.h" />
-    <ClInclude Include="IndexedList.h" />
     <ClInclude Include="InfoView.h" />
     <ClInclude Include="Slider.h" />
     <ClInclude Include="StatusBar.h" />

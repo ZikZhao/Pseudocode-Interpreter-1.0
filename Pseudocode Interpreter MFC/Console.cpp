@@ -15,7 +15,6 @@ BEGIN_MESSAGE_MAP(CConsoleOutput, CWnd)
 END_MESSAGE_MAP()
 CConsoleOutput::CConsoleOutput()
 {
-	m_bFocus = false;
 	m_Width = m_Height = 0;
 	m_FullLength = 0;
 	m_Percentage = 0.0;
@@ -44,13 +43,9 @@ int CConsoleOutput::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	CDC* pWindowDC = GetDC();
-	// 创建缓存源
-	m_Temp.CreateCompatibleDC(pWindowDC);
 	// 创建渲染文字源
 	m_Source.CreateCompatibleDC(pWindowDC);
 	m_Selection.CreateCompatibleDC(pWindowDC);
-	m_Pointer.CreateCompatibleDC(pWindowDC);
 	m_Source.SelectObject(CConsole::font);
 	// 计算字符大小
 	CRect rect(0, 0, 0, 0);
@@ -58,13 +53,6 @@ int CConsoleOutput::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_CharSize = CSize(rect.right, rect.bottom);
 	m_Source.SetTextColor(RGB(255, 255, 255));
 	m_Source.SetBkColor(RGB(0, 0, 0));
-	// 绘制光标
-	CBitmap* pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, 1, m_CharSize.cy);
-	m_Pointer.SelectObject(pBitmap);
-	rect = CRect(0, 0, 1, m_CharSize.cy);
-	CBrush brush(RGB(149, 149, 149));
-	m_Pointer.FillRect(&rect, &brush);
 	// 创建滚动条
 	m_Slider.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
 	m_Slider.SetRatio(1.0);
@@ -78,12 +66,9 @@ void CConsoleOutput::OnPaint()
 {
 	m_Lock.lock(); // 保证m_Source并未用于文本长度估算
 	CPaintDC dc(this);
-	m_Temp.BitBlt(0, 0, m_Width, m_Height, &m_Selection, 0, 0, SRCCOPY);
-	m_Temp.TransparentBlt(0, 0, m_Width, m_Height, &m_Source, 0, 0, m_Width, m_Height, 0);
-	if (m_bFocus) {
-		m_Temp.BitBlt(m_cPointer.x, m_cPointer.y, 1, m_CharSize.cy, &m_Pointer, 0, 0, SRCCOPY);
-	}
-	dc.BitBlt(0, 0, m_Width, m_Height, &m_Temp, 0, 0, SRCCOPY);
+	MemoryDC.BitBlt(0, 0, m_Width, m_Height, &m_Selection, 0, 0, SRCCOPY);
+	MemoryDC.TransparentBlt(0, 0, m_Width, m_Height, &m_Source, 0, 0, m_Width, m_Height, 0);
+	dc.BitBlt(0, 0, m_Width, m_Height, &MemoryDC, 0, 0, SRCCOPY);
 	m_Lock.unlock();
 }
 BOOL CConsoleOutput::OnEraseBkgnd(CDC* pDC)
@@ -96,17 +81,9 @@ void CConsoleOutput::OnSize(UINT nType, int cx, int cy)
 	m_Width = cx - 10;
 	m_Height = cy;
 
-	CDC* pWindowDC = GetDC();
-
 	CBitmap* pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
-	CBitmap* pOldBitmap = m_Temp.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
-	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
-	pOldBitmap = m_Source.SelectObject(pBitmap);
+	CBitmap* pOldBitmap = m_Source.SelectObject(pBitmap);
 	if (pOldBitmap) {
 		pOldBitmap->DeleteObject();
 	}
@@ -158,14 +135,13 @@ BOOL CConsoleOutput::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 void CConsoleOutput::OnSetFocus(CWnd* pOldWnd)
 {
 	CWnd::OnSetFocus(pOldWnd);
-	m_bFocus = true;
-	REDRAW_WINDOW();
+	::CreateCaret(m_hWnd, NULL, 1, m_CharSize.cy);
+	ArrangePointer();
 }
 void CConsoleOutput::OnKillFocus(CWnd* pNewWnd)
 {
 	CWnd::OnKillFocus(pNewWnd);
-	m_bFocus = false;
-	REDRAW_WINDOW();
+	DestroyCaret();
 }
 void CConsoleOutput::AppendText(char* buffer, DWORD transferred)
 {
@@ -230,7 +206,7 @@ void CConsoleOutput::ClearBuffer()
 		delete[] iter->line;
 	}
 	m_Lines.clear();
-	m_Lines.append(LINE{ new wchar_t[] {0}, 1, 1, 0 });
+	m_Lines.append(LINE{ new wchar_t[] {0}, 0, 1, 0 });
 	m_CurrentLine = m_Lines[0];
 	m_TotalHeightUnit = 1;
 	m_PointerPoint = m_DragPointerPoint = CPoint(0, 0);
@@ -350,7 +326,9 @@ void CConsoleOutput::ArrangePointer()
 		GetTextExtentExPointW(m_Source, current_line.line + offset, current_line.length - offset, m_Width, &number, NULL, &size);
 		if (number >= remain) {
 			GetTextExtentPoint32W(m_Source, m_CurrentLine->line + offset, remain, &size);
-			m_cPointer = CPoint(size.cx, (difference + count) * m_CharSize.cy);
+			CPoint point(size.cx, (difference + count) * m_CharSize.cy);
+			SetCaretPos(point);
+			ShowCaret();
 			return;
 		}
 		else {
@@ -484,7 +462,7 @@ void CConsoleOutput::TranslatePointer(CPoint point)
 }
 IndexedList<CConsoleOutput::LINE>::iterator CConsoleOutput::SearchStartLine(LONG& cy, LONG* index)
 {
-	UINT target_height_unit = max(min((UINT)cy / m_CharSize.cy, m_Lines.size() - 1), 0);
+	UINT target_height_unit = max(min(cy / m_CharSize.cy, (LONG)m_Lines[-1]->accumulated_height_unit), 0);
 	// 二分查找
 	UINT low = 0;
 	UINT high = m_Lines.size();
@@ -493,7 +471,7 @@ IndexedList<CConsoleOutput::LINE>::iterator CConsoleOutput::SearchStartLine(LONG
 	while (low != high) {
 		middle = (low + high) / 2;
 		element = m_Lines[middle];
-		if (element->accumulated_height_unit <= target_height_unit) {
+		if (element->accumulated_height_unit < target_height_unit) {
 			if (element->accumulated_height_unit + element->height_unit > target_height_unit) {
 				break;
 			}
@@ -531,6 +509,7 @@ END_MESSAGE_MAP()
 CConsoleInput::CConsoleInput()
 {
 	m_bFocus = false;
+	m_bCaret = false;
 	m_Width = 0;
 	m_FullLength = 0;
 	m_cchBuffer = 0;
@@ -550,11 +529,8 @@ int CConsoleInput::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	CDC* pWindowDC = GetDC();
 	// 创建源
-	m_Temp.CreateCompatibleDC(pWindowDC);
 	m_Source.CreateCompatibleDC(pWindowDC);
-	m_Pointer.CreateCompatibleDC(pWindowDC);
 	m_Selection.CreateCompatibleDC(pWindowDC);
 	m_Source.SelectObject(CConsole::font);
 	// 计算字符大小
@@ -564,25 +540,15 @@ int CConsoleInput::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Offset = rect.right + 15;
 	m_Source.SetTextColor(RGB(255, 255, 255));
 	m_Source.SetBkMode(TRANSPARENT);
-	// 绘制光标
-	CBitmap* pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, 1, m_CharHeight);
-	m_Pointer.SelectObject(pBitmap);
-	rect = CRect(0, 0, 1, m_CharHeight);
-	CBrush brush(RGB(149, 149, 149));
-	m_Pointer.FillRect(&rect, &brush);
 
 	return 0;
 }
 void CConsoleInput::OnPaint()
 {
 	CPaintDC dc(this);
-	m_Temp.BitBlt(0, 0, m_Width, m_CharHeight, &m_Selection, 0, 0, SRCCOPY);
-	m_Temp.TransparentBlt(0, 0, m_Width, m_CharHeight, &m_Source, 0, 0, m_Width, m_CharHeight, 0);
-	if (m_bFocus) {
-		m_Temp.BitBlt(m_cPointer.x, m_cPointer.y, 1, m_CharHeight, &m_Pointer, 0, 0, SRCCOPY);
-	}
-	dc.BitBlt(m_Offset, 0, m_Width, m_CharHeight, &m_Temp, 0, 0, SRCCOPY);
+	MemoryDC.BitBlt(0, 0, m_Width, m_CharHeight, &m_Selection, 0, 0, SRCCOPY);
+	MemoryDC.TransparentBlt(0, 0, m_Width, m_CharHeight, &m_Source, 0, 0, m_Width, m_CharHeight, 0);
+	dc.BitBlt(m_Offset, 0, m_Width, m_CharHeight, &MemoryDC, 0, 0, SRCCOPY);
 }
 BOOL CConsoleInput::OnEraseBkgnd(CDC* pDC)
 {
@@ -597,12 +563,10 @@ void CConsoleInput::OnSize(UINT nType, int cx, int cy)
 {
 	CWnd::OnSize(nType, cx, cy);
 	m_Width = cx;
-
-	CDC* pWindowDC = GetDC();
 	
 	CBitmap* pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, cx - m_Offset, cy);
-	CBitmap* pOldBitmap = m_Temp.SelectObject(pBitmap);
+	CBitmap* pOldBitmap = MemoryDC.SelectObject(pBitmap);
 	if (pOldBitmap) {
 		pOldBitmap->DeleteObject();
 	}
@@ -703,14 +667,16 @@ BOOL CConsoleInput::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 void CConsoleInput::OnSetFocus(CWnd* pOldWnd)
 {
 	CWnd::OnSetFocus(pOldWnd);
+	::CreateCaret(m_hWnd, NULL, 1, m_CharHeight);
 	m_bFocus = true;
-	REDRAW_WINDOW();
+	ArrangePointer();
 }
 void CConsoleInput::OnKillFocus(CWnd* pNewWnd)
 {
 	CWnd::OnKillFocus(pNewWnd);
 	m_bFocus = false;
-	REDRAW_WINDOW();
+	m_bCaret = false;
+	DestroyCaret();
 }
 inline int CConsoleInput::GetCharHeight()
 {
@@ -725,32 +691,47 @@ void CConsoleInput::ArrangeText()
 }
 void CConsoleInput::ArrangePointer()
 {
-	CRect rect;
-	m_Source.DrawTextW(m_Buffer, m_cchPointer, &rect, DT_CALCRECT);
-	m_cPointer = CPoint(rect.right - m_Percentage * m_FullLength, 0);
+	if (not m_bFocus) { return; }
+	CSize size;
+	GetTextExtentPoint32W(m_Source, m_Buffer, m_cchBuffer, &size);
+	CPoint point(size.cx - m_Percentage * m_FullLength + m_Offset, 0);
+	SetCaretPos(point);
+	if (point.x < m_Offset) {
+		if (m_bCaret) {
+			m_bCaret = false;
+			HideCaret();
+		}
+	}
+	else {
+		if (not m_bCaret) {
+			m_bCaret = true;
+			ShowCaret();
+		}
+	}
 }
 void CConsoleInput::ArrangeSelection()
 {
 	CRect rect(0, 0, m_Width, m_CharHeight);
 	m_Selection.FillRect(&rect, pGreyBlackBrush);
-	rect = CRect();
 	UINT smaller = min(m_cchDragPointer, m_cchPointer);
 	UINT larger = max(m_cchDragPointer, m_cchPointer);
-	m_Source.DrawTextW(m_Buffer, smaller, &rect, DT_CALCRECT);
-	LONG start = rect.right;
-	m_Source.DrawTextW(m_Buffer, larger, &rect, DT_CALCRECT);
-	rect.left = start;
+	CSize size;
+	GetTextExtentPoint32W(m_Source, m_Buffer, smaller, &size);
+	rect.left = size.cx;
+	GetTextExtentPoint32W(m_Source, m_Buffer, larger, &size);
+	rect.right = size.cx;
 	m_Selection.FillRect(&rect, &CConsole::selectionColor);
 }
 UINT CConsoleInput::TranslatePointer(CPoint point)
 {
 	point.x -= m_Offset;
-	CRect rect;
-	size_t total_length = 0;
+	point.x = max(point.x, 0);
+	CSize size;
+	LONG total_length = 0;
 	for (UINT index = 0; index != m_cchBuffer; index++) {
-		m_Source.DrawTextW(m_Buffer + index, 1, &rect, DT_CALCRECT);
-		if (total_length + rect.right > point.x) {
-			if (point.x > total_length + rect.right / 2) {
+		LONG this_length = GetTextExtentPoint32W(m_Source, m_Buffer, index, &size) - total_length;
+		if (total_length + this_length > point.x) {
+			if (point.x > total_length + this_length / 2) {
 				return index + 1;
 			}
 			else {
@@ -758,9 +739,10 @@ UINT CConsoleInput::TranslatePointer(CPoint point)
 			}
 		}
 		else {
-			total_length += rect.right;
+			total_length += this_length;
 		}
 	}
+	return m_cchBuffer;
 }
 void CConsoleInput::Delete()
 {
@@ -824,10 +806,10 @@ int CConsole::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Output.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
 	m_Input.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
 	// 更新控制区按钮
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetSelected(false);
 
 	return 0;
 }
@@ -891,8 +873,7 @@ void CConsole::OnDebugDebug()
 	StringCchPrintfW(command, command_length, format, CTagPanel::pObject->GetCurrentTag()->GetPath(), other_opt);
 	command[command_length - 1] = 0;
 	CreateProcessW(0, command, 0, 0, true, CREATE_NO_WINDOW, 0, 0, &m_SI, &m_PI);
-	static const wchar_t* start_message = L"本地伪代码解释器已启动";
-	CMainFrame::pObject->UpdateStatus(true, start_message);
+	CMainFrame::pObject->UpdateStatus(true, new wchar_t[] {L"本地伪代码解释器已启动"});
 	delete[] command;
 	// 监听管道
 	CreateThread(NULL, NULL, CConsole::JoinDebug, nullptr, NULL, NULL);
@@ -900,44 +881,43 @@ void CConsole::OnDebugDebug()
 void CConsole::OnDebugContinue()
 {
 	CEditor::pObject->SendMessageW(WM_STEP, 0, -1);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_CONTINUE, 0);
 }
 void CConsole::OnDebugStepin()
 {
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPIN, 0);
 }
 void CConsole::OnDebugStepover()
 {
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPOVER, 0);
 }
 void CConsole::OnDebugStepout()
 {
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPOUT, 0);
 }
 void CConsole::InitSubprocess(bool debug_mode)
 {
 	// 更新组件状态
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(false);
-	static const wchar_t* start_message = L"本地伪代码解释器已启动";
-	CMainFrame::pObject->UpdateStatus(true, start_message);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetSelected(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetSelected(false);
+	CMainFrame::pObject->UpdateStatus(true, new wchar_t[] {L"本地伪代码解释器已启动"});
 	// 创建管道
 	SECURITY_ATTRIBUTES sa{};
 	sa.nLength = sizeof(sa);
@@ -951,7 +931,7 @@ void CConsole::InitSubprocess(bool debug_mode)
 		CreatePipe(&m_Pipes.signal_out_read, &m_Pipes.signal_out_write, &sa, 20);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->ShowWindow(SW_HIDE);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_SHOW);
-		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetSelected(false);
 	}
 	// 清理控制台
 	m_Output.ClearBuffer();
@@ -976,23 +956,23 @@ void CConsole::ExitSubprocess(UINT exit_code)
 	m_Pipes = PIPE{};
 	m_bRun = false;
 	// 更新组件状态
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetSelected(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetSelected(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetSelected(false);
 	m_Output.SetListState(false);
 
 	switch (exit_code) {
 	case 0:
-		CMainFrame::pObject->UpdateStatus(false, L"代码运行结束");
+		CMainFrame::pObject->UpdateStatus(false, new wchar_t[] {L"代码运行结束"});
 		break;
 	case -1:
-		CMainFrame::pObject->UpdateStatus(false, L"代码运行异常退出");
+		CMainFrame::pObject->UpdateStatus(false, new wchar_t[] {L"代码运行异常退出"});
 		break;
 	case PROCESS_HALTED:
-		CMainFrame::pObject->UpdateStatus(false, L"运行已被强制终止");
+		CMainFrame::pObject->UpdateStatus(false, new wchar_t[] {L"运行已被强制终止"});
 		break;
 	}
 }
@@ -1138,7 +1118,7 @@ void CConsole::SignalProc(UINT message, WPARAM wParam, LPARAM lParam)
 	case SIGNAL_CONNECTION:
 		CEditor::pObject->PostMessageW(WM_STEP, 0, -1);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->ShowWindow(SW_SHOW);
-		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(true);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetSelected(true);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_HIDE);
 		break;
 	case SIGNAL_BREAKPOINT: case SIGNAL_EXECUTION:
