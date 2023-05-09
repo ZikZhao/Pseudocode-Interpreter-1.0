@@ -13,8 +13,8 @@ protected:
 	struct OPERATION {
 		CPoint start; // 插入/删除起始点
 		CPoint end; // 插入/删除结束点
-		wchar_t* content; // 插入/删除内容
-		size_t length; // 插入/删除长度
+		wchar_t* content = nullptr; // 插入/删除内容
+		size_t length = 0; // 插入/删除长度
 		bool insert; // 是否为插入
 	};
 	CDC m_Free; // 未选中文件时展示
@@ -39,10 +39,7 @@ protected:
 	CHSlider m_HSlider; // 水平滚动条
 	std::list<OPERATION> m_Operations; // 操作撤销/还原列表
 	std::list<OPERATION>::iterator m_CurrentOperation; // 当前操作
-	struct {
-		CPoint start;
-		wchar_t* content;
-	} m_TempOperation; // 在超时到达前所有的单字符输入都会记为一步
+	bool m_bRecord; // 正在记录连续的单字符输入/删除
 	CBreakpointDlg* m_Dialog; // 断点对话框
 	LONG64 m_CurrentStepLineIndex; // 当前单步执行行数（包括断点）
 	CBrush m_BreakpointHitColor; // 断点命中颜色
@@ -78,6 +75,7 @@ public:
 	static void CALLBACK VerticalCallback(double percentage); // 垂直滚动条回调函数
 	static void CALLBACK HorizontalCallback(double percentage); // 水平滚动条回调函数
 	static void CALLBACK DeflationCallback(ULONG new_width); // 水平长度削减时回调函数
+	static void EndRecord(HWND hwnd, UINT message, UINT_PTR timer_id, DWORD time); // 单字符输入/删除超时处理函数
 protected:
 	void ArrangeText(); // 计算渲染文字源
 	void ArrangeRenderedText(); // 计算渲染文字源（带语法高亮）
@@ -89,6 +87,8 @@ protected:
 	CPoint TranslatePointer(CPoint point); // 将逻辑坐标转换为字符单位（同时移动当前行指针）
 	void Insert(wchar_t* text); // 插入复杂文本
 	void Delete(); // 删除字符或选区
+	void RecordChar(UINT nChar); // 记录超时内的所有单字符输入
+	void RecordDelete(UINT nChar); // 记录超时内的所有单字符删除
 	void MoveView(); // 移动垂直与水平进度来显示到当前指针
 	void CentralView(LONG64 line_index); // 移动视图到指定行并居中
 	ADVANCED_TOKEN LineSplit(wchar_t* line); // 将一行中的缩进和注释分离
