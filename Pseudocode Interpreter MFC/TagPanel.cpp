@@ -389,14 +389,11 @@ void CTagPanel::OnSize(UINT nType, int cx, int cy)
 	CWnd::OnSize(nType, cx, cy);
 
 	m_Width = cx;
-	;
 
-	CBitmap* pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, cx - 40, 55);
-	CBitmap* pOldBitmap = CFileTag::m_Hover.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
+	HBITMAP hBitmap = CreateCompatibleBitmap(*pWindowDC, cx - 40, 55);
+	HGLOBAL hOldBitmap = SelectObject(CFileTag::m_Hover, hBitmap);
+	DeleteObject(hOldBitmap);
+
 	CRect rect(0, 0, cx - 40, 55);
 	static CBrush brush(RGB(56, 56, 56));
 	CFileTag::m_Hover.FillRect(&rect, &brush);

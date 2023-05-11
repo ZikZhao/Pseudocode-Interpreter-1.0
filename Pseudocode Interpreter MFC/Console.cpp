@@ -81,18 +81,12 @@ void CConsoleOutput::OnSize(UINT nType, int cx, int cy)
 	m_Width = cx - 10;
 	m_Height = cy;
 
-	CBitmap* pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
-	CBitmap* pOldBitmap = m_Source.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
-	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
-	pOldBitmap = m_Selection.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
+	HBITMAP hBitmap = CreateCompatibleBitmap(*pWindowDC, m_Width, m_Height);
+	HGLOBAL hOldBitmap = SelectObject(m_Source, hBitmap);
+	DeleteObject(hOldBitmap);
+	hBitmap = CreateCompatibleBitmap(*pWindowDC, m_Width, m_Height);
+	hOldBitmap = SelectObject(m_Selection, hBitmap);
+	DeleteObject(hOldBitmap);
 	RecalcTotalHeight();
 	ArrangeText();
 	ArrangePointer();
@@ -564,18 +558,12 @@ void CConsoleInput::OnSize(UINT nType, int cx, int cy)
 	CWnd::OnSize(nType, cx, cy);
 	m_Width = cx;
 	
-	CBitmap* pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, cx - m_Offset, cy);
-	CBitmap* pOldBitmap = m_Source.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
-	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, cx, cy);
-	pOldBitmap = m_Selection.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
+	HBITMAP hBitmap = CreateCompatibleBitmap(*pWindowDC, cx - m_Offset, cy);
+	HGLOBAL hOldBitmap = SelectObject(m_Source, hBitmap);
+	DeleteObject(hOldBitmap);
+	hBitmap = CreateCompatibleBitmap(*pWindowDC, cx, cy);
+	hOldBitmap = SelectObject(m_Selection, hBitmap);
+	DeleteObject(hOldBitmap);
 	ArrangeText();
 	ArrangePointer();
 	ArrangeSelection();

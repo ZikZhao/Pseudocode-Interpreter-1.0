@@ -35,10 +35,12 @@ BEGIN_MESSAGE_MAP(CEditor, CWnd)
 	ON_WM_SETCURSOR()
 	ON_WM_SETFOCUS()
 	ON_WM_KILLFOCUS()
+	ON_WM_DESTROY()
 	ON_MESSAGE(WM_STEP, CEditor::OnStep)
 END_MESSAGE_MAP()
 CEditor::CEditor()
 {
+	m_bWindow = false;
 	m_bFocus = false;
 	m_bCaret = false;
 	m_bDrag = false;
@@ -96,7 +98,7 @@ int CEditor::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_HSlider.SetDeflateCallback(DeflationCallback);
 
 	// 启动后台任务
-	Lock lock(&m_BackendLock);
+	m_bWindow = true;
 	CreateThread(NULL, NULL, BackendTasking, nullptr, NULL, NULL);
 
 	return 0;
@@ -110,30 +112,18 @@ void CEditor::OnSize(UINT nType, int cx, int cy)
 	m_Width = cx - 10;
 	m_Height = cy - 10;
 
-	CBitmap* pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
-	CBitmap* pOldBitmap = m_Source.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
-	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
-	pOldBitmap = m_Colour.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
-	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
-	pOldBitmap = m_Selection.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
-	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, 15, m_Height);
-	pOldBitmap = m_Breakpoint.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
+	HBITMAP hBitmap = CreateCompatibleBitmap(*pWindowDC, m_Width, m_Height);
+	HGLOBAL hOldBitmap = SelectObject(m_Source, hBitmap);
+	DeleteObject(hOldBitmap);
+	hBitmap = CreateCompatibleBitmap(*pWindowDC, m_Width, m_Height);
+	hOldBitmap = SelectObject(m_Colour, hBitmap);
+	DeleteObject(hOldBitmap);
+	hBitmap = CreateCompatibleBitmap(*pWindowDC, m_Width, m_Height);
+	hOldBitmap = SelectObject(m_Selection, hBitmap);
+	DeleteObject(hOldBitmap);
+	hBitmap = CreateCompatibleBitmap(*pWindowDC, 12, m_Height);
+	hOldBitmap = SelectObject(m_Breakpoint, hBitmap);
+	DeleteObject(hOldBitmap);
 
 	CRect rect(cx - 10, 0, cx, cy - 10);
 	m_VSlider.MoveWindow(rect);
@@ -378,6 +368,13 @@ void CEditor::OnKillFocus(CWnd* pNewWnd)
 	m_bFocus = false;
 	m_bCaret = false;
 	DestroyCaret();
+}
+void CEditor::OnDestroy()
+{
+	CWnd::OnDestroy();
+
+	m_bWindow = false;
+	m_BackendLock.lock();
 }
 void CEditor::OnUndo()
 {
@@ -1440,10 +1437,15 @@ inline void CEditor::ParseLine()
 DWORD CEditor::BackendTasking(LPVOID)
 {
 	SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN);
-	HWND hWnd = pObject->GetSafeHwnd();
-	while (IsWindow(hWnd)) {
-		pObject->RecalcWidth();
-		pObject->ParseAll();
+	while (pObject->m_bWindow) {
+		MSG msg;
+		if (PeekMessageW(&msg, pObject->m_hWnd, NULL, NULL, PM_NOREMOVE)) {
+			Sleep(500);
+		}
+		else {
+			pObject->RecalcWidth();
+			pObject->ParseAll();
+		}
 	}
 	return 0;
 }
@@ -1521,3 +1523,5 @@ void CEditor::UpdateCandidates()
 {
 
 }
+
+

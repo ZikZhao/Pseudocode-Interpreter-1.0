@@ -17,6 +17,7 @@ protected:
 		size_t length = 0; // 插入/删除长度
 		bool insert; // 是否为插入
 	};
+	bool m_bWindow; // 窗口是否存在
 	CDC m_Free; // 未选中文件时展示
 	CDC m_Source; // 渲染文字源
 	CDC m_Colour; // 语法高亮色块载体
@@ -63,6 +64,7 @@ public:
 	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
 	afx_msg void OnKillFocus(CWnd* pNewWnd);
+	afx_msg void OnDestroy();
 	// 命令
 	afx_msg void OnUndo();
 	afx_msg void OnRedo();
