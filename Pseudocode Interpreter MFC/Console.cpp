@@ -566,13 +566,7 @@ void CConsoleInput::OnSize(UINT nType, int cx, int cy)
 	
 	CBitmap* pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, cx - m_Offset, cy);
-	CBitmap* pOldBitmap = MemoryDC.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
-	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, cx, cy);
-	pOldBitmap = m_Source.SelectObject(pBitmap);
+	CBitmap* pOldBitmap = m_Source.SelectObject(pBitmap);
 	if (pOldBitmap) {
 		pOldBitmap->DeleteObject();
 	}
@@ -806,10 +800,10 @@ int CConsole::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Output.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
 	m_Input.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
 	// 更新控制区按钮
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetState(false);
 
 	return 0;
 }
@@ -881,42 +875,42 @@ void CConsole::OnDebugDebug()
 void CConsole::OnDebugContinue()
 {
 	CEditor::pObject->SendMessageW(WM_STEP, 0, -1);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_CONTINUE, 0);
 }
 void CConsole::OnDebugStepin()
 {
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPIN, 0);
 }
 void CConsole::OnDebugStepover()
 {
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPOVER, 0);
 }
 void CConsole::OnDebugStepout()
 {
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPOUT, 0);
 }
 void CConsole::InitSubprocess(bool debug_mode)
 {
 	// 更新组件状态
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetSelected(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(false);
 	CMainFrame::pObject->UpdateStatus(true, new wchar_t[] {L"本地伪代码解释器已启动"});
 	// 创建管道
 	SECURITY_ATTRIBUTES sa{};
@@ -931,7 +925,7 @@ void CConsole::InitSubprocess(bool debug_mode)
 		CreatePipe(&m_Pipes.signal_out_read, &m_Pipes.signal_out_write, &sa, 20);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->ShowWindow(SW_HIDE);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_SHOW);
-		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetSelected(false);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
 	}
 	// 清理控制台
 	m_Output.ClearBuffer();
@@ -956,12 +950,14 @@ void CConsole::ExitSubprocess(UINT exit_code)
 	m_Pipes = PIPE{};
 	m_bRun = false;
 	// 更新组件状态
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetSelected(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetSelected(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetSelected(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetSelected(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->ShowWindow(SW_SHOW);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_HIDE);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetState(false);
 	m_Output.SetListState(false);
 
 	switch (exit_code) {
@@ -975,6 +971,7 @@ void CConsole::ExitSubprocess(UINT exit_code)
 		CMainFrame::pObject->UpdateStatus(false, new wchar_t[] {L"运行已被强制终止"});
 		break;
 	}
+	CEditor::pObject->PostMessageW(WM_STEP, 0, -1);
 }
 DWORD CConsole::Join(LPVOID lpParameter)
 {
@@ -1118,7 +1115,7 @@ void CConsole::SignalProc(UINT message, WPARAM wParam, LPARAM lParam)
 	case SIGNAL_CONNECTION:
 		CEditor::pObject->PostMessageW(WM_STEP, 0, -1);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->ShowWindow(SW_SHOW);
-		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetSelected(true);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(true);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_HIDE);
 		break;
 	case SIGNAL_BREAKPOINT: case SIGNAL_EXECUTION:

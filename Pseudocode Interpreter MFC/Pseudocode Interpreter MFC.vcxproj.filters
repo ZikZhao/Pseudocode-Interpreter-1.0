@@ -159,6 +159,21 @@
     <Image Include="images\file_saveas.bmp">
       <Filter>资源文件</Filter>
     </Image>
+    <Image Include="images\edit_copy.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\edit_cut.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\bitmap1.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\edit_paste.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\edit_leftarrow.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <Font Include="YAHEI CONSOLAS HYBRID.TTF" />

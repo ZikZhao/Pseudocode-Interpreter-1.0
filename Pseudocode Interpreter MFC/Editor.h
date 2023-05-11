@@ -43,8 +43,7 @@ protected:
 	CBreakpointDlg* m_Dialog; // 断点对话框
 	LONG64 m_CurrentStepLineIndex; // 当前单步执行行数（包括断点）
 	CBrush m_BreakpointHitColor; // 断点命中颜色
-	bool m_bBackendEnabled; // 当前台任务结束时，允许后台任务恢复执行
-	CEvent* m_BackendPaused; // 当所有后台任务被暂停时，设定事件
+	std::recursive_mutex m_BackendLock; // 后台任务锁（用于短暂暂停后台任务以避免访问冲突）
 public:
 	// 构造
 	CEditor();
@@ -64,10 +63,13 @@ public:
 	afx_msg BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);
 	afx_msg void OnSetFocus(CWnd* pOldWnd);
 	afx_msg void OnKillFocus(CWnd* pNewWnd);
-	afx_msg void OnTimer(UINT_PTR nIDEvent); // 用于重启后台任务
 	// 命令
 	afx_msg void OnUndo();
 	afx_msg void OnRedo();
+	afx_msg void OnCopy();
+	afx_msg void OnCut();
+	afx_msg void OnPaste();
+	afx_msg void OnLeftarrow();
 	// 自定义消息
 	afx_msg LRESULT OnStep(WPARAM wParam, LPARAM lParam); // 单步执行消息
 	// 自定义函数
@@ -85,7 +87,8 @@ protected:
 	void UpdateSlider(); // 更新垂直和水平滚动条
 	void MovePointer(CPoint pointer); // 更新指针坐标（m_PointerPoint）以及当前行指针
 	CPoint TranslatePointer(CPoint point); // 将逻辑坐标转换为字符单位（同时移动当前行指针）
-	void Insert(wchar_t* text); // 插入复杂文本
+	wchar_t* GetSelectionText(size_t& size); // 获取当前选区文本
+	void Insert(const wchar_t* text); // 插入复杂文本
 	void Delete(); // 删除字符或选区
 	void RecordChar(UINT nChar); // 记录超时内的所有单字符输入
 	void RecordDelete(UINT nChar); // 记录超时内的所有单字符删除

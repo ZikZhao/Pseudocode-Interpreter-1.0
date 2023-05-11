@@ -5,17 +5,11 @@
 #define IDD_ABOUTBOX                    100
 #define IDP_OLE_INIT_FAILED             101
 #define IDR_MAINFRAME                   104
-#define IDB_NEWFILE                     125
 #define IDB_FILE_NEW                    125
-#define IDB_REDO                        126
 #define IDB_EDIT_REDO                   126
-#define IDB_RUN_DEBUG                   127
 #define IDB_DEBUG_DEBUG                 127
-#define IDB_RUN_NORMAL                  128
 #define IDB_DEBUG_RUN                   128
-#define IDB_SAVE_FILE                   129
 #define IDB_FILE_SAVE                   129
-#define IDB_UNDO                        130
 #define IDB_EDIT_UNDO                   130
 #define IDD_BREAKPOINT                  133
 #define IDC_RADIO1                      134
@@ -38,29 +32,27 @@
 #define IDB_FILE_OPEN                   142
 #define IDB_FILE_SAVEAS                 143
 #define ID_DEBUG_STEPIN                 144
+#define IDB_EDIT_COPY                   144
 #define ID_DEBUG_STEPOVER               145
+#define IDB_EDIT_CUT                    145
 #define ID_DEBUG_STEPOUT                146
 #define ID_DEBUG_CONTINUE               147
+#define IDB_EDIT_PASTE                  147
 #define ID_FILE_SAVEAS                  148
-#define ID_32771                        32771
-#define ID_32772                        32772
-#define ID_32773                        32773
+#define ID_EDIT_LEFTARROW               149
+#define IDB_BITMAP1                     149
+#define IDB_EDIT_LEFTARROW              149
 #define ID_DEBUG_RUN                    32774
 #define ID_DEBUG_DEBUG                  32775
-#define ID_32776                        32776
 #define ID_DEBUG_HALT                   32776
-#define ID_32780                        32780
-#define ID_32781                        32781
-#define ID_32782                        32782
-#define ID_Menu                         32783
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        144
+#define _APS_NEXT_RESOURCE_VALUE        150
 #define _APS_NEXT_COMMAND_VALUE         32784
 #define _APS_NEXT_CONTROL_VALUE         141
-#define _APS_NEXT_SYMED_VALUE           149
+#define _APS_NEXT_SYMED_VALUE           150
 #endif
 #endif

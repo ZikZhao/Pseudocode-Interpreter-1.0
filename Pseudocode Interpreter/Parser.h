@@ -5,7 +5,7 @@
 #endif
 #define ENDTOKEN { 0, TOKENTYPE::Null }
 
-extern size_t current_instruction_index;
+extern LONGLONG current_instruction_index;
 
 void strip(wchar_t* line); // remove spaces before and after text
 
@@ -451,10 +451,10 @@ public:
 		} for_info;
 	} *nest_info;
 	USHORT tag_number;
-	UINT* line_numbers;
-	Nesting(NestType type, UINT first_tag_line_number);
+	LONGLONG* line_numbers;
+	Nesting(NestType type, LONGLONG first_tag_line_number);
 	~Nesting();
-	void add_tag(UINT new_tag_line_number);
+	void add_tag(LONGLONG new_tag_line_number);
 };
 
 // file object
@@ -485,7 +485,7 @@ struct BREAKPOINT {
 };
 
 struct CALLFRAME {
-	size_t line_number;
+	LONGLONG line_number;
 	wchar_t* name;
 	BinaryTree* local_variables;
 };

@@ -16,7 +16,7 @@ HANDLE standard_error;
 HANDLE signal_in = 0; // used for debugging mode
 HANDLE signal_out = 0; // used for debugging mode
 IndexedList<wchar_t*> lines;
-size_t& CII = current_instruction_index;
+LONGLONG& CII = current_instruction_index;
 
 unsigned settings = default_settings;
 // these are used for debugging mode
@@ -506,7 +506,7 @@ void SendSignal(UINT message, WPARAM wParam, LPARAM lParam) {
 	memcpy(buffer, &message, 4);
 	memcpy(buffer + 4, &wParam, 8);
 	memcpy(buffer + 12, &lParam, 8);
-	WriteFile(signal_out, buffer, 1024, 0, nullptr);
+	WriteFile(signal_out, buffer, 20, 0, nullptr);
 }
 
 // check whether the current line of code contains a breakpoint

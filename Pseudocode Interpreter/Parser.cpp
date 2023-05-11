@@ -2,7 +2,7 @@
 #include <cmath>
 #include "Parser.h"
 
-size_t current_instruction_index = 0;
+LONGLONG current_instruction_index = 0;
 
 void strip(wchar_t* line) {
 	size_t start = 0;
@@ -3901,10 +3901,10 @@ CONSTRUCT* Construct::parse(wchar_t* line) {
 	return new CONSTRUCT{ NULL, RESULT{} };
 }
 
-Nesting::Nesting(NestType type, UINT first_tag_line_number) {
+Nesting::Nesting(NestType type, LONGLONG first_tag_line_number) {
 	this->nest_type = type;
 	this->tag_number = 1;
-	this->line_numbers = new UINT[1]{ first_tag_line_number };
+	this->line_numbers = new LONGLONG[1]{ first_tag_line_number };
 	if (this->nest_type == CASE or this->nest_type == FOR or
 		this->nest_type == PROCEDURE or this->nest_type == FUNCTION) {
 		this->nest_info = new Info{};
@@ -3925,9 +3925,9 @@ Nesting::~Nesting() {
 		delete this->nest_info;
 	}
 }
-void Nesting::add_tag(UINT new_tag_line_number) {
-	UINT* temp_line_numbers = new UINT[this->tag_number + 1];
-	memcpy(temp_line_numbers, this->line_numbers, sizeof(UINT) * this->tag_number);
+void Nesting::add_tag(LONGLONG new_tag_line_number) {
+	LONGLONG* temp_line_numbers = new LONGLONG[this->tag_number + 1];
+	memcpy(temp_line_numbers, this->line_numbers, sizeof(LONGLONG) * this->tag_number);
 	temp_line_numbers[this->tag_number] = new_tag_line_number;
 	delete[] this->line_numbers;
 	this->line_numbers = temp_line_numbers;

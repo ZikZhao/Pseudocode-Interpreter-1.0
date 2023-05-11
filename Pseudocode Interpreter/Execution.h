@@ -752,7 +752,7 @@ namespace Execution {
 		DataType::release_data(data);
 	}
 	void while_ender(RESULT result) {
-		current_instruction_index = ((Nesting*)result.args[1])->line_numbers[0] - 1;
+		current_instruction_index = ((Nesting*)result.args[0])->line_numbers[0] - 1;
 	}
 	void repeat_header(RESULT result) {
 		UNREFERENCED_PARAMETER(result);

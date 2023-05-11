@@ -25,13 +25,13 @@ public:
 	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
 	afx_msg void OnMouseLeave();
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
-	void SetSelected(bool selected);
+	void SetState(bool selected);
 };
 
 class CControlPanelComponent : public CWnd
 {
 public:
-	virtual void SetSelected(bool state);
+	virtual void SetState(bool state);
 };
 
 class CControlPanelButton : public CControlPanelComponent
@@ -58,7 +58,7 @@ public:
 	afx_msg void OnMouseLeave();
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
-	virtual void SetSelected(bool state);
+	virtual void SetState(bool state);
 };
 
 class CControlPanelSplitter : public CControlPanelComponent

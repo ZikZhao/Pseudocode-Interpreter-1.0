@@ -3,7 +3,6 @@
 static class CSlider : public CWnd
 {
 protected:
-	CDC m_MemoryDC;
 	CDC m_Bg;
 	CDC m_Source;
 	CDC m_Hover;

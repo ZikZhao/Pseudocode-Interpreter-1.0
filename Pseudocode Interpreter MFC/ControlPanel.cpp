@@ -105,13 +105,13 @@ void CControlPanelTag::OnLButtonUp(UINT nFlags, CPoint point)
 {
 	CControlPanel::pObject->ShiftTag(m_TagIndex);
 }
-void CControlPanelTag::SetSelected(bool selected)
+void CControlPanelTag::SetState(bool selected)
 {
 	m_bSelected = selected;
 	REDRAW_WINDOW();
 }
 
-void CControlPanelComponent::SetSelected(bool state)
+void CControlPanelComponent::SetState(bool state)
 {
 }
 
@@ -235,7 +235,7 @@ void CControlPanelButton::OnLButtonUp(UINT nFlags, CPoint point)
 		CMainFrame::pObject->SendMessageW(WM_COMMAND, m_CommandID, NULL);
 	}
 }
-void CControlPanelButton::SetSelected(bool state)
+void CControlPanelButton::SetState(bool state)
 {
 	m_bDisabled = not state;
 	REDRAW_WINDOW();
@@ -282,7 +282,15 @@ int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		BEGIN_GROUP(ID_EDIT)
 			BUTTON(ID_EDIT_UNDO, IDB_EDIT_UNDO, L"撤销", 0)
 			BUTTON(ID_EDIT_REDO, IDB_EDIT_REDO, L"重做", 80)
+			SPLITTER(160)
+			BUTTON(ID_EDIT_COPY, IDB_EDIT_COPY, L"复制", 172)
+			BUTTON(ID_EDIT_CUT, IDB_EDIT_CUT, L"剪切", 252)
+			BUTTON(ID_EDIT_PASTE, IDB_EDIT_PASTE, L"粘贴", 332)
+			SPLITTER(412)
+			BUTTON(ID_EDIT_LEFTARROW, IDB_EDIT_LEFTARROW, L"赋值符", 424)
 		END_GROUP()
+		FIND_BUTTON(ID_EDIT, ID_EDIT_UNDO)->SetState(false);
+		FIND_BUTTON(ID_EDIT, ID_EDIT_REDO)->SetState(false);
 		break;
 	case 2:
 		BEGIN_GROUP(ID_DEBUG)
@@ -292,7 +300,7 @@ int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			BUTTON(ID_DEBUG_DEBUG, IDB_DEBUG_DEBUG, L"调试", 172)
 			BUTTON(ID_DEBUG_CONTINUE, IDB_DEBUG_CONTINUE, L"继续", 172)
 			BUTTON(ID_DEBUG_STEPIN, IDB_DEBUG_STEPIN, L"步入", 252)
-			BUTTON(ID_DEBUG_STEPOVER, IDB_DEBUG_STEPOVER, L"步进", 332)
+			BUTTON(ID_DEBUG_STEPOVER, IDB_DEBUG_STEPOVER, L"步过", 332)
 			BUTTON(ID_DEBUG_STEPOUT, IDB_DEBUG_STEPOUT, L"步出", 412)
 		END_GROUP()
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_HIDE);
@@ -418,10 +426,10 @@ void CControlPanel::OnPaint()
 	dc.FillRect(rect, pGreyBlackBrush);
 }
 void CControlPanel::ShiftTag(USHORT tag_index) {
-	m_Tags[m_CurrentTagIndex].SetSelected(false);
+	m_Tags[m_CurrentTagIndex].SetState(false);
 	m_Groups[m_CurrentTagIndex].ShowWindow(SW_HIDE);
 	m_CurrentTagIndex = tag_index;
-	m_Tags[m_CurrentTagIndex].SetSelected(true);
+	m_Tags[m_CurrentTagIndex].SetState(true);
 	m_Groups[m_CurrentTagIndex].ShowWindow(SW_NORMAL);
 }
 CControlPanelGroup* CControlPanel::GetGroup(UINT id)

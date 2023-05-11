@@ -45,7 +45,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	// 为所有组件创建内存DC
 	pWindowDC = GetDC();
-	MemoryDC.CreateCompatibleDC(GetDC());
+	MemoryDC.CreateCompatibleDC(pWindowDC);
 
 	// 创建提示文本
 	m_Tip.Create(this, TTS_ALWAYSTIP);
@@ -84,12 +84,11 @@ void CMainFrame::OnSize(UINT nType, int cx, int cy)
 {
 	CFrameWndEx::OnSize(nType, cx, cy);
 
-	CBitmap* pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, cx, cy);
-	CBitmap* pOldBitmap = MemoryDC.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
+	pWindowDC = GetDC();
+	// 创建新的内存位图
+	DeleteObject(hBitmap);
+	hBitmap = CreateCompatibleBitmap(*pWindowDC, cx, cy);
+	SelectObject(MemoryDC, hBitmap);
 
 	CRect rect;
 	m_InfoView.GetClientRect(&rect);
@@ -128,6 +127,10 @@ void CMainFrame::OnDispatchCommand(UINT uID)
 		DISPATCH_CASE(ID_FILE_SAVEAS, CTagPanel, OnSaveAs)
 		DISPATCH_CASE(ID_EDIT_UNDO, CEditor, OnUndo)
 		DISPATCH_CASE(ID_EDIT_REDO, CEditor, OnRedo)
+		DISPATCH_CASE(ID_EDIT_COPY, CEditor, OnCopy)
+		DISPATCH_CASE(ID_EDIT_CUT, CEditor, OnCut)
+		DISPATCH_CASE(ID_EDIT_PASTE, CEditor, OnPaste)
+		DISPATCH_CASE(ID_EDIT_LEFTARROW, CEditor, OnLeftarrow)
 		DISPATCH_CASE(ID_DEBUG_RUN, CConsole, OnDebugRun)
 		DISPATCH_CASE(ID_DEBUG_HALT, CConsole, OnDebugHalt)
 		DISPATCH_CASE(ID_DEBUG_DEBUG, CConsole, OnDebugDebug)

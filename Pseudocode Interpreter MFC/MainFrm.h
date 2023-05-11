@@ -20,6 +20,7 @@ class CMainFrame : public CFrameWndEx
 	DECLARE_MESSAGE_MAP()
 public:
 	static inline CMainFrame* pObject = nullptr;
+	static inline HBITMAP hBitmap = NULL; // 内存DC位图
 	static inline CToolTipCtrl m_Tip; // 提示文本
 protected:
 	CControlPanel m_ControlPanel;

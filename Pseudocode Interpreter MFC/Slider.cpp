@@ -2,7 +2,7 @@
 
 inline void CSlider::SetPercentage(double percentage) {
 	m_Percentage = max(min(percentage, 1.0 - m_Ratio), 0);
-	RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+	REDRAW_WINDOW();
 	if (m_pCallback) { m_pCallback(m_Percentage); }
 }
 void CSlider::DeflateLength(ULONG original, ULONG current)
@@ -67,15 +67,12 @@ int CHSlider::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	;
-
 	// 准备工具
 	m_Pen.CreatePen(PS_NULL, 0, RGB(0, 0, 0));
 	m_SliderColor.CreateSolidBrush(RGB(220, 220, 220));
 	m_BgColor.CreateSolidBrush(RGB(46, 46, 46));
 
 	// 准备源
-	m_MemoryDC.CreateCompatibleDC(pWindowDC);
 	m_Bg.CreateCompatibleDC(pWindowDC);
 	m_Source.CreateCompatibleDC(pWindowDC);
 	m_Hover.CreateCompatibleDC(pWindowDC);
@@ -95,31 +92,28 @@ BOOL CHSlider::OnEraseBkgnd(CDC* pDC)
 void CHSlider::OnPaint()
 {
 	CPaintDC dc(this);
-	m_MemoryDC.BitBlt(0, 0, m_Height, 10, &m_Bg, 0, 0, SRCCOPY);
+	MemoryDC.BitBlt(0, 0, m_Height, 10, &m_Bg, 0, 0, SRCCOPY);
 	// 使滑动条最小为一个圆点
 	double minimum_ratio = (double)m_SliderHeight / m_Height;
 	double adjusted_percentage = min(1.0 - minimum_ratio, m_Percentage);
 	if (m_bHoverSlider) {
-		m_MemoryDC.TransparentBlt(m_Height * adjusted_percentage, 0, m_SliderHeight, 10, &m_Hover, 0, 0, m_SliderHeight, 10, 0);
+		MemoryDC.TransparentBlt(m_Height * adjusted_percentage, 0, m_SliderHeight, 10, &m_Hover, 0, 0, m_SliderHeight, 10, 0);
 	}
 	else {
-		m_MemoryDC.TransparentBlt(m_Height * adjusted_percentage, 0, m_SliderHeight, 10, &m_Source, 0, 0, m_SliderHeight, 10, 0);
+		MemoryDC.TransparentBlt(m_Height * adjusted_percentage, 0, m_SliderHeight, 10, &m_Source, 0, 0, m_SliderHeight, 10, 0);
 	}
-	dc.BitBlt(0, 0, m_Height, 10, &m_MemoryDC, 0, 0, SRCCOPY);
+	dc.BitBlt(0, 0, m_Height, 10, &MemoryDC, 0, 0, SRCCOPY);
 }
 void CHSlider::OnSize(UINT nType, int cx, int cy)
 {
 	m_Height = cx;
-	;
 
 	CBitmap* pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Height, 10);
-	CBitmap* pOldBitmap = m_MemoryDC.SelectObject(pBitmap);
-	pOldBitmap->DeleteObject();
-	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Height, 10);
-	pOldBitmap = m_Bg.SelectObject(pBitmap);
-	pOldBitmap->DeleteObject();
+	CBitmap* pOldBitmap = m_Bg.SelectObject(pBitmap);
+	if (pOldBitmap) {
+		pOldBitmap->DeleteObject();
+	}
 	CRect rect(0, 0, m_Height, 10);
 	m_Bg.FillRect(&rect, pGreyBlackBrush);
 	m_Bg.RoundRect(&rect, CPoint(10, 10));
@@ -203,7 +197,6 @@ BOOL CHSlider::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 void CHSlider::SetRatio(double ratio)
 {
 	CSlider::SetRatio(ratio);
-	;
 
 	m_SliderHeight = (USHORT)max(m_Height * m_Ratio, 10); // 按钮最小是个圆
 	CBitmap* pBitmap = new CBitmap;
@@ -257,15 +250,12 @@ int CVSlider::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	;
-
 	// 准备工具
 	m_Pen.CreatePen(PS_NULL, 0, RGB(0, 0, 0));
 	m_SliderColor.CreateSolidBrush(RGB(220, 220, 220));
 	m_BgColor.CreateSolidBrush(RGB(46, 46, 46));
 
 	// 准备源
-	m_MemoryDC.CreateCompatibleDC(pWindowDC);
 	m_Bg.CreateCompatibleDC(pWindowDC);
 	m_Source.CreateCompatibleDC(pWindowDC);
 	m_Hover.CreateCompatibleDC(pWindowDC);
@@ -285,38 +275,32 @@ BOOL CVSlider::OnEraseBkgnd(CDC* pDC)
 void CVSlider::OnPaint()
 {
 	CPaintDC dc(this);
-	m_MemoryDC.BitBlt(0, 0, 10, m_Height, &m_Bg, 0, 0, SRCCOPY);
+	MemoryDC.BitBlt(0, 0, 10, m_Height, &m_Bg, 0, 0, SRCCOPY);
 	// 使滑动条最小为一个圆点
 	double minimum_ratio = (double)m_SliderHeight / m_Height;
 	double adjusted_percentage = min(1.0 - minimum_ratio, m_Percentage);
 	if (m_bHoverSlider) {
-		m_MemoryDC.TransparentBlt(0, m_Height * adjusted_percentage, 10, m_SliderHeight, &m_Hover, 0, 0, 10, m_SliderHeight, 0);
+		MemoryDC.TransparentBlt(0, m_Height * adjusted_percentage, 10, m_SliderHeight, &m_Hover, 0, 0, 10, m_SliderHeight, 0);
 	}
 	else {
-		m_MemoryDC.TransparentBlt(0, m_Height * adjusted_percentage, 10, m_SliderHeight, &m_Source, 0, 0, 10, m_SliderHeight, 0);
+		MemoryDC.TransparentBlt(0, m_Height * adjusted_percentage, 10, m_SliderHeight, &m_Source, 0, 0, 10, m_SliderHeight, 0);
 	}
-	dc.BitBlt(0, 0, 10, m_Height, &m_MemoryDC, 0, 0, SRCCOPY);
+	dc.BitBlt(0, 0, 10, m_Height, &MemoryDC, 0, 0, SRCCOPY);
 }
 void CVSlider::OnSize(UINT nType, int cx, int cy)
 {
 	m_Height = cy;
-	;
 
 	CBitmap* pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(pWindowDC, 10, m_Height);
-	CBitmap* pOldBitmap = m_MemoryDC.SelectObject(pBitmap);
-	if (pOldBitmap) {
-		pOldBitmap->DeleteObject();
-	}
-	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, 10, m_Height);
-	pOldBitmap = m_Bg.SelectObject(pBitmap);
+	CBitmap* pOldBitmap = m_Bg.SelectObject(pBitmap);
 	if (pOldBitmap) {
 		pOldBitmap->DeleteObject();
 	}
 	CRect rect(0, 0, 10, m_Height);
 	m_Bg.FillRect(&rect, pGreyBlackBrush);
 	m_Bg.RoundRect(&rect, CPoint(10, 10));
+	SetRatio(m_Ratio);
 }
 void CVSlider::OnLButtonDown(UINT nFlags, CPoint point)
 {
@@ -390,11 +374,10 @@ BOOL CVSlider::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 void CVSlider::SetRatio(double ratio)
 {
 	CSlider::SetRatio(ratio);
-	;
 	
 	m_SliderHeight = (USHORT)max(m_Height * m_Ratio, 10); // 按钮最小是个圆
 	CBitmap* pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, 10, m_SliderHeight);
+	BOOL result = pBitmap->CreateCompatibleBitmap(pWindowDC, 10, m_SliderHeight);
 	CBitmap* pOldBitmap = m_Source.SelectObject(pBitmap);
 	if (pOldBitmap) {
 		pOldBitmap->DeleteObject();
