@@ -67,6 +67,7 @@ struct DATA {
 struct RPN_EXP {
 	wchar_t* rpn = nullptr;
 	USHORT number_of_element = 0;
+	~RPN_EXP();
 };
 
 // structure that represent a parameter of a function
@@ -78,8 +79,6 @@ struct PARAMETER {
 	};
 	bool passed_by_ref = false;
 };
-
-void release_rpn(RPN_EXP* rpn_exp);
 
 // a whole structure representing a construct
 struct CONSTRUCT {
@@ -484,13 +483,15 @@ struct BREAKPOINT {
 	bool valid = true;
 };
 
-struct CALLFRAME {
-	LONGLONG line_number;
-	wchar_t* name;
-	BinaryTree* local_variables;
-};
-
+// used in signal only
 struct CALLSTACK {
-	CALLFRAME* call;
-	USHORT ptr;
+	struct FRAME {
+		LONGLONG line_number;
+		wchar_t* name;
+		BinaryTree* local_variables;
+	} stack[128];
+	USHORT ptr = 0;
+	inline FRAME GetCurrentCall() {
+		return stack[ptr - 1];
+	}
 };

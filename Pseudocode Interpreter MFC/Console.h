@@ -119,13 +119,14 @@ public:
 	static inline CConsole* pObject = nullptr;
 	static inline CFont font; // 字体
 	static inline CBrush selectionColor; //选区背景色
+	bool m_bRun; // 子进程正在运行
 protected:
 	CConsoleOutput m_Output;
 	CConsoleInput m_Input;
 	PIPE m_Pipes; // 所有管道句柄
 	STARTUPINFO m_SI; // 进程启动信息
 	PROCESS_INFORMATION m_PI; // 进程信息
-	bool m_bRun; // 子进程正在运行
+	HANDLE m_DebugHandle; // 可读取内存的进程句柄
 	bool m_bShow; // 是否显示窗口
 public:
 	CConsole();
@@ -142,11 +143,22 @@ public:
 	afx_msg void OnDebugStepin();
 	afx_msg void OnDebugStepover();
 	afx_msg void OnDebugStepout();
+	bool SendInput(wchar_t* input, DWORD count); // 发送输入到子进程（返回值标识是否允许发送输入）
+	template<typename Type>
+	Type* ReadMemory(Type* address); // 获取可读取内存的进程句柄
+private:
 	void InitSubprocess(bool debug_mode); // 准备监听新进程
 	void ExitSubprocess(UINT exit_code); // 解释器实例结束时运行
 	static DWORD Join(LPVOID lpParamter); // 进入管道监听循环
 	static DWORD JoinDebug(LPVOID lpParameter); // 进入管道监听循环（调试模式）
 	static void SendSignal(UINT message, WPARAM wParam, LPARAM lParam); // 生产通信信息
-	bool SendInput(wchar_t* input, DWORD count); // 发送输入到子进程
 	void SignalProc(UINT message, WPARAM wParam, LPARAM lParam); // 子进程信号处理
 };
+
+template<typename Type>
+inline Type* CConsole::ReadMemory(Type* address)
+{
+	Type* buffer = (Type*)malloc(sizeof(Type));
+	ReadProcessMemory(m_DebugHandle, address, buffer, sizeof(Type), NULL);
+	return buffer;
+}

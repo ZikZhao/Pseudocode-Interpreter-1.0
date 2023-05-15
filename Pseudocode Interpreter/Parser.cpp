@@ -65,7 +65,7 @@ wchar_t* unsigned_to_string(unsigned number) {
 		result[1] = 0;
 		return result;
 	}
-	size_t digit = log10(number);
+	size_t digit = log10(number) + 1;
 	wchar_t* result = new wchar_t[digit + 1];
 	result[digit] = 0;
 	for (size_t index = digit - 1; index != -1; index--) {
@@ -144,6 +144,10 @@ long match_keyword(wchar_t* expr, const wchar_t* keyword) {
 	return -1;
 }
 
+RPN_EXP::~RPN_EXP() {
+	delete[] rpn;
+}
+
 void CONSTRUCT::release_tokens() {
 	delete result.tokens;
 }
@@ -163,7 +167,7 @@ CONSTRUCT::~CONSTRUCT() {
 		break;
 	case Construct::_constant:
 		delete[] result.args[0];
-		release_rpn((RPN_EXP*)result.args[1]);
+		delete (RPN_EXP*)result.args[1];
 		break;
 	case Construct::_type_header:
 		delete[] result.args[0];
@@ -178,43 +182,43 @@ CONSTRUCT::~CONSTRUCT() {
 		break;
 	case Construct::_assignment:
 		delete[] result.args[0];
-		release_rpn((RPN_EXP*)result.args[1]);
+		delete (RPN_EXP*)result.args[1];
 		break;
 	case Construct::_output:
-		release_rpn((RPN_EXP*)result.args[0]);
+		delete (RPN_EXP*)result.args[0];
 		break;
 	case Construct::_input:
 		delete[] result.args[0];
 		break;
 	case Construct::_if_header_1: case Construct::_if_header_2:
-		release_rpn((RPN_EXP*)result.args[1]);
+		delete (RPN_EXP*)result.args[1];
 		break;
 	case Construct::_if_ender:
 		delete (Nesting*)result.args[0];
 		break;
 	case Construct::_case_of_header:
-		release_rpn((RPN_EXP*)result.args[1]);
+		delete (RPN_EXP*)result.args[1];
 		break;
 	case Construct::_case_of_ender:
 		delete (Nesting*)result.args[0];
 		break;
 	case Construct::_for_header_1: case Construct::_for_header_2:
 		delete[] result.args[1];
-		release_rpn((RPN_EXP*)result.args[2]);
-		release_rpn((RPN_EXP*)result.args[3]);
+		delete (RPN_EXP*)result.args[2];
+		delete (RPN_EXP*)result.args[3];
 		break;
 	case Construct::_for_ender:
 		delete (Nesting*)result.args[0];
 		break;
 	case Construct::_while_header:
-		release_rpn((RPN_EXP*)result.args[1]);
+		delete (RPN_EXP*)result.args[1];
 		break;
 	case Construct::_while_ender:
 		delete (Nesting*)result.args[0];
 		break;
 	case Construct::_repeat_ender:
 		delete (Nesting*)result.args[0];
-		release_rpn((RPN_EXP*)result.args[1]);
+		delete (RPN_EXP*)result.args[1];
 		break;
 	case Construct::_procedure_header:
 		delete[] result.args[1];
@@ -239,49 +243,44 @@ CONSTRUCT::~CONSTRUCT() {
 		break;
 	case Construct::_return_statement:
 		if (((bool*)result.args[1])) {
-			release_rpn((RPN_EXP*)result.args[2]);
+			delete (RPN_EXP*)result.args[2];
 		}
 		break;
 	case Construct::_try_ender:
 		delete (Nesting*)result.args[0];
 		break;
 	case Construct::_openfile_statement:
-		release_rpn((RPN_EXP*)result.args[0]);
+		delete (RPN_EXP*)result.args[0];
 		delete result.args[1];
 		break;
 	case Construct::_readfile_statement:
-		release_rpn((RPN_EXP*)result.args[0]);
+		delete (RPN_EXP*)result.args[0];
 		delete[] result.args[1];
 		break;
 	case Construct::_writefile_statement:
-		release_rpn((RPN_EXP*)result.args[0]);
-		release_rpn((RPN_EXP*)result.args[1]);
+		delete (RPN_EXP*)result.args[0];
+		delete (RPN_EXP*)result.args[1];
 		break;
 	case Construct::_closefile_statement:
-		release_rpn((RPN_EXP*)result.args[0]);
+		delete (RPN_EXP*)result.args[0];
 		break;
 	case Construct::_seek_statement:
-		release_rpn((RPN_EXP*)result.args[0]);
-		release_rpn((RPN_EXP*)result.args[1]);
+		delete (RPN_EXP*)result.args[0];
+		delete (RPN_EXP*)result.args[1];
 		break;
 	case Construct::_getrecord_statement:
-		release_rpn((RPN_EXP*)result.args[0]);
+		delete (RPN_EXP*)result.args[0];
 		delete[] result.args[1];
 		break;
 	case Construct::_putrecord_statement:
-		release_rpn((RPN_EXP*)result.args[0]);
-		release_rpn((RPN_EXP*)result.args[1]);
+		delete (RPN_EXP*)result.args[0];
+		delete (RPN_EXP*)result.args[1];
 		break;
 	case Construct::_single_expression:
-		release_rpn((RPN_EXP*)result.args[0]);
+		delete (RPN_EXP*)result.args[0];
 		break;
 	}
 	delete[] result.args;
-}
-
-void release_rpn(RPN_EXP* rpn) {
-	delete[] rpn->rpn;
-	delete rpn;
 }
 
 Error::Error(ErrorType error_type_in, const wchar_t* error_message_in) {
@@ -2313,7 +2312,7 @@ bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 				size_t total_args_length = 0; // counting of every single character in combined rpn, including \0
 				wchar_t* function_name = nullptr; // in the final stage it will be in a form of f/x, where x is the number of args
 				for (size_t index = 0; tag_expr[index] != 0; index++) {
-					if (tag_expr[index] == 40) {
+					if (tag_expr[index] == L'(') {
 						last_spliter = index;
 						number_of_bracket++;
 						if (number_of_bracket != 1) {
@@ -2327,7 +2326,7 @@ bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 							delete[] function_name;
 							return false;
 						}
-						if (tag_expr[index + 1] == 41) { // no argument
+						if (tag_expr[index + 1] == L')') { // no argument
 							wchar_t* final_function_name = new wchar_t[wcslen(function_name) + 3];
 							memcpy(final_function_name, function_name, wcslen(function_name) * 2);
 							final_function_name[wcslen(function_name)] = 9;
@@ -2368,11 +2367,10 @@ bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 						total_args_length += this_args_length;
 						final_rpn->rpn = combined_rpn_string;
 						final_rpn->number_of_element += arg_rpn->number_of_element;
-						delete[] arg_rpn->rpn;
 						delete arg_rpn;
 						number_of_args++;
 						last_spliter = index;
-						if (tag_expr[index] == 41) { // end of function calling
+						if (tag_expr[index] == L')') { // end of function calling
 							if (number_of_bracket == 1) {
 								wchar_t* final_number_of_args = unsigned_to_string(number_of_args);
 								wchar_t* final_function_name = new wchar_t[wcslen(function_name) + 1 + wcslen(final_number_of_args) + 1];
@@ -2617,29 +2615,24 @@ bool Element::enumerated_type(wchar_t* expr) {
 }
 bool Element::parameter_list(wchar_t* expr, PARAMETER** param_out, USHORT* count_out) {
 	if (wcslen(expr) == 2) {
-		if (expr[0] == 40 and expr[1] == 41) {
+		if (expr[0] == L'(' and expr[1] == L')') {
 			if (param_out) { *param_out = new PARAMETER[0]; }
 			if (count_out) { *count_out = 0; }
 			return true;
 		}
 	}
-	wchar_t* tag_expr = new wchar_t[wcslen(expr) + 1];
-	memcpy(tag_expr, expr, (wcslen(expr) + 1) * 2);
 	USHORT count = 1;
-	for (size_t index = 0; tag_expr[index] != 0; index++) {
-		if (tag_expr[index] == 44) {
+	for (size_t index = 0; expr[index] != 0; index++) {
+		if (expr[index] == L',') {
 			count++;
-			if (tag_expr[index + 1] == 32) {
-				memcpy(tag_expr + index + 1, tag_expr + index + 2, (wcslen(tag_expr) - index - 1) * 2);
-			}
 		}
 	}
 	size_t last_spliter = 0;
 	size_t last_colon = 0;
 	PARAMETER* params = new PARAMETER[count];
 	count = 0;
-	for (size_t index = 0; tag_expr[index] != 0; index++) {
-		if (tag_expr[index] == 44 or tag_expr[index] == 41) {
+	for (size_t index = 0; expr[index] != 0; index++) {
+		if (expr[index] == L',' or expr[index] == L')') {
 			if (last_spliter == last_colon or last_spliter > last_colon) {
 				for (USHORT arg_index = 0; arg_index != count; arg_index++) {
 					delete[] params[arg_index].name;
@@ -2649,12 +2642,12 @@ bool Element::parameter_list(wchar_t* expr, PARAMETER** param_out, USHORT* count
 				return false;
 			}
 			wchar_t* former_part = new wchar_t[last_colon - last_spliter];
-			memcpy(former_part, tag_expr + last_spliter + 1, (last_colon - last_spliter - 1) * 2);
+			memcpy(former_part, expr + last_spliter + 1, (last_colon - last_spliter - 1) * 2);
 			former_part[last_colon - last_spliter - 1] = 0;
 			strip(former_part);
 			size_t start = 0; // start index of parameter name
 			for (size_t index2 = 0; former_part[index2] != 0; index2++) {
-				if (former_part[index2] == 32) {
+				if (former_part[index2] == L' ') {
 					start = index2 + 1;
 					break;
 				}
@@ -2671,7 +2664,7 @@ bool Element::parameter_list(wchar_t* expr, PARAMETER** param_out, USHORT* count
 			}
 			delete[] former_part;
 			wchar_t* type_part = new wchar_t[index - last_colon];
-			memcpy(type_part, tag_expr + last_colon + 1, (index - last_colon - 1) * 2);
+			memcpy(type_part, expr + last_colon + 1, (index - last_colon - 1) * 2);
 			type_part[index - last_colon - 1] = 0;
 			strip(type_part);
 			bool valid = variable(parameter_name) and (variable(type_part) or array_type(type_part));
@@ -2681,6 +2674,7 @@ bool Element::parameter_list(wchar_t* expr, PARAMETER** param_out, USHORT* count
 			if (keyword) {
 				byref = match_keyword(keyword, keyword_ref) == 0 and wcslen(keyword) == wcslen(keyword_ref);
 				valid = valid and (byref or match_keyword(keyword, keyword_value) == 0 and wcslen(keyword) == wcslen(keyword_value));
+				delete[] keyword;
 			}
 			if (not valid) {
 				for (USHORT arg_index = 0; arg_index != count; arg_index++) {
@@ -2696,9 +2690,9 @@ bool Element::parameter_list(wchar_t* expr, PARAMETER** param_out, USHORT* count
 			last_spliter = index;
 			last_colon = 0;
 			count++;
-			if (tag_expr[index] == 41) { break; }
+			if (expr[index] == 41) { break; }
 		}
-		else if (tag_expr[index] == 58 and not last_colon) {
+		else if (expr[index] == 58 and not last_colon) {
 			last_colon = index;
 		}
 	}
@@ -3229,8 +3223,8 @@ RESULT Construct::for_header_1(wchar_t* expr) {
 	delete[] upper_bound;
 	if (not matched) {
 		delete[] variable_part;
-		if (rpn_lower_bound) { release_rpn(rpn_lower_bound); }
-		if (rpn_upper_bound) { release_rpn(rpn_upper_bound); }
+		if (rpn_lower_bound) { delete rpn_lower_bound; }
+		if (rpn_upper_bound) { delete rpn_upper_bound; }
 	}
 	else {
 		result.matched = true;
@@ -3441,15 +3435,15 @@ RESULT Construct::function_header(wchar_t* expr) {
 			if (expr[index] == L'(') {
 				wchar_t* function_name = new wchar_t[index - 8];
 				wchar_t* parameter_part = new wchar_t[position - index + 1];
-				wchar_t* return_type = new wchar_t[wcslen(expr) - position - 8];
+				wchar_t* return_type = new wchar_t[wcslen(expr) - position - 7];
 				memcpy(function_name, expr + 9, (index - 9) * 2);
 				memcpy(parameter_part, expr + index, (position - index) * 2);
-				memcpy(return_type, expr + position + 9, (wcslen(expr) - position - 9) * 2);
+				memcpy(return_type, expr + position + 8, (wcslen(expr) - position - 8) * 2);
 				function_name[index - 9] = 0;
 				strip(function_name);
 				parameter_part[position - index] = 0;
 				strip(parameter_part);
-				return_type[wcslen(expr) - position - 9] = 0;
+				return_type[wcslen(expr) - position - 8] = 0;
 				strip(return_type);
 				PARAMETER* params = nullptr;
 				USHORT number_of_args = 0;
@@ -3668,7 +3662,7 @@ RESULT Construct::readfile_statement(wchar_t* expr) {
 				}
 				else {
 					if (rpn_out) {
-						release_rpn(rpn_out);
+						delete rpn_out;
 					}
 					delete[] variable_path;
 				}
@@ -3713,10 +3707,10 @@ RESULT Construct::writefile_statement(wchar_t* expr) {
 				}
 				else {
 					if (rpn_out_filename) {
-						release_rpn(rpn_out_filename);
+						delete rpn_out_filename;
 					}
 					if (rpn_out_message) {
-						release_rpn(rpn_out_message);
+						delete rpn_out_message;
 					}
 				}
 				return result;
@@ -3777,10 +3771,10 @@ RESULT Construct::seek_statement(wchar_t* expr) {
 				}
 				else {
 					if (rpn_out_filename) {
-						release_rpn(rpn_out_filename);
+						delete rpn_out_filename;
 					}
 					if (rpn_out_address) {
-						release_rpn(rpn_out_address);
+						delete rpn_out_address;
 					}
 				}
 			}
@@ -3819,7 +3813,7 @@ RESULT Construct::getrecord_statement(wchar_t* expr) {
 				}
 				else {
 					if (rpn_out) {
-						release_rpn(rpn_out);
+						delete rpn_out;
 					}
 					delete[] variable_path;
 				}
@@ -3864,10 +3858,10 @@ RESULT Construct::putrecord_statement(wchar_t* expr) {
 				}
 				else {
 					if (rpn_out_filename) {
-						release_rpn(rpn_out_filename);
+						delete rpn_out_filename;
 					}
 					if (rpn_out_message) {
-						release_rpn(rpn_out_message);
+						delete rpn_out_message;
 					}
 				}
 				return result;
@@ -3905,8 +3899,7 @@ Nesting::Nesting(NestType type, LONGLONG first_tag_line_number) {
 	this->nest_type = type;
 	this->tag_number = 1;
 	this->line_numbers = new LONGLONG[1]{ first_tag_line_number };
-	if (this->nest_type == CASE or this->nest_type == FOR or
-		this->nest_type == PROCEDURE or this->nest_type == FUNCTION) {
+	if (this->nest_type == CASE or this->nest_type == FOR) {
 		this->nest_info = new Info{};
 	}
 	else {

@@ -1,8 +1,9 @@
-#include <Windows.h>
-#include <cmath>
-#include "..\Pseudocode Interpreter\Definitions.h"
-#include "..\Pseudocode Interpreter\SyntaxCheck.h"
+#include <iostream>
+using namespace std;
 
 int main() {
-	Construct::parse(const_cast<wchar_t*>(L"hajhkjhfjkshdkjfhjkf sdjkfhksjhd fkj"));
+	int count = 0;
+	for (count = 0; count != 5; count++) {
+		cout << count;
+	}
 }

@@ -933,32 +933,42 @@ void CEditor::Insert(const wchar_t* text)
 {
 	m_CurrentTag->SetEdited();
 	EndRecord(m_hWnd, WM_TIMER, TIMER_CHAR, 0);
+	if (m_PointerPoint != m_DragPointerPoint) {
+		Delete();
+	}
 	LONG64 last_return = -1;
 	for (ULONG64 index = 0;; index++) {
 		if (text[index] == 0 or text[index] == L'\n') {
 			wchar_t*& this_line = *m_CurrentTag->m_CurrentLine;
-			size_t original_length = wcslen(this_line);
-			wchar_t* combined_line = new wchar_t[original_length + index - last_return];
-			memcpy(combined_line, this_line, original_length * 2);
-			memcpy(combined_line + original_length, text + last_return + 1, (index - last_return - 1) * 2);
-			combined_line[original_length + index - last_return - 1] = 0;
+			wchar_t* combined_line = new wchar_t[m_PointerPoint.x + index - last_return];
+			memcpy(combined_line, this_line, m_PointerPoint.x * 2);
+			memcpy(combined_line + m_PointerPoint.x, text + last_return + 1, (index - last_return - 1) * 2);
+			combined_line[m_PointerPoint.x + index - last_return - 1] = 0;
 			if (index != 0) {
 				if (text[index - 1] == L'\r') {
-					combined_line[original_length + index - last_return - 2] = 0;
+					combined_line[m_PointerPoint.x + index - last_return - 2] = 0;
 				}
 			}
-			delete[] this_line;
-			this_line = combined_line;
 			ParseLine();
 			if (text[index] == 10) {
 				// 创建新行
-				m_CurrentTag->m_Lines.insert(m_PointerPoint.y + 1, new wchar_t[] {0});
+				wchar_t* new_line = new wchar_t[wcslen(this_line + m_PointerPoint.x) + 1];
+				memcpy(new_line, this_line + m_PointerPoint.x, (wcslen(this_line + m_PointerPoint.x) + 1) * 2);
+				m_CurrentTag->m_Lines.insert(m_PointerPoint.y + 1, new_line);
 				m_CurrentTag->m_Tokens->insert(m_PointerPoint.y + 1, ADVANCED_TOKEN{});
 				m_PointerPoint = CPoint(0, m_PointerPoint.y + 1);
 				m_CurrentTag->m_CurrentLine++;
+				delete[] this_line;
+				this_line = combined_line;
 			}
 			else {
-				m_PointerPoint = CPoint(original_length + index - last_return - 1, m_PointerPoint.y);
+				wchar_t* new_line = new wchar_t[wcslen(this_line) + index - last_return];
+				memcpy(new_line, combined_line, (m_PointerPoint.x + 1) * 2);
+				memcpy(new_line + m_PointerPoint.x + 1, this_line + m_PointerPoint.x, (wcslen(this_line) - wcslen(combined_line) + 2) * 2);
+				m_PointerPoint = CPoint(m_PointerPoint.x + index - last_return - 1, m_PointerPoint.y);
+				delete[] this_line;
+				delete[] combined_line;
+				this_line = new_line;
 				break;
 			}
 			last_return = index;
@@ -1523,5 +1533,3 @@ void CEditor::UpdateCandidates()
 {
 
 }
-
-

@@ -108,7 +108,6 @@ void CHSlider::OnSize(UINT nType, int cx, int cy)
 {
 	m_Height = cx;
 
-	CBitmap* pBitmap = new CBitmap;
 	HBITMAP hBitmap = CreateCompatibleBitmap(*pWindowDC, m_Height, 10);
 	HGLOBAL hOldBitmap = SelectObject(m_Bg, hBitmap);
 	DeleteObject(hOldBitmap);

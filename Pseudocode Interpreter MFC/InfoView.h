@@ -1,5 +1,6 @@
 #pragma once
 #include "Console.h"
+#include "CallStack.h"
 
 class CInfoViewTag : public CWnd
 {
@@ -16,7 +17,6 @@ protected:
 	wchar_t* m_Text; // 按钮文本
 	USHORT m_Index; // 按钮下标
 public:
-	CInfoViewTag() = delete;
 	CInfoViewTag(wchar_t* text, USHORT index);
 	~CInfoViewTag();
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
@@ -41,6 +41,7 @@ protected:
 	USHORT m_CurrentIndex; // 当前标签下标
 	CInfoViewTag* m_Tags[3];
 	CConsole m_Console;
+	CCallStack m_CallStack;
 public:
 	CInfoView();
 	~CInfoView();

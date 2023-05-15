@@ -7,7 +7,6 @@
 #include "Debug.h"
 #include "Parser.h"
 #include "Execution.h"
-#define SEGMENT_SIZE 1024 // bytes read from file each time
 
 using namespace std;
 HANDLE standard_input;
@@ -119,7 +118,7 @@ void FormatErrorMessage(Error error) {
 	static const char* first_indentation = "  ";
 	static const char* second_indentation = "    ";
 	// base call
-	size_t current_line_number = calling_ptr ? call[0].line_number : CII;
+	size_t current_line_number = callstack.ptr ? callstack.stack[0].line_number : CII;
 	wchar_t* line_number_string = unsigned_to_string(current_line_number + 1);
 	const wchar_t* main_string = L"<主程序>";
 	wchar_t* indicator = new wchar_t[wcslen(main_string) + wcslen(line_number_string) + 12];
@@ -145,9 +144,9 @@ void FormatErrorMessage(Error error) {
 	WriteFile(standard_error, buffer, size + 5, nullptr, 0);
 	delete[] buffer;
 	// call in stack
-	for (USHORT index = 0; index != calling_ptr; index++) {
-		current_line_number = index == calling_ptr - 1 ? CII : call[index + 1].line_number;
-		wchar_t* call_info = call[index].name;
+	for (USHORT index = 0; index != callstack.ptr; index++) {
+		current_line_number = index == callstack.ptr - 1 ? CII : callstack.stack[index + 1].line_number;
+		wchar_t* call_info = callstack.stack[index].name;
 		line_number_string = unsigned_to_string(current_line_number + 1);
 		indicator = new wchar_t[wcslen(call_info) + wcslen(line_number_string) + 12];
 		memcpy(indicator, tag_indicator[0], 8);
@@ -416,7 +415,7 @@ void SequenceCheck() {
 
 // perform syntax check for each line and extract key information
 bool SyntaxCheck() {
-	calling_ptr = 0;
+	callstack.ptr = 0;
 	parsed_code = new CONSTRUCT * [lines.size()];
 	for (CII = 0; CII != lines.size(); CII++) {
 		CONSTRUCT* construct = Construct::parse(*lines[CII]);
@@ -470,15 +469,27 @@ INT_PTR SignalProc(UINT message, WPARAM wParam, LPARAM lParam) {
 			step_depth = (USHORT)-1;
 			break;
 		case EXECUTION_STEPOVER:
-			step_depth = calling_ptr;
+			step_depth = callstack.ptr;
 			break;
 		case EXECUTION_STEPOUT:
-			step_depth = calling_ptr - 1;
+			step_depth = callstack.ptr - 1;
 			break;
 		}
 		SetEvent(breakpoint_handled);
 		SetEvent(step_handled);
 		step_type = wParam;
+		break;
+	}
+	case SIGNAL_INFORMATION:
+	{
+		switch (wParam) {
+		case INFORMATION_VARIABLE_TABLE_REQUEST:
+			SendSignal(SIGNAL_INFORMATION, INFORMATION_VARIABLE_TABLE_RESPONSE, (LPARAM)globals);
+			break;
+		case INFORMATION_CALLING_STACK_REQUEST:
+			SendSignal(SIGNAL_INFORMATION, INFORMATION_CALLING_STACK_RESPONSE, (LPARAM)&callstack);
+			break;
+		}
 		break;
 	}
 	}
@@ -513,6 +524,9 @@ void SendSignal(UINT message, WPARAM wParam, LPARAM lParam) {
 inline bool CheckBreakpoint(ULONG64 line_index) {
 	for (list<BREAKPOINT>::iterator iter = breakpoints.begin(); iter != breakpoints.end(); iter++) {
 		if (iter->line_index == line_index) {
+			// cancel stepping
+			step_depth = 0;
+			step_type = 0;
 			return true;
 		}
 	}
@@ -521,7 +535,7 @@ inline bool CheckBreakpoint(ULONG64 line_index) {
 
 // interprete and execute the code without debugging the code
 int ExecuteNormal() {
-	calling_ptr = 0;
+	callstack.ptr = 0;
 	if (not SyntaxCheck()) {
 		return -1;
 	}
@@ -549,7 +563,7 @@ int ExecuteNormal() {
 
 // interpret and execute the code in debugging mode
 int ExecuteDubug() {
-	calling_ptr = 0;
+	callstack.ptr = 0;
 	if (not SyntaxCheck()) {
 		return -1;
 	}

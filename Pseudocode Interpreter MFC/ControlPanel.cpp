@@ -238,7 +238,7 @@ void CControlPanelButton::OnLButtonUp(UINT nFlags, CPoint point)
 void CControlPanelButton::SetState(bool state)
 {
 	m_bDisabled = not state;
-	REDRAW_WINDOW();
+	Invalidate(FALSE);
 }
 
 BEGIN_MESSAGE_MAP(CControlPanelSplitter, CWnd)
@@ -318,9 +318,12 @@ int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 CControlPanelButton* CControlPanelGroup::GetButton(UINT id)
 {
 	for (std::list<CControlPanelComponent*>::iterator iter = m_Components.begin(); iter != m_Components.end(); iter++) {
-		UINT nID = GetWindowLongW((*iter)->GetSafeHwnd(), GWL_ID);
+		UINT nID = GetWindowLongW((*iter)->m_hWnd, GWL_ID);
 		if (nID == id) {
 			return (CControlPanelButton*)*iter;
+		}
+		else if (nID == 0) {
+			throw -1;
 		}
 	}
 	return nullptr;

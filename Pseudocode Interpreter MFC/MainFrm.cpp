@@ -20,6 +20,7 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_WM_SIZE()
 	ON_WM_GETMINMAXINFO()
 	ON_WM_DROPFILES()
+	ON_WM_CLOSE()
 	ON_COMMAND_RANGE(0, 65535, CMainFrame::OnDispatchCommand)
 END_MESSAGE_MAP()
 CMainFrame::CMainFrame() noexcept
@@ -106,7 +107,7 @@ void CMainFrame::OnSize(UINT nType, int cx, int cy)
 }
 void CMainFrame::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 {
-	lpMMI->ptMinTrackSize = POINT(300, 300);
+	lpMMI->ptMinTrackSize = POINT(600, 300);
 }
 void CMainFrame::OnDropFiles(HDROP hDropInfo)
 {
@@ -117,6 +118,19 @@ void CMainFrame::OnDropFiles(HDROP hDropInfo)
 		DragQueryFileW(hDropInfo, index, path, size);
 		m_TagPanel.OpenFile(path);
 	}
+}
+void CMainFrame::OnClose()
+{
+	if (CConsole::pObject->m_bRun) {
+		int result = AfxMessageBox(L"代码还在运行，是否退出？", MB_ICONWARNING | MB_YESNO);
+		if (result == IDNO) {
+			return;
+		}
+		else {
+			CConsole::pObject->OnDebugHalt();
+		}
+	}
+	CWnd::OnClose();
 }
 void CMainFrame::OnDispatchCommand(UINT uID)
 {

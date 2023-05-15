@@ -29,8 +29,7 @@ BinaryTree* enumerations = new BinaryTree; // a binary tree storing all the enum
 bool define_record = false;
 wchar_t* record_name;
 BinaryTree record_fields; // data structure used to store declaration statements of record type
-CALLFRAME* call = new CALLFRAME[128]; // maximum calling depth: 128 (defined in Debug.h)
-USHORT calling_ptr = 0;
+CALLSTACK callstack;
 DATA* return_value = nullptr;
 
 DATA* evaluate(RPN_EXP* expr); // forward declaration
@@ -1780,18 +1779,18 @@ DATA* function_calling(wchar_t* function_name, USHORT number_of_args, DATA** arg
 	BinaryTree::Node* node = find_variable(function_name);
 	if (node) {
 		if (node->value->type == 13) {
-			if (calling_ptr == 128) {
+			if (callstack.ptr == 128) {
 				throw Error(SyntaxError, L"递归深度达到上限");
 			}
 			if (((DataType::Function*)node->value->value)->number_of_args != number_of_args) {
 				throw Error(ArgumentError, L"参数个数不匹配");
 			}
-			call[calling_ptr] = CALLFRAME{ current_instruction_index, function_name, current_locals };
+			callstack.stack[callstack.ptr] = CALLSTACK::FRAME{ current_instruction_index, function_name, current_locals };
 			current_locals = new BinaryTree;
 			if (not ((DataType::Function*)node->value->value)->push_args(current_locals, args)) {
 				throw Error(ArgumentError, L"参数类型不匹配");
 			}
-			calling_ptr++;
+			callstack.ptr++;
 			for (current_instruction_index = ((DataType::Function*)node->value->value)->start_line + 1;; current_instruction_index++) {
 				if (debug) {
 					if (CheckBreakpoint(current_instruction_index)) {
@@ -1799,7 +1798,7 @@ DATA* function_calling(wchar_t* function_name, USHORT number_of_args, DATA** arg
 						SendSignal(SIGNAL_BREAKPOINT, BREAKPOINT_HIT, current_instruction_index);
 						WaitForSingleObject(breakpoint_handled, INFINITE);
 					}
-					else if ((step_type == EXECUTION_STEPIN or step_type == EXECUTION_STEPOVER) and step_depth >= calling_ptr) {
+					else if ((step_type == EXECUTION_STEPIN or step_type == EXECUTION_STEPOVER) and step_depth >= callstack.ptr) {
 						ResetEvent(step_handled);
 						SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPPED, current_instruction_index);
 						WaitForSingleObject(step_handled, INFINITE);
@@ -1834,11 +1833,11 @@ DATA* function_calling(wchar_t* function_name, USHORT number_of_args, DATA** arg
 					}
 					current_locals->clear();
 					// restore running information
-					current_instruction_index = call[calling_ptr - 1].line_number;
-					current_locals = call[calling_ptr - 1].local_variables;
-					calling_ptr--;
+					current_instruction_index = callstack.GetCurrentCall().line_number;
+					current_locals = callstack.GetCurrentCall().local_variables;
+					callstack.ptr--;
 					// return value
-					if (step_type == EXECUTION_STEPOUT and step_depth == calling_ptr) {
+					if (step_type == EXECUTION_STEPOUT and step_depth == callstack.ptr) {
 						ResetEvent(step_handled);
 						SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPPED, current_instruction_index);
 						WaitForSingleObject(step_handled, INFINITE);

@@ -767,6 +767,7 @@ CConsole::CConsole()
 	m_PI = PROCESS_INFORMATION{};
 	m_bRun = false;
 	m_bShow = false;
+	m_DebugHandle = NULL;
 	pObject = this;
 }
 CConsole::~CConsole()
@@ -858,6 +859,7 @@ void CConsole::OnDebugDebug()
 	CMainFrame::pObject->UpdateStatus(true, new wchar_t[] {L"本地伪代码解释器已启动"});
 	delete[] command;
 	// 监听管道
+	m_DebugHandle = OpenProcess(PROCESS_ALL_ACCESS, TRUE, m_PI.dwProcessId);
 	CreateThread(NULL, NULL, CConsole::JoinDebug, nullptr, NULL, NULL);
 }
 void CConsole::OnDebugContinue()
@@ -936,30 +938,34 @@ void CConsole::ExitSubprocess(UINT exit_code)
 		CloseHandle(m_Pipes.signal_out_write);
 	}
 	m_Pipes = PIPE{};
-	m_bRun = false;
 	// 更新组件状态
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->ShowWindow(SW_SHOW);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_HIDE);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetState(false);
-	m_Output.SetListState(false);
+	try {
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(true);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(false);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->ShowWindow(SW_SHOW);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(true);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_HIDE);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetState(false);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetState(false);
 
-	switch (exit_code) {
-	case 0:
-		CMainFrame::pObject->UpdateStatus(false, new wchar_t[] {L"代码运行结束"});
-		break;
-	case -1:
-		CMainFrame::pObject->UpdateStatus(false, new wchar_t[] {L"代码运行异常退出"});
-		break;
-	case PROCESS_HALTED:
-		CMainFrame::pObject->UpdateStatus(false, new wchar_t[] {L"运行已被强制终止"});
-		break;
+		switch (exit_code) {
+		case 0:
+			CMainFrame::pObject->UpdateStatus(false, new wchar_t[] {L"代码运行结束"});
+			break;
+		case -1:
+			CMainFrame::pObject->UpdateStatus(false, new wchar_t[] {L"代码运行异常退出"});
+			break;
+		case PROCESS_HALTED:
+			CMainFrame::pObject->UpdateStatus(false, new wchar_t[] {L"运行已被强制终止"});
+			break;
+		}
+		CEditor::pObject->PostMessageW(WM_STEP, 0, -1);
 	}
-	CEditor::pObject->PostMessageW(WM_STEP, 0, -1);
+	catch (int) { /*当窗口被关闭时强制退出*/ }
+	m_Output.SetListState(false);
+	CCallStack::pObject->LoadCallStack(nullptr);
+	m_bRun = false;
 }
 DWORD CConsole::Join(LPVOID lpParameter)
 {
@@ -1108,6 +1114,13 @@ void CConsole::SignalProc(UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 	case SIGNAL_BREAKPOINT: case SIGNAL_EXECUTION:
 		CEditor::pObject->PostMessageW(WM_STEP, 0, lParam);
+		SendSignal(SIGNAL_INFORMATION, INFORMATION_CALLING_STACK_REQUEST, 0);
 		break;
+	case SIGNAL_INFORMATION:
+		switch (wParam) {
+		case INFORMATION_CALLING_STACK_RESPONSE:
+			CCallStack::pObject->LoadCallStack(ReadMemory((CALLSTACK*)lParam));
+			break;
+		}
 	}
 }
