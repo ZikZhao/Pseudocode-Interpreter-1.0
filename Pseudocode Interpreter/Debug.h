@@ -25,7 +25,7 @@
 #define EXECUTION_STEPIN 2
 #define EXECUTION_STEPOVER 4
 #define EXECUTION_STEPOUT 8
-#define EXECUTION_FORCE_SET 16
+#define EXECUTION_FORCE_SET 16s
 #define EXECUTION_STEPPED 1 // LPARAM: line index
 
 #define INFORMATION_VARIABLE_TABLE_REQUEST 1 // returns pointer to global variable binary tree

@@ -779,10 +779,10 @@ int CConsole::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return -1;
 
 	// 创建字体
-	AddFontResourceW(L"YAHEI CONSOLAS HYBRID.TTF");
-	font.CreateFontW(24, 0, 0, 0, FW_NORMAL, false, false,
+	//AddFontResourceW(L"YAHEI CONSOLAS HYBRID.TTF");
+	font.CreateFontW(20, 0, 0, 0, FW_NORMAL, false, false,
 		false, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS,
-		PROOF_QUALITY, DEFAULT_PITCH | FF_DONTCARE << 2, L"YAHEI CONSOLAS HYBRID");
+		PROOF_QUALITY, DEFAULT_PITCH | FF_DONTCARE << 2, L"Microsoft Yahei UI");
 	// 创建选区背景刷
 	selectionColor.CreateSolidBrush(RGB(38, 79, 120));
 	// 创建组件
@@ -1111,6 +1111,7 @@ void CConsole::SignalProc(UINT message, WPARAM wParam, LPARAM lParam)
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->ShowWindow(SW_SHOW);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(true);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_HIDE);
+		CCallStack::pObject->LoadCallStack(nullptr);
 		break;
 	case SIGNAL_BREAKPOINT: case SIGNAL_EXECUTION:
 		CEditor::pObject->PostMessageW(WM_STEP, 0, lParam);

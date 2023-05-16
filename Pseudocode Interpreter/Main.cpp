@@ -93,7 +93,6 @@ void FormatCode(wchar_t* data) {
 	lines.set_construction(false);
 }
 
-// format error message when an error is detected
 void FormatErrorMessage(Error error) {
 	static const wchar_t* error_type[] = {
 		L"",
@@ -104,79 +103,39 @@ void FormatErrorMessage(Error error) {
 		L"参数错误(Argument Error)",
 		L"值错误(Value Error)"
 	};
-	const wchar_t* tag_header = L"异常退出：";
-	wchar_t* header = new wchar_t[wcslen(error_type[error.error_type]) + 6];
-	memcpy(header, tag_header, wcslen(tag_header) * 2);
-	memcpy(header + 5, error_type[error.error_type], wcslen(error_type[error.error_type]) * 2);
-	header[wcslen(error_type[error.error_type]) + 5] = 0;
-	int size = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, header, (int)wcslen(header), nullptr, 0, nullptr, 0);
-	char* buffer = new char[size + 1];
-	WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, header, (int)wcslen(header), buffer, size, nullptr, 0);
-	buffer[size] = '\n';
-	WriteFile(standard_error, buffer, size + 1, nullptr, 0);
-	static const wchar_t* tag_indicator[] = { L"位于第 ", L" 行，在 " };
-	static const char* first_indentation = "  ";
-	static const char* second_indentation = "    ";
-	// base call
-	size_t current_line_number = callstack.ptr ? callstack.stack[0].line_number : CII;
-	wchar_t* line_number_string = unsigned_to_string(current_line_number + 1);
-	const wchar_t* main_string = L"<主程序>";
-	wchar_t* indicator = new wchar_t[wcslen(main_string) + wcslen(line_number_string) + 12];
-	memcpy(indicator, tag_indicator[0], 8);
-	memcpy(indicator + 4, line_number_string, wcslen(line_number_string) * 2);
-	memcpy(indicator + 4 + wcslen(line_number_string), tag_indicator[1], 10);
-	memcpy(indicator + 9 + wcslen(line_number_string), main_string, wcslen(main_string) * 2);
-	indicator[wcslen(main_string) + wcslen(line_number_string) + 9] = L' ';
-	indicator[wcslen(main_string) + wcslen(line_number_string) + 10] = L'中';
-	indicator[wcslen(main_string) + wcslen(line_number_string) + 11] = 0;
-	size = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, indicator, (int)wcslen(indicator), nullptr, 0, nullptr, 0);
-	buffer = new char[size + 3];
-	memcpy(buffer, first_indentation, 2);
-	WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, indicator, (int)wcslen(indicator), buffer + 2, size, nullptr, 0);
-	buffer[size + 2] = '\n';
-	WriteFile(standard_error, buffer, size + 3, nullptr, 0);
+	wchar_t* message = new wchar_t[7 + wcslen(error_type[error.error_type])];
+	StringCchPrintfW(message, 7 + wcslen(error_type[error.error_type]), L"异常退出：%s\n", error_type[error.error_type]);
+	int size = WideCharToMultiByte(CP_ACP, NULL, message, -1, nullptr, 0, NULL, NULL);
+	char* buffer = new char[size];
+	WideCharToMultiByte(CP_ACP, NULL, message, -1, buffer, size, NULL, NULL);
+	WriteFile(standard_error, buffer, size, NULL, NULL);
 	delete[] buffer;
-	size = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, *lines[current_line_number], (int)wcslen(*lines[current_line_number]), nullptr, 0, nullptr, 0);
-	buffer = new char[size + 5];
-	memcpy(buffer, second_indentation, 4);
-	WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, *lines[current_line_number], (int)wcslen(*lines[current_line_number]), buffer + 4, size, nullptr, 0);
-	buffer[size + 4] = '\n';
-	WriteFile(standard_error, buffer, size + 5, nullptr, 0);
-	delete[] buffer;
-	// call in stack
-	for (USHORT index = 0; index != callstack.ptr; index++) {
-		current_line_number = index == callstack.ptr - 1 ? CII : callstack.stack[index + 1].line_number;
-		wchar_t* call_info = callstack.stack[index].name;
-		line_number_string = unsigned_to_string(current_line_number + 1);
-		indicator = new wchar_t[wcslen(call_info) + wcslen(line_number_string) + 12];
-		memcpy(indicator, tag_indicator[0], 8);
-		memcpy(indicator + 4, line_number_string, wcslen(line_number_string) * 2);
-		memcpy(indicator + 4 + wcslen(line_number_string), tag_indicator[1], 10);
-		memcpy(indicator + 9 + wcslen(line_number_string), call_info, wcslen(call_info) * 2);
-		indicator[wcslen(call_info) + wcslen(line_number_string) + 9] = 32;
-		indicator[wcslen(call_info) + wcslen(line_number_string) + 10] = L'中';
-		indicator[wcslen(call_info) + wcslen(line_number_string) + 11] = 0;
-		size = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, indicator, (int)wcslen(indicator), nullptr, 0, nullptr, 0);
-		buffer = new char[size + 3];
-		memcpy(buffer, first_indentation, 2);
-		WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, indicator, (int)wcslen(indicator), buffer + 2, size, nullptr, 0);
-		buffer[size + 2] = '\n';
-		WriteFile(standard_error, buffer, size + 3, nullptr, 0);
+	delete[] message;
+	for (USHORT stack_index = callstack.ptr - 1;; stack_index--) {
+		size = 17 + log10(callstack.stack[stack_index].line_number + 1) + wcslen(callstack.stack[stack_index].name);
+		message = new wchar_t[size];
+		StringCchPrintfW(message, size, L"    位于 %d 行，在 %s 中\n", callstack.stack[stack_index].line_number + 1, callstack.stack[stack_index].name);
+		size = WideCharToMultiByte(CP_ACP, NULL, message, -1, nullptr, 0, NULL, NULL);
+		buffer = new char[size];
+		WideCharToMultiByte(CP_ACP, NULL, message, -1, buffer, size, NULL, NULL);
+		WriteFile(standard_error, buffer, size - 1, NULL, NULL);
 		delete[] buffer;
-		size = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, *lines[current_line_number], (int)wcslen(*lines[current_line_number]), nullptr, 0, nullptr, 0);
-		buffer = new char[size + 5];
-		memcpy(buffer, second_indentation, 4);
-		WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, *lines[current_line_number], (int)wcslen(*lines[current_line_number]), buffer + 4, size, nullptr, 0);
-		buffer[size + 4] = '\n';
-		WriteFile(standard_error, buffer, size + 5, nullptr, 0);
+		delete[] message;
+		WriteFile(standard_error, "        ", 8, NULL, NULL);
+		size = WideCharToMultiByte(CP_ACP, NULL, *lines[callstack.stack[stack_index].line_number], -1, nullptr, 0, NULL, NULL);
+		buffer = new char[size];
+		WideCharToMultiByte(CP_ACP, NULL, *lines[callstack.stack[stack_index].line_number], -1, buffer, size, NULL, NULL);
+		WriteFile(standard_error, buffer, size - 1, NULL, NULL);
+		WriteFile(standard_error, "\n", 1, NULL, NULL);
 		delete[] buffer;
-		break;
+		if (stack_index == 0) {
+			break;
+		}
 	}
-	size = WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, error.error_message, (int)wcslen(error.error_message), nullptr, 0, nullptr, 0);
-	buffer = new char[size + 1];
-	WideCharToMultiByte(CP_ACP, WC_COMPOSITECHECK, error.error_message, (int)wcslen(error.error_message), buffer, size, nullptr, 0);
-	buffer[size] = '\n';
-	WriteFile(standard_error, buffer, size + 1, nullptr, 0);
+	size = WideCharToMultiByte(CP_ACP, NULL, error.error_message, -1, nullptr, 0, NULL, NULL);
+	buffer = new char[size];
+	WideCharToMultiByte(CP_ACP, NULL, error.error_message, -1, buffer, size, NULL, NULL);
+	WriteFile(standard_error, buffer, size, NULL, NULL);
 	delete[] buffer;
 }
 
@@ -415,7 +374,6 @@ void SequenceCheck() {
 
 // perform syntax check for each line and extract key information
 bool SyntaxCheck() {
-	callstack.ptr = 0;
 	parsed_code = new CONSTRUCT * [lines.size()];
 	for (CII = 0; CII != lines.size(); CII++) {
 		CONSTRUCT* construct = Construct::parse(*lines[CII]);
@@ -535,11 +493,17 @@ inline bool CheckBreakpoint(ULONG64 line_index) {
 
 // interprete and execute the code without debugging the code
 int ExecuteNormal() {
-	callstack.ptr = 0;
+	callstack.stack[0] = CALLSTACK::FRAME{};
+	callstack.stack[0].name = new wchar_t[] {L"<主程序>"};
+	callstack.stack[0].length = 6;
+	callstack.stack[0].line_number = 0;
+	callstack.stack[0].local_variables = globals;
+	callstack.ptr = 1;
 	if (not SyntaxCheck()) {
 		return -1;
 	}
 	for (CII = 0; CII != lines.size(); CII++) {
+		callstack.stack[0].line_number = CII;
 		try {
 			((FUNCTION_PTR)Execution::executions[parsed_code[CII]->syntax_index])(parsed_code[CII]->result);
 		}
@@ -563,11 +527,17 @@ int ExecuteNormal() {
 
 // interpret and execute the code in debugging mode
 int ExecuteDubug() {
-	callstack.ptr = 0;
+	callstack.stack[0] = CALLSTACK::FRAME{};
+	callstack.stack[0].name = new wchar_t[] {L"<主程序>"};
+	callstack.stack[0].length = 6;
+	callstack.stack[0].line_number = 0;
+	callstack.stack[0].local_variables = globals;
+	callstack.ptr = 1;
 	if (not SyntaxCheck()) {
 		return -1;
 	}
 	for (CII = 0; CII != lines.size(); CII++) {
+		callstack.stack[0].line_number = CII;
 		if (CheckBreakpoint(current_instruction_index)) {
 			ResetEvent(breakpoint_handled);
 			SendSignal(SIGNAL_BREAKPOINT, BREAKPOINT_HIT, CII);

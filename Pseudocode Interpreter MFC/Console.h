@@ -128,6 +128,7 @@ protected:
 	PROCESS_INFORMATION m_PI; // 进程信息
 	HANDLE m_DebugHandle; // 可读取内存的进程句柄
 	bool m_bShow; // 是否显示窗口
+	size_t m_BlockSize; // 存储块大小查询的结果
 public:
 	CConsole();
 	virtual ~CConsole();
@@ -145,7 +146,7 @@ public:
 	afx_msg void OnDebugStepout();
 	bool SendInput(wchar_t* input, DWORD count); // 发送输入到子进程（返回值标识是否允许发送输入）
 	template<typename Type>
-	Type* ReadMemory(Type* address); // 获取可读取内存的进程句柄
+	Type* ReadMemory(Type* address, size_t size = 1); // 读取子进程中地址指向的块
 private:
 	void InitSubprocess(bool debug_mode); // 准备监听新进程
 	void ExitSubprocess(UINT exit_code); // 解释器实例结束时运行
@@ -156,9 +157,9 @@ private:
 };
 
 template<typename Type>
-inline Type* CConsole::ReadMemory(Type* address)
+inline Type* CConsole::ReadMemory(Type* address, size_t size)
 {
-	Type* buffer = (Type*)malloc(sizeof(Type));
-	ReadProcessMemory(m_DebugHandle, address, buffer, sizeof(Type), NULL);
+	Type* buffer = (Type*)malloc(sizeof(Type) * size);
+	ReadProcessMemory(m_DebugHandle, address, buffer, sizeof(Type) * size, NULL);
 	return buffer;
 }

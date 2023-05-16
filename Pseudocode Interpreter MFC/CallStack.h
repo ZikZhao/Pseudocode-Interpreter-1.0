@@ -7,15 +7,20 @@ public:
 	static inline CCallStack* pObject = nullptr;
 protected:
 	bool m_bShow;
+	CDC m_BG;
+	CDC m_Source;
+	CDC m_Selection;
 	int m_Width, m_Height;
 	CSize m_WordSize;
-	int m_FullHeight;
+	ULONG m_FullHeight;
+	USHORT m_FirstWidth, m_SecondWidth;
 	double m_Percentage;
 	CALLSTACK* m_CallStack;
 	CPen m_Pen;
 	CFont m_Font;
+	CBrush m_Brush;
 	CVSlider m_Slider;
-	ULONGLONG m_CII; // 主程序栈
+	USHORT m_SelectionDepth;
 public:
 	CCallStack();
 	virtual ~CCallStack();
@@ -23,7 +28,11 @@ public:
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	afx_msg void OnPaint();
 	afx_msg void OnSize(UINT nType, int cx, int cy);
-	void LoadCallStack(CALLSTACK* callstack);
 	afx_msg void OnShowWindow(BOOL bShow, UINT nStatus);
-	void UpdateSlider();
+	void LoadCallStack(CALLSTACK* callstack); // 加载调用堆栈
+	void UpdateSlider(); // 更新滚动条
+	static void VerticalCallback(double percentage); // 垂直滚动体回调函数
+protected:
+	void ArrangeBG(); // 渲染背景源
+	void ArrangeFrames(); // 渲染栈帧源
 };

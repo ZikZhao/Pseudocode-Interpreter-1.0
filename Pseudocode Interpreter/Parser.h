@@ -488,10 +488,11 @@ struct CALLSTACK {
 	struct FRAME {
 		LONGLONG line_number;
 		wchar_t* name;
+		size_t length;
 		BinaryTree* local_variables;
 	} stack[128];
 	USHORT ptr = 0;
-	inline FRAME GetCurrentCall() {
+	inline FRAME& GetCurrentCall() {
 		return stack[ptr - 1];
 	}
 };

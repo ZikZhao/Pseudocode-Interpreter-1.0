@@ -1785,13 +1785,14 @@ DATA* function_calling(wchar_t* function_name, USHORT number_of_args, DATA** arg
 			if (((DataType::Function*)node->value->value)->number_of_args != number_of_args) {
 				throw Error(ArgumentError, L"参数个数不匹配");
 			}
-			callstack.stack[callstack.ptr] = CALLSTACK::FRAME{ current_instruction_index, function_name, current_locals };
 			current_locals = new BinaryTree;
+			callstack.stack[callstack.ptr] = CALLSTACK::FRAME{ current_instruction_index, function_name, wcslen(function_name) + 1, current_locals };
 			if (not ((DataType::Function*)node->value->value)->push_args(current_locals, args)) {
 				throw Error(ArgumentError, L"参数类型不匹配");
 			}
 			callstack.ptr++;
 			for (current_instruction_index = ((DataType::Function*)node->value->value)->start_line + 1;; current_instruction_index++) {
+				callstack.GetCurrentCall().line_number = current_instruction_index;
 				if (debug) {
 					if (CheckBreakpoint(current_instruction_index)) {
 						ResetEvent(breakpoint_handled);
@@ -1833,9 +1834,9 @@ DATA* function_calling(wchar_t* function_name, USHORT number_of_args, DATA** arg
 					}
 					current_locals->clear();
 					// restore running information
+					callstack.ptr--;
 					current_instruction_index = callstack.GetCurrentCall().line_number;
 					current_locals = callstack.GetCurrentCall().local_variables;
-					callstack.ptr--;
 					// return value
 					if (step_type == EXECUTION_STEPOUT and step_depth == callstack.ptr) {
 						ResetEvent(step_handled);
@@ -1854,12 +1855,12 @@ DATA* function_calling(wchar_t* function_name, USHORT number_of_args, DATA** arg
 					}
 					else {
 						DATA* temp = DataType::type_adaptation(return_value, ((DataType::Function*)node->value->value)->return_type);
+						DataType::release_data(return_value);
+						return_value = nullptr;
 						if (not temp) {
-							DataType::release_data(return_value);
 							throw Error(ValueError, L"返回值类型不匹配");
 						}
 						else {
-							DataType::release_data(return_value);
 							return temp;
 						}
 					}

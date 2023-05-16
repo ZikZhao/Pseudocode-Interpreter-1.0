@@ -1282,6 +1282,16 @@ void CEditor::ExpandToken(wchar_t* line, ADVANCED_TOKEN& token)
 				else if ((index2 - index) == 5 and match_keyword(expr + index, L"FALSE") == 0) {
 					part_token[count] = TOKEN{ 5, TOKENTYPE::Integer };
 				}
+				// 将AND，OR和NOT渲染为关键字
+				else if ((index2 - index) == 3 and match_keyword(expr + index, L"AND") == 0) {
+					part_token[count] = TOKEN{ 3, TOKENTYPE::Keyword };
+				}
+				else if ((index2 - index) == 2 and match_keyword(expr + index, L"OR") == 0) {
+					part_token[count] = TOKEN{ 2, TOKENTYPE::Keyword };
+				}
+				else if ((index2 - index) == 3 and match_keyword(expr + index, L"NOT") == 0) {
+					part_token[count] = TOKEN{ 3, TOKENTYPE::Keyword };
+				}
 				else {
 					part_token[count] = TOKEN{ (USHORT)(index2 - index), TOKENTYPE::Variable };
 				}

@@ -184,4 +184,7 @@
   <ItemGroup>
     <Font Include="YAHEI CONSOLAS HYBRID.TTF" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="note.txt" />
+  </ItemGroup>
 </Project>

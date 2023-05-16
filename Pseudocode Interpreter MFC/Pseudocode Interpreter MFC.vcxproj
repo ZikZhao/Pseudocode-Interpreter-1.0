@@ -267,6 +267,9 @@
   <ItemGroup>
     <Font Include="YAHEI CONSOLAS HYBRID.TTF" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="note.txt" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

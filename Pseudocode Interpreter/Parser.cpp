@@ -242,7 +242,7 @@ CONSTRUCT::~CONSTRUCT() {
 		delete (Nesting*)result.args[0];
 		break;
 	case Construct::_return_statement:
-		if (((bool*)result.args[1])) {
+		if (*(bool*)result.args[1]) {
 			delete (RPN_EXP*)result.args[2];
 		}
 		break;
@@ -2004,8 +2004,6 @@ bool Element::date(wchar_t* expr) {
 	}
 	return true;
 }
-bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out); // forward declaration
-bool Element::valid_variable_path(wchar_t* expr); // forward declaration
 bool Element::valid_indexes(wchar_t* expr) {
 	if (not wcslen(expr)) { return false; }
 	if (expr[0] != 91 or expr[wcslen(expr) - 1] != 93) {
@@ -2283,6 +2281,7 @@ bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 		}
 	}
 	if (bracket or braces) {
+		delete[] tag_expr;
 		return false; // brackets are not matched
 	}
 	if (not precedence) {
@@ -2332,6 +2331,7 @@ bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 							final_function_name[wcslen(function_name)] = 9;
 							final_function_name[wcslen(function_name) + 1] = L'0';
 							final_function_name[wcslen(function_name) + 2] = 0;
+							delete[] tag_expr;
 							delete[] function_name;
 							final_rpn->rpn = final_function_name;
 							final_rpn->number_of_element = 1;
@@ -2346,7 +2346,7 @@ bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 						this_arg[index - last_spliter - 1] = 0;
 						strip(this_arg);
 						RPN_EXP* arg_rpn = new RPN_EXP; // storing RPN expression for current argument
-						if (not expression(this_arg, &arg_rpn)) {
+						if (not (expression(this_arg, &arg_rpn) and tag_expr[index + 1] == 0)) {
 							delete[] tag_expr;
 							delete[] this_arg;
 							delete[] function_name;
@@ -2354,6 +2354,7 @@ bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 							delete arg_rpn;
 							return false;
 						}
+						delete[] this_arg;
 						size_t this_args_length = 0;
 						for (USHORT element_index = 0; element_index != arg_rpn->number_of_element; element_index++) {
 							this_args_length += wcslen(arg_rpn->rpn + this_args_length) + 1;
@@ -2383,6 +2384,7 @@ bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 								memcpy(final_rpn_string, final_rpn->rpn, total_args_length * 2);
 								memcpy(final_rpn_string + total_args_length, final_function_name, (wcslen(final_function_name) + 1) * 2);
 								delete[] final_rpn->rpn;
+								delete[] tag_expr;
 								final_rpn->rpn = final_rpn_string;
 								final_rpn->number_of_element++;
 								if (rpn_out) { *rpn_out = final_rpn; }
@@ -2435,10 +2437,10 @@ bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 		}
 		bool result1 = expression(left_operand, &rpn_left);
 		bool result2 = expression(right_operand, &rpn_right);
+		delete[] left_operand;
+		delete[] right_operand;
 		delete[] tag_expr;
 		if (not ((result1 and result2) or (operator_value == 6 and result2))) {
-			delete[] left_operand;
-			delete[] right_operand;
 			if (result1) {
 				delete rpn_left;
 			}
