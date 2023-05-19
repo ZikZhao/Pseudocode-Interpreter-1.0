@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "..\Pseudocode Interpreter\Debug.h"
 
 struct PIPE {

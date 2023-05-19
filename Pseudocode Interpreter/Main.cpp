@@ -1,4 +1,4 @@
-#include <Windows.h>
+﻿#include <Windows.h>
 #include <Windowsx.h>
 #include <cmath>
 #include <ctime>
@@ -67,7 +67,7 @@ void FormatCode(wchar_t* data) {
 		}
 		memcpy(line, line + index, (size - index + 1) * 2);
 		for (index = 0; line[index] != 0; index++) {
-			if (line[index] == L'\\' and line[index + 1] == L'\\') {
+			if (line[index] == L'/' and line[index + 1] == L'/') {
 				break;
 			}
 		}
@@ -95,7 +95,7 @@ void FormatCode(wchar_t* data) {
 
 void FormatErrorMessage(Error error) {
 	static const wchar_t* error_type[] = {
-		L"",
+		nullptr,
 		L"语法错误(Syntax Error)",
 		L"变量错误(Variable Error)",
 		L"求值错误(Evaluation Error)",
@@ -111,10 +111,10 @@ void FormatErrorMessage(Error error) {
 	WriteFile(standard_error, buffer, size, NULL, NULL);
 	delete[] buffer;
 	delete[] message;
-	for (USHORT stack_index = callstack.ptr - 1;; stack_index--) {
-		size = 17 + log10(callstack.stack[stack_index].line_number + 1) + wcslen(callstack.stack[stack_index].name);
+	if (error.error_type == SyntaxError) {
+		size = 22 + log10(CII + 1);
 		message = new wchar_t[size];
-		StringCchPrintfW(message, size, L"    位于 %d 行，在 %s 中\n", callstack.stack[stack_index].line_number + 1, callstack.stack[stack_index].name);
+		StringCchPrintfW(message, size, L"    位于 %d 行，在 <主程序> 中\n", CII + 1);
 		size = WideCharToMultiByte(CP_ACP, NULL, message, -1, nullptr, 0, NULL, NULL);
 		buffer = new char[size];
 		WideCharToMultiByte(CP_ACP, NULL, message, -1, buffer, size, NULL, NULL);
@@ -122,14 +122,34 @@ void FormatErrorMessage(Error error) {
 		delete[] buffer;
 		delete[] message;
 		WriteFile(standard_error, "        ", 8, NULL, NULL);
-		size = WideCharToMultiByte(CP_ACP, NULL, *lines[callstack.stack[stack_index].line_number], -1, nullptr, 0, NULL, NULL);
+		size = WideCharToMultiByte(CP_ACP, NULL, *lines[CII], -1, nullptr, 0, NULL, NULL);
 		buffer = new char[size];
-		WideCharToMultiByte(CP_ACP, NULL, *lines[callstack.stack[stack_index].line_number], -1, buffer, size, NULL, NULL);
+		WideCharToMultiByte(CP_ACP, NULL, *lines[CII], -1, buffer, size, NULL, NULL);
 		WriteFile(standard_error, buffer, size - 1, NULL, NULL);
 		WriteFile(standard_error, "\n", 1, NULL, NULL);
 		delete[] buffer;
-		if (stack_index == 0) {
-			break;
+	}
+	else {
+		for (USHORT stack_index = callstack.ptr - 1;; stack_index--) {
+			size = 17 + log10(callstack.stack[stack_index].line_number + 1) + wcslen(callstack.stack[stack_index].name);
+			message = new wchar_t[size];
+			StringCchPrintfW(message, size, L"    位于 %d 行，在 %s 中\n", callstack.stack[stack_index].line_number + 1, callstack.stack[stack_index].name);
+			size = WideCharToMultiByte(CP_ACP, NULL, message, -1, nullptr, 0, NULL, NULL);
+			buffer = new char[size];
+			WideCharToMultiByte(CP_ACP, NULL, message, -1, buffer, size, NULL, NULL);
+			WriteFile(standard_error, buffer, size - 1, NULL, NULL);
+			delete[] buffer;
+			delete[] message;
+			WriteFile(standard_error, "        ", 8, NULL, NULL);
+			size = WideCharToMultiByte(CP_ACP, NULL, *lines[callstack.stack[stack_index].line_number], -1, nullptr, 0, NULL, NULL);
+			buffer = new char[size];
+			WideCharToMultiByte(CP_ACP, NULL, *lines[callstack.stack[stack_index].line_number], -1, buffer, size, NULL, NULL);
+			WriteFile(standard_error, buffer, size - 1, NULL, NULL);
+			WriteFile(standard_error, "\n", 1, NULL, NULL);
+			delete[] buffer;
+			if (stack_index == 0) {
+				break;
+			}
 		}
 	}
 	size = WideCharToMultiByte(CP_ACP, NULL, error.error_message, -1, nullptr, 0, NULL, NULL);

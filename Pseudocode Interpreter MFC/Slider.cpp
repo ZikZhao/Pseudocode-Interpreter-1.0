@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 
 inline void CSlider::SetPercentage(double percentage) {
 	m_Percentage = max(min(percentage, 1.0 - m_Ratio), 0);

@@ -1,9 +1,9 @@
-#pragma once
+﻿#pragma once
 #pragma comment(linker, "/STACK:20971520")
 #ifdef EOF
 #undef EOF
 #endif
-#define WRITE_CONSOLE(handle, lpStr, cchStr) {int size = WideCharToMultiByte(CP_ACP, WC_ERR_INVALID_CHARS, lpStr, cchStr, nullptr, NULL, nullptr, nullptr); char* buffer = new char[size]; WideCharToMultiByte(CP_ACP, WC_ERR_INVALID_CHARS, lpStr, cchStr, buffer, size, nullptr, nullptr); WriteFile(handle, buffer, size, nullptr, nullptr);}
+#define WRITE_CONSOLE(handle, lpStr, cchStr) {int size = WideCharToMultiByte(CP_ACP, NULL, lpStr, cchStr, nullptr, NULL, nullptr, nullptr); char* buffer = new char[size]; WideCharToMultiByte(CP_ACP, NULL, lpStr, cchStr, buffer, size, nullptr, nullptr); WriteFile(handle, buffer, size, nullptr, nullptr);}
 
 extern HANDLE standard_input;
 extern HANDLE standard_output;
@@ -1155,7 +1155,7 @@ DATA* evaluate_single_element(wchar_t* expr) {
 	else if (Element::string(expr)) {
 		return new DATA{ 3, new DataType::String(expr) };
 	}
-	else if (Element::valid_variable_path(expr)) {
+	else if (Element::variable_path(expr)) {
 		DATA* result_data = evaluate_variable(expr);
 		return result_data;
 	}
@@ -1300,7 +1300,7 @@ DATA* evaluate_variable(wchar_t* path, bool* constant) { // starting with a vari
 			variable_part[index] = 0;
 			wchar_t* array_name = nullptr;
 			wchar_t* indexes = nullptr;
-			if (Element::valid_array_element_access(variable_part, &array_name, &indexes)) { // x[x].x
+			if (Element::array_element_access(variable_part, &array_name, &indexes)) { // x[x].x
 				BinaryTree::Node* node = find_variable(array_name);
 				delete[] array_name;
 				if (not node) {
@@ -1328,7 +1328,7 @@ DATA* evaluate_variable(wchar_t* path, bool* constant) { // starting with a vari
 	}
 	wchar_t* array_name = nullptr;
 	wchar_t* indexes = nullptr;
-	if (Element::valid_array_element_access(path, &array_name, &indexes)) { // x[x]
+	if (Element::array_element_access(path, &array_name, &indexes)) { // x[x]
 		BinaryTree::Node* node = find_variable(array_name);
 		delete[] array_name;
 		if (not node) {
@@ -1370,7 +1370,7 @@ DATA* evaluate_variable(DATA* current, wchar_t* path) { // based on previous eva
 			wchar_t* this_path = new wchar_t[index];
 			memcpy(this_path, path + 1, (size_t)(index - 1) * 2);
 			this_path[index - 1] = 0;
-			if (Element::valid_array_element_access(this_path)) {
+			if (Element::array_element_access(this_path)) {
 				for (USHORT index2 = 0; this_path[index2] != 0; index2++) {
 					if (this_path[index2] == 91) {
 						this_path[index2] = 0;
@@ -1406,7 +1406,7 @@ DATA* evaluate_variable(DATA* current, wchar_t* path) { // based on previous eva
 		}
 	}
 	// last path
-	if (Element::valid_array_element_access(path)) {
+	if (Element::array_element_access(path)) {
 		for (USHORT index2 = 0; path[index2] != 0; index2++) {
 			if (path[index2] == 91) {
 				path[index2] = 0;
@@ -1439,7 +1439,7 @@ DATA* evaluate(RPN_EXP* rpn_in) {
 	DATA** stack = new DATA* [128] {0};
 	USHORT ptr = 0;
 	for (USHORT element_index = 0; element_index != number_of_element; element_index++) {
-		if (Element::valid_operator(expr[total_offset]) and wcslen(expr + total_offset) == 1) { // operator
+		if (Element::operator_precedence(expr[total_offset]) and wcslen(expr + total_offset) == 1) { // operator
 			wchar_t& operator_value = expr[total_offset];
 			DATA* result = nullptr;
 			switch (operator_value) {

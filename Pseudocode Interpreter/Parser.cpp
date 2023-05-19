@@ -1,4 +1,4 @@
-#include <Windows.h>
+﻿#include <Windows.h>
 #include <cmath>
 #include "Parser.h"
 
@@ -2004,485 +2004,6 @@ bool Element::date(wchar_t* expr) {
 	}
 	return true;
 }
-bool Element::valid_indexes(wchar_t* expr) {
-	if (not wcslen(expr)) { return false; }
-	if (expr[0] != 91 or expr[wcslen(expr) - 1] != 93) {
-		return false;
-	}
-	size_t last_comma = 0;
-	size_t dimension = 0; // maximum dimension: 10
-	size_t bracket = 1;
-	for (size_t index = 1; expr[index] != 0; index++) {
-		if (expr[index] == 91) {
-			bracket++;
-		}
-		if (expr[index] == 44) {
-			if (dimension == 10) {
-				return false;
-			}
-			wchar_t* new_index = new wchar_t[index - last_comma];
-			memcpy(new_index, expr + last_comma + 1, ((size_t)index - last_comma - 1) * 2);
-			new_index[index - last_comma - 1] = 0;
-			strip(new_index);
-			bool match_result = expression(new_index) or integer(new_index);
-			delete[] new_index;
-			if (not match_result) {
-				return false;
-			}
-			dimension++;
-			last_comma = index;
-		}
-		else if (expr[index] == 93) {
-			if (bracket != 1) {
-				bracket--;
-				continue;
-			}
-			if (dimension == 10) {
-				return false;
-			}
-			wchar_t* new_index = new wchar_t[index - last_comma];
-			memcpy(new_index, expr + last_comma + 1, (index - last_comma - 1) * 2);
-			new_index[index - last_comma - 1] = 0;
-			strip(new_index);
-			bool match_result = expression(new_index) or integer(new_index);
-			delete[] new_index;
-			return match_result;
-		}
-	}
-	return false;
-}
-bool Element::valid_array_element_access(wchar_t* expr, wchar_t** array_name, wchar_t** indexes) {
-	for (size_t index = 0; expr[index] != 0; index++) {
-		if (expr[index] == 91) {
-			wchar_t* array_part = new wchar_t[index + 1];
-			memcpy(array_part, expr, index * 2);
-			array_part[index] = 0;
-			if (variable(array_part) and valid_indexes(expr + index)) {
-				if (array_name) { *array_name = array_part; }
-				else { delete[] array_name; }
-				if (indexes) {
-					*indexes = new wchar_t[wcslen(expr) - index + 1];
-					memcpy(*indexes, expr + index, (wcslen(expr) - index) * 2);
-					(*indexes)[wcslen(expr) - index] = 0;
-				}
-				return true;
-			}
-			else {
-				delete[] array_part;
-				return false;
-			}
-		}
-	}
-	return false;
-}
-bool Element::valid_variable_path(wchar_t* expr) {
-	if (variable(expr) or valid_array_element_access(expr)) {
-		return true;
-	}
-	if (integer(expr) or float_point_number(expr)) {
-		return false;
-	}
-	if (expr[0] == 94) { // dereference
-		if (expr[1] == 40) { // in the form of ^(x.x).x
-			for (size_t index = 2; expr[index] != 0; index++) {
-				if (expr[index] == 34 or expr[index] == 39) {
-					index += skip_string(expr + index);
-				}
-				else if (expr[index] == 41) {
-					wchar_t* pointer_path = new wchar_t[index - 1];
-					wchar_t* other_path = new wchar_t[wcslen(expr) - index];
-					memcpy(pointer_path, expr + 2, (size_t)(index - 2) * 2);
-					memcpy(other_path + 1, expr + index + 1, (wcslen(expr) - index - 2) * 2);
-					pointer_path[index - 2] = 0;
-					other_path[0] = 97;
-					other_path[wcslen(expr) - index - 2] = 0;
-					bool result = valid_variable_path(pointer_path) and valid_variable_path(pointer_path);
-					delete[] pointer_path;
-					delete[] other_path;
-					return result;
-				}
-			}
-			return false;
-		}
-		else { // in the form of ^x.x
-			return valid_variable_path(expr + 1);
-		}
-	}
-	size_t last_sign = 0;
-	for (size_t index = 0; expr[index] != 0; index++) {
-		if (expr[index] == 46) { // field
-			expr[index] = 0;
-			if (not (variable(expr + last_sign) or valid_array_element_access(expr + last_sign))) {
-				expr[index] = 46;
-				return false;
-			}
-			expr[index] = 46;
-			last_sign = index + 1;
-		}
-	}
-	return variable(expr + last_sign) or valid_array_element_access(expr + last_sign); // last field
-}
-bool Element::addressing(wchar_t* expr) {
-	if (not wcslen(expr)) { return false; }
-	if (expr[0] == 64) {
-		expr++;
-		strip(expr);
-		return variable(expr);
-	}
-	return false;
-}
-bool Element::valid_operator(wchar_t character, USHORT* precedence_out) {
-	// @ and ^ are special operators because their mechanism so we do not process it in an expression
-	// for ^, see valid_variable_path
-	// for @, see addressing
-	USHORT precedence = 0;
-	switch (character) {
-	case 42: case 47: // * /
-		precedence = 1;
-		break;
-	case 43: case 45: case 38: // + - &
-		precedence = 2;
-		break;
-	case 60: case 61: case 62: case 1: case 2: case 3: // comparison operator
-		precedence = 3;
-		break;
-	case 6: // NOT
-		precedence = 4;
-		break;
-	case 4: // AND
-		precedence = 5;
-		break;
-	case 5: // OR
-		precedence = 6;
-		break;
-	}
-	if (precedence_out) {
-		*precedence_out = precedence;
-	}
-	return precedence != 0;
-}
-bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
-	if (not wcslen(expr)) { return false; }
-	RPN_EXP* rpn_exp = new RPN_EXP;
-	// phase 1: replacement of symbols, boolean constant
-	/*
-	replacement:
-	1: <=
-	2: <>
-	3: >=
-	4: AND
-	5: OR
-	6: NOT
-	7: false
-	8: true
-	*/
-	size_t length = wcslen(expr);
-	wchar_t* tag_expr = new wchar_t[length + 1];
-	memcpy(tag_expr, expr, (length + 1) * 2);
-	for (size_t index = 0; tag_expr[index] != 0; index++) {
-		if (not index == 0) {
-			if (tag_expr[index - 1] != 32) {
-				continue;
-			}
-		}
-		switch (tag_expr[index]) {
-		case 34: case 39:
-			index += skip_string(tag_expr + index);
-			break;
-		case 65:
-			if (index < length - 2) { // AND
-				if (tag_expr[index + 1] == 78 and tag_expr[index + 2] == 68 and (tag_expr[index + 3] == 32 or tag_expr[index + 3] == 0)) {
-					tag_expr[index] = 4;
-					memcpy(tag_expr + index + 1, tag_expr + index + 3, (length - index - 2) * 2);
-					length -= 2;
-				}
-			}
-			break;
-		case 79:
-			if (index < length - 1) { // OR
-				if (tag_expr[index + 1] == 82 and (tag_expr[index + 2] == 32 or tag_expr[index + 2] == 0)) {
-					tag_expr[index] = 5;
-					memcpy(tag_expr + index + 1, tag_expr + index + 2, (length - index - 1) * 2);
-					length -= 1;
-				}
-			}
-			break;
-		case 78:
-			if (index < length - 2) { // NOT
-				if (tag_expr[index + 1] == 79 and tag_expr[index + 2] == 84 and (tag_expr[index + 3] == 32 or tag_expr[index + 3] == 0)) {
-					tag_expr[index] = 6;
-					memcpy(tag_expr + index + 1, tag_expr + index + 3, (length - index - 2) * 2);
-					length -= 2;
-				}
-			}
-			break;
-		case 84:
-			if (index < length - 3) { // TRUE
-				if (tag_expr[index + 1] == 82 and tag_expr[index + 2] == 85 and tag_expr[index + 3] == 69 and (tag_expr[index + 4] == 32 or tag_expr[index + 4] == 0)) {
-					tag_expr[index] = 8;
-					memcpy(tag_expr + index + 1, tag_expr + index + 4, (length - index - 3) * 2);
-					length -= 3;
-				}
-			}
-			break;
-		case 70:
-			if (index < length - 4) { // FALSE
-				if (tag_expr[index + 1] == 65 and tag_expr[index + 2] == 76 and tag_expr[index + 3] == 83 and tag_expr[index + 4] == 69 and (tag_expr[index + 5] == 32 or tag_expr[index + 5] == 0)) {
-					tag_expr[index] = 7;
-					memcpy(tag_expr + index + 1, tag_expr + index + 5, (length - index - 4) * 2);
-					length -= 4;
-				}
-			}
-		case 60: case 61: case 62:
-			if (index < length - 1) { // compound logic operator
-				switch ((tag_expr[index] << 8) + tag_expr[index + 1]) {
-				case 15933: case 15421: case 15422:
-					tag_expr[index] = tag_expr[index] + tag_expr[index + 1] - 120;
-					memcpy(tag_expr + index + 1, tag_expr + index + 2, (wcslen(tag_expr) - index - 1) * 2);
-					length--;
-				}
-			}
-		}
-	}
-	// phase two: convert to RPN expression
-	size_t operator_index = 0;
-	USHORT precedence = 0;
-	USHORT tag_precedence = 0;
-	int bracket = 0;
-	int braces = 0;
-	bool bracket_exist = false;
-	for (size_t index = 0; tag_expr[index] != 0; index++) {
-		switch (tag_expr[index]) {
-		case 34: case 39:
-			index += skip_string(tag_expr + index);
-			break;
-		case 40:
-			bracket++;
-			bracket_exist = true;
-			break;
-		case 91:
-			braces++;
-			break;
-		case 41:
-			bracket--;
-			break;
-		case 93:
-			braces--;
-			break;
-		default:
-			if (valid_operator(tag_expr[index], &tag_precedence)) {
-				if (precedence <= tag_precedence and not bracket and not braces) { // index != 0 is used to identify negative sign before integer
-					if (not ((tag_expr[index] == 43 or tag_expr[index] == 45) and index == 0)) {
-						precedence = tag_precedence;
-						operator_index = index;
-					}
-				}
-			}
-		}
-	}
-	if (bracket or braces) {
-		delete[] tag_expr;
-		return false; // brackets are not matched
-	}
-	if (not precedence) {
-		if (bracket_exist) {
-			if (tag_expr[0] == L'(') { // is fully enclosed in brackets
-				wchar_t* part_expr = new wchar_t[length - 1];
-				memcpy(part_expr, tag_expr + 1, (size_t)(length - 2) * 2);
-				part_expr[length - 2] = 0;
-				RPN_EXP* part_rpn = new RPN_EXP{};
-				bool result = expression(part_expr, &part_rpn);
-				delete[] tag_expr;
-				delete[] part_expr;
-				delete rpn_exp;
-				if (result) {
-					if (rpn_out) { *rpn_out = part_rpn; }
-					return true;
-				}
-				else {
-					return false;
-				}
-			}
-			else { // function calling
-				size_t last_spliter = 0;
-				USHORT number_of_bracket = 0;
-				USHORT number_of_args = 0; // number of arguments passed to the function called
-				RPN_EXP* final_rpn = new RPN_EXP; // storing RPN for final result
-				size_t total_args_length = 0; // counting of every single character in combined rpn, including \0
-				wchar_t* function_name = nullptr; // in the final stage it will be in a form of f/x, where x is the number of args
-				for (size_t index = 0; tag_expr[index] != 0; index++) {
-					if (tag_expr[index] == L'(') {
-						last_spliter = index;
-						number_of_bracket++;
-						if (number_of_bracket != 1) {
-							continue;
-						}
-						function_name = new wchar_t[index + 1];
-						memcpy(function_name, tag_expr, index * 2);
-						function_name[index] = 0;
-						if (not variable(function_name)) {
-							delete[] tag_expr;
-							delete[] function_name;
-							return false;
-						}
-						if (tag_expr[index + 1] == L')') { // no argument
-							wchar_t* final_function_name = new wchar_t[wcslen(function_name) + 3];
-							memcpy(final_function_name, function_name, wcslen(function_name) * 2);
-							final_function_name[wcslen(function_name)] = 9;
-							final_function_name[wcslen(function_name) + 1] = L'0';
-							final_function_name[wcslen(function_name) + 2] = 0;
-							delete[] tag_expr;
-							delete[] function_name;
-							final_rpn->rpn = final_function_name;
-							final_rpn->number_of_element = 1;
-							if (rpn_out) { *rpn_out = final_rpn; }
-							else { delete final_rpn; }
-							return true;
-						}
-					}
-					else if (tag_expr[index] == L',' or tag_expr[index] == L')') {
-						wchar_t* this_arg = new wchar_t[index - last_spliter];
-						memcpy(this_arg, tag_expr + last_spliter + 1, (index - last_spliter - 1) * 2);
-						this_arg[index - last_spliter - 1] = 0;
-						strip(this_arg);
-						RPN_EXP* arg_rpn = new RPN_EXP; // storing RPN expression for current argument
-						if (not (expression(this_arg, &arg_rpn) and tag_expr[index + 1] == 0)) {
-							delete[] tag_expr;
-							delete[] this_arg;
-							delete[] function_name;
-							delete final_rpn;
-							delete arg_rpn;
-							return false;
-						}
-						delete[] this_arg;
-						size_t this_args_length = 0;
-						for (USHORT element_index = 0; element_index != arg_rpn->number_of_element; element_index++) {
-							this_args_length += wcslen(arg_rpn->rpn + this_args_length) + 1;
-						}
-						wchar_t* combined_rpn_string = new wchar_t[total_args_length + this_args_length];
-						if (final_rpn->rpn) {
-							memcpy(combined_rpn_string, final_rpn->rpn, total_args_length * 2);
-							delete[] final_rpn->rpn;
-						}
-						memcpy(combined_rpn_string + total_args_length, arg_rpn->rpn, this_args_length * 2);
-						total_args_length += this_args_length;
-						final_rpn->rpn = combined_rpn_string;
-						final_rpn->number_of_element += arg_rpn->number_of_element;
-						delete arg_rpn;
-						number_of_args++;
-						last_spliter = index;
-						if (tag_expr[index] == L')') { // end of function calling
-							if (number_of_bracket == 1) {
-								wchar_t* final_number_of_args = unsigned_to_string(number_of_args);
-								wchar_t* final_function_name = new wchar_t[wcslen(function_name) + 1 + wcslen(final_number_of_args) + 1];
-								memcpy(final_function_name, function_name, wcslen(function_name) * 2);
-								final_function_name[wcslen(function_name)] = 9;
-								memcpy(final_function_name + wcslen(function_name) + 1, final_number_of_args, (wcslen(final_number_of_args) + 1) * 2);
-								final_function_name[wcslen(function_name) + 1 + wcslen(final_number_of_args)] = 0;
-								delete[] function_name;
-								wchar_t* final_rpn_string = new wchar_t[total_args_length + wcslen(final_function_name) + 1];
-								memcpy(final_rpn_string, final_rpn->rpn, total_args_length * 2);
-								memcpy(final_rpn_string + total_args_length, final_function_name, (wcslen(final_function_name) + 1) * 2);
-								delete[] final_rpn->rpn;
-								delete[] tag_expr;
-								final_rpn->rpn = final_rpn_string;
-								final_rpn->number_of_element++;
-								if (rpn_out) { *rpn_out = final_rpn; }
-								else { delete final_rpn; }
-								return true;
-							}
-							else {
-								number_of_bracket--;
-							}
-						}
-					}
-				}
-				return false;
-			}
-		}
-		else { // single element
-			if (integer(tag_expr) or real(tag_expr) or character(tag_expr) or string(tag_expr) or
-				tag_expr[0] == 7 or tag_expr[0] == 8 or date(tag_expr) or valid_variable_path(tag_expr) or addressing(tag_expr)) {
-				rpn_exp->rpn = tag_expr;
-				rpn_exp->number_of_element = 1;
-				if (rpn_out) { *rpn_out = rpn_exp; }
-				else { delete rpn_exp; delete[] tag_expr; }
-				return true;
-			}
-			else {
-				delete rpn_exp;
-				delete[] tag_expr;
-				return false;
-			}
-		}
-	}
-	else {
-		wchar_t operator_value = tag_expr[operator_index];
-		wchar_t* left_operand = new wchar_t[operator_index + 1];
-		wchar_t* right_operand = new wchar_t[length - operator_index];
-		memcpy(left_operand, tag_expr, (size_t)operator_index * 2);
-		memcpy(right_operand, tag_expr + operator_index + 1, (length - operator_index - 1) * 2);
-		left_operand[operator_index] = 0;
-		right_operand[length - operator_index - 1] = 0;
-		strip(left_operand);
-		strip(right_operand);
-		RPN_EXP* rpn_left = nullptr;
-		RPN_EXP* rpn_right = nullptr;
-		if (operator_value == 6) { // one arity operator
-			if (left_operand[0] != 0) {
-				delete[] left_operand;
-				delete[] right_operand;
-				return false;
-			}
-		}
-		bool result1 = expression(left_operand, &rpn_left);
-		bool result2 = expression(right_operand, &rpn_right);
-		delete[] left_operand;
-		delete[] right_operand;
-		delete[] tag_expr;
-		if (not ((result1 and result2) or (operator_value == 6 and result2))) {
-			if (result1) {
-				delete rpn_left;
-			}
-			if (result2) {
-				delete rpn_right;
-			}
-			return false;
-		}
-		else {
-			size_t length_left = 0;
-			if (result1) {
-				left_operand = rpn_left->rpn;
-				for (unsigned element_index = 0; element_index != rpn_left->number_of_element; element_index++) {
-					length_left += wcslen(left_operand + length_left) + 1;
-				}
-			}
-			right_operand = rpn_right->rpn;
-			size_t length_right = 0;
-			for (unsigned element_index = 0; element_index != rpn_right->number_of_element; element_index++) {
-				length_right += wcslen(right_operand + length_right) + 1;
-			}
-			wchar_t* tag_rpn = new wchar_t[length_left + length_right + 2];
-			if (result1) {
-				memcpy(tag_rpn, left_operand, length_left * 2);
-			}
-			memcpy(tag_rpn + length_left, right_operand, length_right * 2);
-			tag_rpn[length_left + length_right] = operator_value;
-			tag_rpn[length_left + length_right + 1] = 0;
-			rpn_exp->rpn = tag_rpn;
-			if (result1) {
-				rpn_exp->number_of_element = rpn_left->number_of_element + rpn_right->number_of_element + 1;
-			}
-			else {
-				rpn_exp->number_of_element = rpn_right->number_of_element + 1;
-			}
-			if (rpn_out) { *rpn_out = rpn_exp; }
-			else { delete rpn_exp; delete[] tag_rpn; }
-			return true;
-		}
-	}
-	return false;
-}
 bool Element::fundamental_type(wchar_t* expr, USHORT* type) {
 	static const wchar_t* fundamentals[] = { L"INTEGER", L"REAL", L"CHAR", L"STRING", L"boolEAN", L"DATE" };
 	size_t length = wcslen(expr);
@@ -2615,6 +2136,163 @@ bool Element::enumerated_type(wchar_t* expr) {
 	}
 	return true;
 }
+bool Element::indexes(wchar_t* expr) {
+	if (not wcslen(expr)) { return false; }
+	if (expr[0] != 91 or expr[wcslen(expr) - 1] != 93) {
+		return false;
+	}
+	size_t last_comma = 0;
+	size_t dimension = 0; // maximum dimension: 10
+	size_t bracket = 1;
+	for (size_t index = 1; expr[index] != 0; index++) {
+		if (expr[index] == 91) {
+			bracket++;
+		}
+		if (expr[index] == 44) {
+			if (dimension == 10) {
+				return false;
+			}
+			wchar_t* new_index = new wchar_t[index - last_comma];
+			memcpy(new_index, expr + last_comma + 1, ((size_t)index - last_comma - 1) * 2);
+			new_index[index - last_comma - 1] = 0;
+			strip(new_index);
+			bool match_result = expression(new_index);
+			delete[] new_index;
+			if (not match_result) {
+				return false;
+			}
+			dimension++;
+			last_comma = index;
+		}
+		else if (expr[index] == 93) {
+			if (bracket != 1) {
+				bracket--;
+				continue;
+			}
+			if (dimension == 10) {
+				return false;
+			}
+			wchar_t* new_index = new wchar_t[index - last_comma];
+			memcpy(new_index, expr + last_comma + 1, (index - last_comma - 1) * 2);
+			new_index[index - last_comma - 1] = 0;
+			strip(new_index);
+			bool match_result = expression(new_index) or integer(new_index);
+			delete[] new_index;
+			return match_result;
+		}
+	}
+	return false;
+}
+bool Element::array_element_access(wchar_t* expr, wchar_t** array_name, wchar_t** index_out) {
+	for (size_t index = 0; expr[index] != 0; index++) {
+		if (expr[index] == 91) {
+			wchar_t* array_part = new wchar_t[index + 1];
+			memcpy(array_part, expr, index * 2);
+			array_part[index] = 0;
+			if (variable(array_part) and indexes(expr + index)) {
+				if (array_name) { *array_name = array_part; }
+				else { delete[] array_name; }
+				if (index_out) {
+					*index_out = new wchar_t[wcslen(expr) - index + 1];
+					memcpy(*index_out, expr + index, (wcslen(expr) - index) * 2);
+					(*index_out)[wcslen(expr) - index] = 0;
+				}
+				return true;
+			}
+			else {
+				delete[] array_part;
+				return false;
+			}
+		}
+	}
+	return false;
+}
+bool Element::variable_path(wchar_t* expr) {
+	if (variable(expr) or array_element_access(expr)) {
+		return true;
+	}
+	if (integer(expr) or float_point_number(expr)) {
+		return false;
+	}
+	if (expr[0] == 94) { // dereference
+		if (expr[1] == 40) { // in the form of ^(x.x).x
+			for (size_t index = 2; expr[index] != 0; index++) {
+				if (expr[index] == 34 or expr[index] == 39) {
+					index += skip_string(expr + index);
+				}
+				else if (expr[index] == 41) {
+					wchar_t* pointer_path = new wchar_t[index - 1];
+					wchar_t* other_path = new wchar_t[wcslen(expr) - index];
+					memcpy(pointer_path, expr + 2, (size_t)(index - 2) * 2);
+					memcpy(other_path + 1, expr + index + 1, (wcslen(expr) - index - 2) * 2);
+					pointer_path[index - 2] = 0;
+					other_path[0] = 97;
+					other_path[wcslen(expr) - index - 2] = 0;
+					bool result = variable_path(pointer_path) and variable_path(pointer_path);
+					delete[] pointer_path;
+					delete[] other_path;
+					return result;
+				}
+			}
+			return false;
+		}
+		else { // in the form of ^x.x
+			return variable_path(expr + 1);
+		}
+	}
+	size_t last_sign = 0;
+	for (size_t index = 0; expr[index] != 0; index++) {
+		if (expr[index] == 46) { // field
+			expr[index] = 0;
+			if (not (variable(expr + last_sign) or array_element_access(expr + last_sign))) {
+				expr[index] = 46;
+				return false;
+			}
+			expr[index] = 46;
+			last_sign = index + 1;
+		}
+	}
+	return variable(expr + last_sign) or array_element_access(expr + last_sign); // last field
+}
+bool Element::addressing(wchar_t* expr) {
+	if (not wcslen(expr)) { return false; }
+	if (expr[0] == 64) {
+		expr++;
+		strip(expr);
+		return variable(expr);
+	}
+	return false;
+}
+bool Element::operator_precedence(wchar_t character, USHORT* precedence_out) {
+	// @ and ^ are special operators because their mechanism so we do not process it in an expression
+	// for ^, see valid_variable_path
+	// for @, see addressing
+	USHORT precedence = 0;
+	switch (character) {
+	case 42: case 47: // * /
+		precedence = 1;
+		break;
+	case 43: case 45: case 38: // + - &
+		precedence = 2;
+		break;
+	case 60: case 61: case 62: case 1: case 2: case 3: // comparison operator
+		precedence = 3;
+		break;
+	case 6: // NOT
+		precedence = 4;
+		break;
+	case 4: // AND
+		precedence = 5;
+		break;
+	case 5: // OR
+		precedence = 6;
+		break;
+	}
+	if (precedence_out) {
+		*precedence_out = precedence;
+	}
+	return precedence != 0;
+}
 bool Element::parameter_list(wchar_t* expr, PARAMETER** param_out, USHORT* count_out) {
 	if (wcslen(expr) == 2) {
 		if (expr[0] == L'(' and expr[1] == L')') {
@@ -2701,6 +2379,336 @@ bool Element::parameter_list(wchar_t* expr, PARAMETER** param_out, USHORT* count
 	if (param_out) { *param_out = params; }
 	if (count_out) { *count_out = count; }
 	return true;
+}
+bool Element::function_call(wchar_t* expr, RPN_EXP*& rpn_out)
+{
+	rpn_out = new RPN_EXP;
+	size_t last_spliter = 0;
+	USHORT number_of_bracket = 0;
+	USHORT number_of_args = 0; // number of arguments passed to the function called
+	size_t total_args_length = 0; // counting of every single character in combined rpn, including \0
+	wchar_t* function_name = nullptr; // in the final stage it will be in a form of f/x, where x is the number of args
+	for (size_t index = 0; expr[index] != 0; index++) {
+		if (expr[index] == L'(') {
+			last_spliter = index;
+			number_of_bracket++;
+			if (number_of_bracket != 1) {
+				continue;
+			}
+			function_name = new wchar_t[index + 1];
+			memcpy(function_name, expr, index * 2);
+			function_name[index] = 0;
+			if (not variable(function_name)) {
+				delete[] expr;
+				delete[] function_name;
+				delete rpn_out;
+				return false;
+			}
+			if (expr[index + 1] == L')') { // no argument
+				wchar_t* final_function_name = new wchar_t[wcslen(function_name) + 3];
+				memcpy(final_function_name, function_name, wcslen(function_name) * 2);
+				final_function_name[wcslen(function_name)] = 9;
+				final_function_name[wcslen(function_name) + 1] = L'0';
+				final_function_name[wcslen(function_name) + 2] = 0;
+				delete[] function_name;
+				rpn_out->rpn = final_function_name;
+				rpn_out->number_of_element = 1;
+				delete[] expr;
+				return true;
+			}
+		}
+		else if (expr[index] == L',' or expr[index] == L')') {
+			wchar_t* this_arg = new wchar_t[index - last_spliter];
+			memcpy(this_arg, expr + last_spliter + 1, (index - last_spliter - 1) * 2);
+			this_arg[index - last_spliter - 1] = 0;
+			strip(this_arg);
+			RPN_EXP* arg_rpn = new RPN_EXP; // storing RPN expression for current argument
+			if (not (expression(this_arg, &arg_rpn) and expr[index + 1] == 0)) {
+				delete[] expr;
+				delete[] this_arg;
+				delete[] function_name;
+				delete rpn_out;
+				delete arg_rpn;
+				return false;
+			}
+			delete[] this_arg;
+			size_t this_args_length = 0;
+			for (USHORT element_index = 0; element_index != arg_rpn->number_of_element; element_index++) {
+				this_args_length += wcslen(arg_rpn->rpn + this_args_length) + 1;
+			}
+			wchar_t* combined_rpn_string = new wchar_t[total_args_length + this_args_length];
+			if (rpn_out->rpn) {
+				memcpy(combined_rpn_string, rpn_out->rpn, total_args_length * 2);
+				delete[] rpn_out->rpn;
+			}
+			memcpy(combined_rpn_string + total_args_length, arg_rpn->rpn, this_args_length * 2);
+			total_args_length += this_args_length;
+			rpn_out->rpn = combined_rpn_string;
+			rpn_out->number_of_element += arg_rpn->number_of_element;
+			delete arg_rpn;
+			number_of_args++;
+			last_spliter = index;
+			if (expr[index] == L')') { // end of function calling
+				if (number_of_bracket == 1) {
+					wchar_t* final_number_of_args = unsigned_to_string(number_of_args);
+					wchar_t* final_function_name = new wchar_t[wcslen(function_name) + 1 + wcslen(final_number_of_args) + 1];
+					memcpy(final_function_name, function_name, wcslen(function_name) * 2);
+					final_function_name[wcslen(function_name)] = 9;
+					memcpy(final_function_name + wcslen(function_name) + 1, final_number_of_args, (wcslen(final_number_of_args) + 1) * 2);
+					final_function_name[wcslen(function_name) + 1 + wcslen(final_number_of_args)] = 0;
+					delete[] function_name;
+					wchar_t* rpn_out_string = new wchar_t[total_args_length + wcslen(final_function_name) + 1];
+					memcpy(rpn_out_string, rpn_out->rpn, total_args_length * 2);
+					memcpy(rpn_out_string + total_args_length, final_function_name, (wcslen(final_function_name) + 1) * 2);
+					delete[] rpn_out->rpn;
+					rpn_out->rpn = rpn_out_string;
+					rpn_out->number_of_element++;
+					return true;
+				}
+				else {
+					number_of_bracket--;
+				}
+			}
+		}
+	}
+}
+bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
+	if (not wcslen(expr)) { return false; }
+	RPN_EXP* rpn_exp = new RPN_EXP;
+	size_t length = wcslen(expr);
+	wchar_t* tag_expr = new wchar_t[length + 1];
+	// stage one: replacement of symbols, boolean constant
+	/*
+	replacement:
+	1: <=
+	2: <>
+	3: >=
+	4: AND
+	5: OR
+	6: NOT
+	7: false
+	8: true
+	*/
+	memcpy(tag_expr, expr, (length + 1) * 2);
+	for (size_t index = 0; tag_expr[index] != 0; index++) {
+		if (not index == 0) {
+			if (tag_expr[index - 1] != 32) {
+				continue;
+			}
+		}
+		switch (tag_expr[index]) {
+		case 34: case 39:
+			index += skip_string(tag_expr + index);
+			break;
+		case 65:
+			if (index < length - 2) { // AND
+				if (tag_expr[index + 1] == 78 and tag_expr[index + 2] == 68 and (tag_expr[index + 3] == 32 or tag_expr[index + 3] == 0)) {
+					tag_expr[index] = 4;
+					memcpy(tag_expr + index + 1, tag_expr + index + 3, (length - index - 2) * 2);
+					length -= 2;
+				}
+			}
+			break;
+		case 79:
+			if (index < length - 1) { // OR
+				if (tag_expr[index + 1] == 82 and (tag_expr[index + 2] == 32 or tag_expr[index + 2] == 0)) {
+					tag_expr[index] = 5;
+					memcpy(tag_expr + index + 1, tag_expr + index + 2, (length - index - 1) * 2);
+					length -= 1;
+				}
+			}
+			break;
+		case 78:
+			if (index < length - 2) { // NOT
+				if (tag_expr[index + 1] == 79 and tag_expr[index + 2] == 84 and (tag_expr[index + 3] == 32 or tag_expr[index + 3] == 0)) {
+					tag_expr[index] = 6;
+					memcpy(tag_expr + index + 1, tag_expr + index + 3, (length - index - 2) * 2);
+					length -= 2;
+				}
+			}
+			break;
+		case 84:
+			if (index < length - 3) { // TRUE
+				if (tag_expr[index + 1] == 82 and tag_expr[index + 2] == 85 and tag_expr[index + 3] == 69 and (tag_expr[index + 4] == 32 or tag_expr[index + 4] == 0)) {
+					tag_expr[index] = 8;
+					memcpy(tag_expr + index + 1, tag_expr + index + 4, (length - index - 3) * 2);
+					length -= 3;
+				}
+			}
+			break;
+		case 70:
+			if (index < length - 4) { // FALSE
+				if (tag_expr[index + 1] == 65 and tag_expr[index + 2] == 76 and tag_expr[index + 3] == 83 and tag_expr[index + 4] == 69 and (tag_expr[index + 5] == 32 or tag_expr[index + 5] == 0)) {
+					tag_expr[index] = 7;
+					memcpy(tag_expr + index + 1, tag_expr + index + 5, (length - index - 4) * 2);
+					length -= 4;
+				}
+			}
+		case 60: case 61: case 62:
+			if (index < length - 1) { // compound logic operator
+				switch ((tag_expr[index] << 8) + tag_expr[index + 1]) {
+				case 15933: case 15421: case 15422:
+					tag_expr[index] = tag_expr[index] + tag_expr[index + 1] - 120;
+					memcpy(tag_expr + index + 1, tag_expr + index + 2, (wcslen(tag_expr) - index - 1) * 2);
+					length--;
+				}
+			}
+		}
+	}
+	// stage two: convert to RPN expression
+	size_t operator_index = 0;
+	USHORT precedence = 0;
+	USHORT tag_precedence = 0;
+	int bracket = 0;
+	int braces = 0;
+	bool bracket_exist = false;
+	for (size_t index = 0; tag_expr[index] != 0; index++) {
+		switch (tag_expr[index]) {
+		case 34: case 39:
+			index += skip_string(tag_expr + index);
+			break;
+		case 40:
+			bracket++;
+			bracket_exist = true;
+			break;
+		case 91:
+			braces++;
+			break;
+		case 41:
+			bracket--;
+			break;
+		case 93:
+			braces--;
+			break;
+		default:
+			if (operator_precedence(tag_expr[index], &tag_precedence)) {
+				if (precedence <= tag_precedence and not bracket and not braces) { // index != 0 is used to identify negative sign before integer
+					if (not ((tag_expr[index] == 43 or tag_expr[index] == 45) and index == 0)) {
+						precedence = tag_precedence;
+						operator_index = index;
+					}
+				}
+			}
+		}
+	}
+	// stage three: check whether the expression is valid and convert into RPN
+	if (not (bracket or braces)) {
+		if (precedence) {
+			// contains operator
+			wchar_t operator_value = tag_expr[operator_index];
+			wchar_t* left_operand = new wchar_t[operator_index + 1];
+			wchar_t* right_operand = new wchar_t[length - operator_index];
+			memcpy(left_operand, tag_expr, (size_t)operator_index * 2);
+			memcpy(right_operand, tag_expr + operator_index + 1, (length - operator_index - 1) * 2);
+			left_operand[operator_index] = 0;
+			right_operand[length - operator_index - 1] = 0;
+			strip(left_operand);
+			strip(right_operand);
+			RPN_EXP* rpn_left = nullptr;
+			RPN_EXP* rpn_right = nullptr;
+			bool result1 = expression(left_operand, &rpn_left);
+			bool result2 = expression(right_operand, &rpn_right);
+			if (operator_value != 6 and left_operand[0] != 0) {
+				// two arity operator
+				if (result1 and result2) {
+					size_t length_left = 0;
+					left_operand = rpn_left->rpn;
+					for (unsigned element_index = 0; element_index != rpn_left->number_of_element; element_index++) {
+						length_left += wcslen(left_operand + length_left) + 1;
+					}
+					size_t length_right = 0;
+					right_operand = rpn_right->rpn;
+					for (unsigned element_index = 0; element_index != rpn_right->number_of_element; element_index++) {
+						length_right += wcslen(right_operand + length_right) + 1;
+					}
+					wchar_t* part_rpn = new wchar_t[length_left + length_right + 2];
+					memcpy(part_rpn, left_operand, length_left * 2);
+					memcpy(part_rpn + length_left, right_operand, length_right * 2);
+					part_rpn[length_left + length_right] = operator_value;
+					part_rpn[length_left + length_right + 1] = 0;
+					rpn_exp->rpn = part_rpn;
+					rpn_exp->number_of_element = rpn_left->number_of_element + rpn_right->number_of_element + 1;
+					delete[] left_operand;
+					delete[] right_operand;
+					if (rpn_out) { *rpn_out = rpn_exp; }
+					else { delete rpn_exp; }
+					return true;
+				}
+				else {
+					if (result1) {
+						delete rpn_left;
+					}
+					else {
+						delete rpn_right;
+					}
+				}
+			}
+			else if (operator_value == 6 and left_operand[0] == 0) {
+				// one arity operator
+				size_t length_right = 0;
+				right_operand = rpn_right->rpn;
+				for (unsigned element_index = 0; element_index != rpn_right->number_of_element; element_index++) {
+					length_right += wcslen(right_operand + length_right) + 1;
+				}
+				wchar_t* part_rpn = new wchar_t[length_right + 2];
+				memcpy(part_rpn, right_operand, length_right * 2);
+				part_rpn[length_right] = operator_value;
+				part_rpn[length_right + 1] = 0;
+				rpn_exp->rpn = part_rpn;
+				rpn_exp->number_of_element = rpn_right->number_of_element + 1;
+				delete[] left_operand;
+				delete[] right_operand;
+				if (rpn_out) { *rpn_out = rpn_exp; }
+				else { delete rpn_exp; }
+				return true;
+			}
+			delete[] left_operand;
+			delete[] right_operand;
+		}
+		else {
+			// no operator found
+			if (bracket_exist) {
+				if (tag_expr[0] == L'(') {
+					// is fully enclosed in brackets
+					wchar_t* part_expr = new wchar_t[length - 1];
+					memcpy(part_expr, tag_expr + 1, (size_t)(length - 2) * 2);
+					part_expr[length - 2] = 0;
+					RPN_EXP* part_rpn = new RPN_EXP{};
+					bool result = expression(part_expr, &part_rpn);
+					delete[] part_expr;
+					if (result) {
+						delete[] tag_expr;
+						delete rpn_exp;
+						if (rpn_out) { *rpn_out = part_rpn; }
+						else { delete part_rpn; }
+						return true;
+					}
+				}
+				else {
+					// function calling
+					if (function_call(tag_expr, rpn_exp)) {
+						delete[] tag_expr;
+						if (rpn_out) { *rpn_out = rpn_exp; }
+						else { delete rpn_exp; }
+						return true;
+					}
+				}
+			}
+			else { // single element
+				if (integer(tag_expr) or real(tag_expr) or character(tag_expr) or string(tag_expr) or
+					tag_expr[0] == 7 or tag_expr[0] == 8 or date(tag_expr) or variable_path(tag_expr) or addressing(tag_expr)) {
+					rpn_exp->rpn = tag_expr;
+					rpn_exp->number_of_element = 1;
+					if (rpn_out) { *rpn_out = rpn_exp; }
+					else { delete rpn_exp; delete[] tag_expr; }
+					return true;
+				}
+			}
+		}
+	}
+	delete[] tag_expr;
+	delete rpn_exp;
+	return false;
 }
 
 RESULT Construct::empty_line(wchar_t* expr) {
@@ -2962,7 +2970,7 @@ RESULT Construct::assignment(wchar_t* expr) {
 			strip(expression_part);
 			strip(variable_part);
 			RPN_EXP* rpn_out = nullptr;
-			if (Element::expression(expression_part, &rpn_out) and Element::valid_variable_path(variable_part)) {
+			if (Element::expression(expression_part, &rpn_out) and Element::variable_path(variable_part)) {
 				delete[] expression_part;
 				result.matched = true;
 				result.args = new void* [] {
@@ -3014,7 +3022,7 @@ RESULT Construct::output(wchar_t* expr) {
 RESULT Construct::input(wchar_t* expr) {
 	RESULT result;
 	if (match_keyword(expr, L"INPUT ") == 0) {
-		if (Element::valid_variable_path(expr + 6)) {
+		if (Element::variable_path(expr + 6)) {
 			wchar_t* variable_part = new wchar_t[wcslen(expr) - 5];
 			memcpy(variable_part, expr + 6, (wcslen(expr) - 6) * 2);
 			variable_part[wcslen(expr) - 6] = 0;
@@ -3284,7 +3292,7 @@ RESULT Construct::for_header_2(wchar_t* expr) {
 RESULT Construct::for_ender(wchar_t* expr) {
 	RESULT result;
 	if (match_keyword(expr, L"NEXT ") == 0) {
-		if (Element::valid_variable_path(expr + 5)) {
+		if (Element::variable_path(expr + 5)) {
 			result.matched = true;
 			result.args = new void* [] {
 				nullptr,
@@ -3647,7 +3655,7 @@ RESULT Construct::readfile_statement(wchar_t* expr) {
 				strip(filename);
 				strip(variable_path);
 				RPN_EXP* rpn_out = nullptr;
-				bool match_result = Element::expression(filename, &rpn_out) and Element::valid_variable_path(variable_path);
+				bool match_result = Element::expression(filename, &rpn_out) and Element::variable_path(variable_path);
 				delete[] filename;
 				if (match_result) {
 					result.matched = true;
@@ -3798,7 +3806,7 @@ RESULT Construct::getrecord_statement(wchar_t* expr) {
 				strip(filename);
 				strip(variable_path);
 				RPN_EXP* rpn_out = nullptr;
-				bool match_result = Element::expression(filename, &rpn_out) and Element::valid_variable_path(variable_path);
+				bool match_result = Element::expression(filename, &rpn_out) and Element::variable_path(variable_path);
 				delete[] filename;
 				if (match_result) {
 					result.matched = true;

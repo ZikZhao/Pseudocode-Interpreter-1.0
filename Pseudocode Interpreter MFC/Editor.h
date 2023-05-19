@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "TagPanel.h"
 #include "ControlPanel.h"
 #include "BreakpointDlg.h"

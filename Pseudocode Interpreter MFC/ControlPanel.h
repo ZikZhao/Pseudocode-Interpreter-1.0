@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #define FIND_BUTTON(id_group, id_button) CControlPanel::pObject->GetGroup(id_group)->GetButton(id_button)
 
 class CControlPanelTag : public CWnd

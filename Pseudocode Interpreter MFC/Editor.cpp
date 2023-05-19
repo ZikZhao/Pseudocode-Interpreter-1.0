@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "../Pseudocode Interpreter/Parser.cpp"
 #define LINE_NUMBER_OFFSET 27 // 展示行数所需的额外偏移量
 #define SCROLL_UNIT 3 // 每次鼠标滚轮滚动时移动的行数

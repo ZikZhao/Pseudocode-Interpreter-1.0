@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #define LASTING_TIME 5000
 
 BEGIN_MESSAGE_MAP(CCustomStatusBar, CWnd)

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "IndexedList.h"
 #ifdef TRY
 #undef TRY
@@ -341,17 +341,18 @@ namespace Element {
 	bool string(wchar_t* expr);
 	bool boolean(wchar_t* expr);
 	bool date(wchar_t* expr);
-	bool valid_indexes(wchar_t* expr);
-	bool valid_array_element_access(wchar_t* expr, wchar_t** array_name = nullptr, wchar_t** indexes = nullptr);
-	bool valid_variable_path(wchar_t* expr);
-	bool addressing(wchar_t* expr);
-	bool valid_operator(wchar_t character, USHORT* precedence_out = nullptr);
-	bool expression(wchar_t* expr, RPN_EXP** rpn_out = nullptr);
 	bool fundamental_type(wchar_t* expr, USHORT* type = nullptr);
 	bool array_type(wchar_t* expr, USHORT** boundaries_out = nullptr, wchar_t** type = nullptr);
 	bool pointer_type(wchar_t* expr);
 	bool enumerated_type(wchar_t* expr);
+	bool indexes(wchar_t* expr);
+	bool array_element_access(wchar_t* expr, wchar_t** array_name = nullptr, wchar_t** indexes = nullptr);
+	bool variable_path(wchar_t* expr);
+	bool addressing(wchar_t* expr);
+	bool operator_precedence(wchar_t character, USHORT* precedence_out = nullptr);
 	bool parameter_list(wchar_t* expr, PARAMETER** param_out = nullptr, USHORT* count_out = nullptr);
+	bool function_call(wchar_t* expr, RPN_EXP*& rpn_out);
+	bool expression(wchar_t* expr, RPN_EXP** rpn_out = nullptr);
 }
 
 namespace Construct {

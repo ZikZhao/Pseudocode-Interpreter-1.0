@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Console.h"
 #include "CallStack.h"
 

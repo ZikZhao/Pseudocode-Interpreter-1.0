@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 
 BEGIN_MESSAGE_MAP(CInfoViewTag, CWnd)
 	ON_WM_CREATE()

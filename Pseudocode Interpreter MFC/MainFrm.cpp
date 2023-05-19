@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #define DISPATCH_CASE(id, cls, function) {case id: cls::pObject->function(); break;}
 
 #ifdef _DEBUG

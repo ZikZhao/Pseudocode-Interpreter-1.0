@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "ControlPanel.h"
 #include "TagPanel.h"
 #include "Editor.h"

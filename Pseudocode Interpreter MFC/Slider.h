@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 static class CSlider : public CWnd
 {
@@ -13,7 +13,7 @@ protected:
 	double m_Ratio; // 展示区域长度/总长度
 	double m_DragPosition; // 拖拽开始时鼠标相对于按钮左上角的比例
 	void (*m_pCallback)(double); // 回调函数
-	void (*m_pDeflateCallback)(ULONG); // 长度削减生效时的回调函数s
+	void (*m_pDeflateCallback)(ULONG); // 长度削减生效时的回调函数
 	bool m_bHoverSlider; // 悬浮于按钮
 	bool m_bDragSlider; // 正在拖拽滚动条
 	bool m_bHover; // 悬浮于整个组件

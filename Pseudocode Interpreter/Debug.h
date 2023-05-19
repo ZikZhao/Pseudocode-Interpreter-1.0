@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 // used as a protocol definition when the program is run in debug mode
 
 // signal types
