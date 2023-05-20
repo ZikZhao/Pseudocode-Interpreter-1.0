@@ -10,14 +10,6 @@ public:
 	static inline CEditor* pObject = nullptr;
 	static inline std::list<BREAKPOINT> m_Breakpoints; // 所有断点
 protected:
-	struct OPERATION {
-		CPoint start; // 插入/删除起始点
-		CPoint end; // 插入/删除结束点
-		wchar_t* content = nullptr; // 插入/删除内容
-		size_t length = 0; // 插入/删除长度
-		bool insert; // 是否为插入
-	};
-	bool m_bWindow; // 窗口是否存在
 	CDC m_Free; // 未选中文件时展示
 	CDC m_Source; // 渲染文字源
 	CDC m_Colour; // 语法高亮色块载体
@@ -38,12 +30,12 @@ protected:
 	UINT64 m_FullWidth, m_FullHeight; // 所有文字同时展示计算大小
 	CVSlider m_VSlider; // 垂直滚动条
 	CHSlider m_HSlider; // 水平滚动条
-	std::list<OPERATION> m_Operations; // 操作撤销/还原列表
-	std::list<OPERATION>::iterator m_CurrentOperation; // 当前操作
 	bool m_bRecord; // 正在记录连续的单字符输入/删除
 	CBreakpointDlg* m_Dialog; // 断点对话框
 	LONG64 m_CurrentStepLineIndex; // 当前单步执行行数（包括断点）
 	CBrush m_BreakpointHitColor; // 断点命中颜色
+	bool m_bBackendPending; // 等待后台任务结束
+	HANDLE m_BackendThread; // 后台线程句柄
 	std::recursive_mutex m_BackendLock; // 后台任务锁（用于短暂暂停后台任务以避免访问冲突）
 public:
 	// 构造
@@ -79,7 +71,7 @@ public:
 	static void CALLBACK VerticalCallback(double percentage); // 垂直滚动条回调函数
 	static void CALLBACK HorizontalCallback(double percentage); // 水平滚动条回调函数
 	static void CALLBACK DeflationCallback(ULONG new_width); // 水平长度削减时回调函数
-	static void EndRecord(HWND hwnd, UINT message, UINT_PTR timer_id, DWORD time); // 单字符输入/删除超时处理函数
+	static void EndRecord(HWND = 0, UINT = 0, UINT_PTR = 0, DWORD = 0); // 单字符输入/删除超时处理函数
 protected:
 	void ArrangeText(); // 计算渲染文字源
 	void ArrangeRenderedText(); // 计算渲染文字源（带语法高亮）

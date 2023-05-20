@@ -4,9 +4,16 @@ class CFileTag : public CWnd
 {
 	DECLARE_MESSAGE_MAP()
 public:
+	struct OPERATION {
+		CPoint start; // 插入/删除起始点
+		CPoint end; // 插入/删除结束点
+		wchar_t* content = nullptr; // 插入/删除内容
+		size_t length = 0; // 插入/删除长度
+		bool insert; // 是否为插入
+	};
 	static inline CDC m_Selected;
 	static inline CDC m_Hover;
-	static inline CDC m_Lastest;
+	static inline CDC m_Latest;
 	static inline CDC m_Newed;
 	static inline CDC m_Edited;
 	static inline CFont m_Font1;
@@ -15,6 +22,8 @@ public:
 	IndexedList<wchar_t*> m_Lines;
 	IndexedList<wchar_t*>::iterator m_CurrentLine;
 	IndexedList<ADVANCED_TOKEN>* m_Tokens;
+	std::list<OPERATION> m_Operations; // 操作撤销/还原列表
+	std::list<OPERATION>::iterator m_CurrentOperation; // 当前操作
 	bool m_bEdited; // 缓冲与物理文档是否有差别
 	bool m_bParsed; // 所有代码是否都已解析
 protected:
@@ -71,6 +80,6 @@ public:
 	void OpenFile(wchar_t* filename); // 打开文件
 	void LoadOpenedFiles(); // 打开上次未关闭的文件
 	CFileTag* GetCurrentTag();
-	void ShiftTag(USHORT index);
 	void ShiftTag(CFileTag* tag);
+	void DestroyTag(CFileTag* tag);
 };

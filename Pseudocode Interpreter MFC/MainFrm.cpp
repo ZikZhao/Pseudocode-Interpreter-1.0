@@ -6,7 +6,7 @@
 #endif
 
 CDC MemoryDC;
-CDC* pWindowDC;
+CDC ScreenDC;
 CBrush* pThemeColorBrush = new CBrush(RGB(254, 74, 99));
 CBrush* pGreyBlackBrush = new CBrush(RGB(30, 30, 30));
 CPen* pNullPen = new CPen(PS_NULL, 0, RGB(0, 0, 0));
@@ -45,8 +45,9 @@ BOOL CMainFrame::PreTranslateMessage(MSG* pMsg)
 int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	// 为所有组件创建内存DC
-	pWindowDC = GetDC();
-	MemoryDC.CreateCompatibleDC(pWindowDC);
+	HDC hdc = ::GetDC(NULL);
+	ScreenDC.Attach(hdc);
+	MemoryDC.CreateCompatibleDC(&ScreenDC);
 
 	// 创建提示文本
 	m_Tip.Create(this, TTS_ALWAYSTIP);
@@ -85,10 +86,9 @@ void CMainFrame::OnSize(UINT nType, int cx, int cy)
 {
 	CFrameWndEx::OnSize(nType, cx, cy);
 
-	pWindowDC = GetDC();
 	// 创建新的内存位图
 	DeleteObject(hBitmap);
-	hBitmap = CreateCompatibleBitmap(*pWindowDC, cx, cy);
+	hBitmap = CreateCompatibleBitmap(ScreenDC, cx, cy);
 	SelectObject(MemoryDC, hBitmap);
 
 	CRect rect;

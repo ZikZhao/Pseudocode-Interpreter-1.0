@@ -73,9 +73,9 @@ int CHSlider::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_BgColor.CreateSolidBrush(RGB(46, 46, 46));
 
 	// 准备源
-	m_Bg.CreateCompatibleDC(pWindowDC);
-	m_Source.CreateCompatibleDC(pWindowDC);
-	m_Hover.CreateCompatibleDC(pWindowDC);
+	m_Bg.CreateCompatibleDC(&ScreenDC);
+	m_Source.CreateCompatibleDC(&ScreenDC);
+	m_Hover.CreateCompatibleDC(&ScreenDC);
 	m_Bg.SelectObject(&m_Pen);
 	m_Source.SelectObject(&m_Pen);
 	m_Hover.SelectObject(&m_Pen);
@@ -108,7 +108,7 @@ void CHSlider::OnSize(UINT nType, int cx, int cy)
 {
 	m_Height = cx;
 
-	HBITMAP hBitmap = CreateCompatibleBitmap(*pWindowDC, m_Height, 10);
+	HBITMAP hBitmap = CreateCompatibleBitmap(ScreenDC, m_Height, 10);
 	HGLOBAL hOldBitmap = SelectObject(m_Bg, hBitmap);
 	DeleteObject(hOldBitmap);
 	CRect rect(0, 0, m_Height, 10);
@@ -196,10 +196,10 @@ void CHSlider::SetRatio(double ratio)
 	CSlider::SetRatio(ratio);
 
 	m_SliderHeight = (USHORT)max(m_Height * m_Ratio, 10); // 按钮最小是个圆
-	HBITMAP hBitmap = CreateCompatibleBitmap(*pWindowDC, m_SliderHeight, 10);
+	HBITMAP hBitmap = CreateCompatibleBitmap(ScreenDC, m_SliderHeight, 10);
 	HGLOBAL hOldBitmap = SelectObject(m_Source, hBitmap);
 	DeleteObject(hOldBitmap);
-	hBitmap = CreateCompatibleBitmap(*pWindowDC, m_SliderHeight, 10);
+	hBitmap = CreateCompatibleBitmap(ScreenDC, m_SliderHeight, 10);
 	hOldBitmap = SelectObject(m_Hover, hBitmap);
 	DeleteObject(hOldBitmap);
 	CRect rect(0, 0, m_SliderHeight, 10);
@@ -247,9 +247,9 @@ int CVSlider::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_BgColor.CreateSolidBrush(RGB(46, 46, 46));
 
 	// 准备源
-	m_Bg.CreateCompatibleDC(pWindowDC);
-	m_Source.CreateCompatibleDC(pWindowDC);
-	m_Hover.CreateCompatibleDC(pWindowDC);
+	m_Bg.CreateCompatibleDC(&ScreenDC);
+	m_Source.CreateCompatibleDC(&ScreenDC);
+	m_Hover.CreateCompatibleDC(&ScreenDC);
 	m_Bg.SelectObject(&m_Pen);
 	m_Source.SelectObject(&m_Pen);
 	m_Hover.SelectObject(&m_Pen);
@@ -282,7 +282,7 @@ void CVSlider::OnSize(UINT nType, int cx, int cy)
 {
 	m_Height = cy;
 
-	HBITMAP hBitmap = CreateCompatibleBitmap(*pWindowDC, 10, m_Height);
+	HBITMAP hBitmap = CreateCompatibleBitmap(ScreenDC, 10, m_Height);
 	HGLOBAL hOldBitmap = SelectObject(m_Bg, hBitmap);
 	DeleteObject(hOldBitmap);
 	CRect rect(0, 0, 10, m_Height);
@@ -364,10 +364,10 @@ void CVSlider::SetRatio(double ratio)
 	CSlider::SetRatio(ratio);
 	
 	m_SliderHeight = (USHORT)max(m_Height * m_Ratio, 10); // 按钮最小是个圆
-	HBITMAP hBitmap = CreateCompatibleBitmap(*pWindowDC, 10, m_SliderHeight);
+	HBITMAP hBitmap = CreateCompatibleBitmap(ScreenDC, 10, m_SliderHeight);
 	HGLOBAL hOldBitmap = SelectObject(m_Source, hBitmap);
 	DeleteObject(hOldBitmap);
-	hBitmap = CreateCompatibleBitmap(*pWindowDC, 10, m_SliderHeight);
+	hBitmap = CreateCompatibleBitmap(ScreenDC, 10, m_SliderHeight);
 	hOldBitmap = SelectObject(m_Hover, hBitmap);
 	DeleteObject(hOldBitmap);
 	CRect rect(0, 0, 10, m_SliderHeight);

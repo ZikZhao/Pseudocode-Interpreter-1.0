@@ -35,18 +35,18 @@ int CCallStack::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Pen.CreatePen(PS_SOLID, 1, RGB(61, 61, 61));
 	m_Brush.CreateSolidBrush(RGB(61, 61, 61));
 
-	m_BG.CreateCompatibleDC(pWindowDC);
+	m_BG.CreateCompatibleDC(&ScreenDC);
 	m_BG.SelectObject(m_Font);
 	m_BG.SetTextColor(RGB(255, 255, 255));
 	m_BG.SetBkMode(TRANSPARENT);
-	m_Source.CreateCompatibleDC(pWindowDC);
+	m_Source.CreateCompatibleDC(&ScreenDC);
 	m_Source.SelectObject(m_Font);
 	CRect rect;
 	m_Source.DrawTextW(L"栈帧", 2, &rect, DT_CALCRECT);
 	m_WordSize = CSize(rect.right + 8, rect.bottom + 4);
 	m_Source.SetTextColor(RGB(255, 255, 255));
 	m_Source.SetBkMode(TRANSPARENT);
-	m_Selection.CreateCompatibleDC(pWindowDC);
+	m_Selection.CreateCompatibleDC(&ScreenDC);
 
 	m_FirstWidth = m_SecondWidth = m_WordSize.cx;
 	ArrangeBG();
@@ -77,13 +77,13 @@ void CCallStack::OnSize(UINT nType, int cx, int cy)
 	CWnd::OnSize(nType, cx, cy);
 	m_Width = cx - 10;
 	m_Height = cy;
-	HANDLE hBitmap = CreateCompatibleBitmap(*pWindowDC, m_Width, m_WordSize.cy);
+	HANDLE hBitmap = CreateCompatibleBitmap(ScreenDC, m_Width, m_WordSize.cy);
 	HANDLE hOldBitmap = SelectObject(m_BG, hBitmap);
 	DeleteObject(hOldBitmap);
-	hBitmap = CreateCompatibleBitmap(*pWindowDC, m_Width, m_Height - m_WordSize.cy);
+	hBitmap = CreateCompatibleBitmap(ScreenDC, m_Width, m_Height - m_WordSize.cy);
 	hOldBitmap = SelectObject(m_Source, hBitmap);
 	DeleteObject(hOldBitmap);
-	hBitmap = CreateCompatibleBitmap(*pWindowDC, m_Width, m_WordSize.cy);
+	hBitmap = CreateCompatibleBitmap(ScreenDC, m_Width, m_WordSize.cy);
 	hOldBitmap = SelectObject(m_Selection, hBitmap);
 	DeleteObject(hOldBitmap);
 	CRect rect(0, 0, m_Width, m_WordSize.cy);
@@ -190,7 +190,7 @@ void CCallStack::ArrangeFrames()
 	for (USHORT index = m_CallStack->ptr - 1;; index--) {
 		size_t size = m_CallStack->stack[index].line_number == 0 ? 2 : log10(m_CallStack->stack[index].line_number) + 2;
 		wchar_t* buffer = new wchar_t[size];
-		StringCchPrintfW(buffer, size, L"%d", m_CallStack->stack[index].line_number);
+		StringCchPrintfW(buffer, size, L"%d", m_CallStack->stack[index].line_number + 1);
 		m_Source.DrawTextW(buffer, size, &rect, DT_RIGHT);
 		delete[] buffer;
 		rect.top = rect.bottom;

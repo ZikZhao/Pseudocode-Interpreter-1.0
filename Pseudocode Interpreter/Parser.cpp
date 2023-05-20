@@ -144,8 +144,16 @@ long match_keyword(wchar_t* expr, const wchar_t* keyword) {
 	return -1;
 }
 
+PARAMETER::~PARAMETER()
+{
+	delete[] name;
+	delete[] type_string;
+}
+
 RPN_EXP::~RPN_EXP() {
-	delete[] rpn;
+	if (rpn) {
+		delete[] rpn;
+	}
 }
 
 void CONSTRUCT::release_tokens() {
@@ -158,37 +166,37 @@ CONSTRUCT::~CONSTRUCT() {
 		for (USHORT index = 0; index != *(USHORT*)result.args[1]; index++) {
 			delete[]((wchar_t**)result.args[2])[index];
 		}
-		delete result.args[1];
-		delete[] result.args[2];
-		delete[] result.args[3];
+		delete (USHORT*)result.args[1];
+		delete[] (wchar_t**)result.args[2];
+		delete[] (wchar_t*)result.args[3];
 		if (((wchar_t*)result.args[0])[0] == L'A') {
-			delete[] result.args[4];
+			delete[] (USHORT*)result.args[4];
 		}
 		break;
 	case Construct::_constant:
-		delete[] result.args[0];
+		delete[] (wchar_t*)result.args[0];
 		delete (RPN_EXP*)result.args[1];
 		break;
 	case Construct::_type_header:
-		delete[] result.args[0];
+		delete[] (wchar_t*)result.args[0];
 		break;
 	case Construct::_pointer_type_header:
-		delete[] result.args[0];
-		delete[] result.args[1];
+		delete[] (wchar_t*)result.args[0];
+		delete[] (wchar_t*)result.args[1];
 		break;
 	case Construct::_enumerated_type_header:
-		delete[] result.args[0];
-		delete[] result.args[1];
+		delete[] (wchar_t*)result.args[0];
+		delete[] (wchar_t*)result.args[1];
 		break;
 	case Construct::_assignment:
-		delete[] result.args[0];
+		delete[] (wchar_t*)result.args[0];
 		delete (RPN_EXP*)result.args[1];
 		break;
 	case Construct::_output:
 		delete (RPN_EXP*)result.args[0];
 		break;
 	case Construct::_input:
-		delete[] result.args[0];
+		delete[] (wchar_t*)result.args[0];
 		break;
 	case Construct::_if_header_1: case Construct::_if_header_2:
 		delete (RPN_EXP*)result.args[1];
@@ -203,7 +211,7 @@ CONSTRUCT::~CONSTRUCT() {
 		delete (Nesting*)result.args[0];
 		break;
 	case Construct::_for_header_1: case Construct::_for_header_2:
-		delete[] result.args[1];
+		delete[] (wchar_t*)result.args[1];
 		delete (RPN_EXP*)result.args[2];
 		delete (RPN_EXP*)result.args[3];
 		break;
@@ -221,22 +229,18 @@ CONSTRUCT::~CONSTRUCT() {
 		delete (RPN_EXP*)result.args[1];
 		break;
 	case Construct::_procedure_header:
-		delete[] result.args[1];
-		for (USHORT index = 0; index != *(USHORT*)result.args[2]; index++) {
-			delete[]((wchar_t**)result.args[3])[index];
-		}
-		delete result.args[2];
+		delete[](wchar_t*)result.args[1];
+		delete (USHORT*)result.args[2];
+		delete[](PARAMETER*)result.args[3];
 		break;
 	case Construct::_procedure_ender:
 		delete (Nesting*)result.args[0];
 		break;
 	case Construct::_function_header:
-		delete[] result.args[1];
-		for (USHORT index = 0; index != *(USHORT*)result.args[2]; index++) {
-			delete[]((wchar_t**)result.args[3])[index];
-		}
-		delete result.args[2];
-		delete[] result.args[4];
+		delete[] (wchar_t*)result.args[1];
+		delete (USHORT*)result.args[2];
+		delete[] (PARAMETER*)result.args[3];
+		delete[] (wchar_t*)result.args[4];
 		break;
 	case Construct::_function_ender:
 		delete (Nesting*)result.args[0];
@@ -245,17 +249,18 @@ CONSTRUCT::~CONSTRUCT() {
 		if (*(bool*)result.args[1]) {
 			delete (RPN_EXP*)result.args[2];
 		}
+		delete (bool*)result.args[1];
 		break;
 	case Construct::_try_ender:
 		delete (Nesting*)result.args[0];
 		break;
 	case Construct::_openfile_statement:
 		delete (RPN_EXP*)result.args[0];
-		delete result.args[1];
+		delete (wchar_t*)result.args[1];
 		break;
 	case Construct::_readfile_statement:
 		delete (RPN_EXP*)result.args[0];
-		delete[] result.args[1];
+		delete[] (wchar_t*)result.args[1];
 		break;
 	case Construct::_writefile_statement:
 		delete (RPN_EXP*)result.args[0];
@@ -270,7 +275,7 @@ CONSTRUCT::~CONSTRUCT() {
 		break;
 	case Construct::_getrecord_statement:
 		delete (RPN_EXP*)result.args[0];
-		delete[] result.args[1];
+		delete[] (wchar_t*)result.args[1];
 		break;
 	case Construct::_putrecord_statement:
 		delete (RPN_EXP*)result.args[0];
@@ -280,7 +285,7 @@ CONSTRUCT::~CONSTRUCT() {
 		delete (RPN_EXP*)result.args[0];
 		break;
 	}
-	delete[] result.args;
+	delete[] (void*)result.args;
 }
 
 Error::Error(ErrorType error_type_in, const wchar_t* error_message_in) {
@@ -2380,9 +2385,9 @@ bool Element::parameter_list(wchar_t* expr, PARAMETER** param_out, USHORT* count
 	if (count_out) { *count_out = count; }
 	return true;
 }
-bool Element::function_call(wchar_t* expr, RPN_EXP*& rpn_out)
+bool Element::function_call(wchar_t* expr, RPN_EXP** rpn_out)
 {
-	rpn_out = new RPN_EXP;
+	RPN_EXP* rpn_exp = new RPN_EXP;
 	size_t last_spliter = 0;
 	USHORT number_of_bracket = 0;
 	USHORT number_of_args = 0; // number of arguments passed to the function called
@@ -2399,9 +2404,8 @@ bool Element::function_call(wchar_t* expr, RPN_EXP*& rpn_out)
 			memcpy(function_name, expr, index * 2);
 			function_name[index] = 0;
 			if (not variable(function_name)) {
-				delete[] expr;
 				delete[] function_name;
-				delete rpn_out;
+				delete rpn_exp;
 				return false;
 			}
 			if (expr[index + 1] == L')') { // no argument
@@ -2411,9 +2415,10 @@ bool Element::function_call(wchar_t* expr, RPN_EXP*& rpn_out)
 				final_function_name[wcslen(function_name) + 1] = L'0';
 				final_function_name[wcslen(function_name) + 2] = 0;
 				delete[] function_name;
-				rpn_out->rpn = final_function_name;
-				rpn_out->number_of_element = 1;
-				delete[] expr;
+				rpn_exp->rpn = final_function_name;
+				rpn_exp->number_of_element = 1;
+				if (rpn_out) { *rpn_out = rpn_exp; }
+				else { delete rpn_exp; }
 				return true;
 			}
 		}
@@ -2422,12 +2427,12 @@ bool Element::function_call(wchar_t* expr, RPN_EXP*& rpn_out)
 			memcpy(this_arg, expr + last_spliter + 1, (index - last_spliter - 1) * 2);
 			this_arg[index - last_spliter - 1] = 0;
 			strip(this_arg);
-			RPN_EXP* arg_rpn = new RPN_EXP; // storing RPN expression for current argument
+			RPN_EXP* arg_rpn;
 			if (not (expression(this_arg, &arg_rpn) and expr[index + 1] == 0)) {
 				delete[] expr;
 				delete[] this_arg;
 				delete[] function_name;
-				delete rpn_out;
+				delete rpn_exp;
 				delete arg_rpn;
 				return false;
 			}
@@ -2437,14 +2442,14 @@ bool Element::function_call(wchar_t* expr, RPN_EXP*& rpn_out)
 				this_args_length += wcslen(arg_rpn->rpn + this_args_length) + 1;
 			}
 			wchar_t* combined_rpn_string = new wchar_t[total_args_length + this_args_length];
-			if (rpn_out->rpn) {
-				memcpy(combined_rpn_string, rpn_out->rpn, total_args_length * 2);
-				delete[] rpn_out->rpn;
+			if (rpn_exp->rpn) {
+				memcpy(combined_rpn_string, rpn_exp->rpn, total_args_length * 2);
+				delete[] rpn_exp->rpn;
 			}
 			memcpy(combined_rpn_string + total_args_length, arg_rpn->rpn, this_args_length * 2);
 			total_args_length += this_args_length;
-			rpn_out->rpn = combined_rpn_string;
-			rpn_out->number_of_element += arg_rpn->number_of_element;
+			rpn_exp->rpn = combined_rpn_string;
+			rpn_exp->number_of_element += arg_rpn->number_of_element;
 			delete arg_rpn;
 			number_of_args++;
 			last_spliter = index;
@@ -2456,13 +2461,17 @@ bool Element::function_call(wchar_t* expr, RPN_EXP*& rpn_out)
 					final_function_name[wcslen(function_name)] = 9;
 					memcpy(final_function_name + wcslen(function_name) + 1, final_number_of_args, (wcslen(final_number_of_args) + 1) * 2);
 					final_function_name[wcslen(function_name) + 1 + wcslen(final_number_of_args)] = 0;
-					delete[] function_name;
 					wchar_t* rpn_out_string = new wchar_t[total_args_length + wcslen(final_function_name) + 1];
-					memcpy(rpn_out_string, rpn_out->rpn, total_args_length * 2);
+					delete[] function_name;
+					delete[] final_number_of_args;
+					memcpy(rpn_out_string, rpn_exp->rpn, total_args_length * 2);
 					memcpy(rpn_out_string + total_args_length, final_function_name, (wcslen(final_function_name) + 1) * 2);
-					delete[] rpn_out->rpn;
-					rpn_out->rpn = rpn_out_string;
-					rpn_out->number_of_element++;
+					delete[] final_function_name;
+					delete[] rpn_exp->rpn;
+					rpn_exp->rpn = rpn_out_string;
+					rpn_exp->number_of_element++;
+					if (rpn_out) { *rpn_out = rpn_exp; }
+					else { delete rpn_exp; }
 					return true;
 				}
 				else {
@@ -2471,12 +2480,14 @@ bool Element::function_call(wchar_t* expr, RPN_EXP*& rpn_out)
 			}
 		}
 	}
+	delete rpn_exp;
 }
 bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 	if (not wcslen(expr)) { return false; }
 	RPN_EXP* rpn_exp = new RPN_EXP;
 	size_t length = wcslen(expr);
 	wchar_t* tag_expr = new wchar_t[length + 1];
+	memcpy(tag_expr, expr, (length + 1) * 2);
 	// stage one: replacement of symbols, boolean constant
 	/*
 	replacement:
@@ -2489,7 +2500,6 @@ bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 	7: false
 	8: true
 	*/
-	memcpy(tag_expr, expr, (length + 1) * 2);
 	for (size_t index = 0; tag_expr[index] != 0; index++) {
 		if (not index == 0) {
 			if (tag_expr[index - 1] != 32) {
@@ -2544,6 +2554,7 @@ bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 					length -= 4;
 				}
 			}
+			break;
 		case 60: case 61: case 62:
 			if (index < length - 1) { // compound logic operator
 				switch ((tag_expr[index] << 8) + tag_expr[index + 1]) {
@@ -2553,6 +2564,7 @@ bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 					length--;
 				}
 			}
+			break;
 		}
 	}
 	// stage two: convert to RPN expression
@@ -2612,50 +2624,49 @@ bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 				// two arity operator
 				if (result1 and result2) {
 					size_t length_left = 0;
-					left_operand = rpn_left->rpn;
 					for (unsigned element_index = 0; element_index != rpn_left->number_of_element; element_index++) {
-						length_left += wcslen(left_operand + length_left) + 1;
+						length_left += wcslen(rpn_left->rpn + length_left) + 1;
 					}
 					size_t length_right = 0;
-					right_operand = rpn_right->rpn;
 					for (unsigned element_index = 0; element_index != rpn_right->number_of_element; element_index++) {
-						length_right += wcslen(right_operand + length_right) + 1;
+						length_right += wcslen(rpn_right->rpn + length_right) + 1;
 					}
 					wchar_t* part_rpn = new wchar_t[length_left + length_right + 2];
-					memcpy(part_rpn, left_operand, length_left * 2);
-					memcpy(part_rpn + length_left, right_operand, length_right * 2);
+					memcpy(part_rpn, rpn_left->rpn, length_left * 2);
+					memcpy(part_rpn + length_left, rpn_right->rpn, length_right * 2);
 					part_rpn[length_left + length_right] = operator_value;
 					part_rpn[length_left + length_right + 1] = 0;
 					rpn_exp->rpn = part_rpn;
 					rpn_exp->number_of_element = rpn_left->number_of_element + rpn_right->number_of_element + 1;
+					delete rpn_left;
+					delete rpn_right;
 					delete[] left_operand;
 					delete[] right_operand;
+					delete[] tag_expr;
 					if (rpn_out) { *rpn_out = rpn_exp; }
 					else { delete rpn_exp; }
 					return true;
 				}
+				if (result1) {
+					delete rpn_left;
+				}
 				else {
-					if (result1) {
-						delete rpn_left;
-					}
-					else {
-						delete rpn_right;
-					}
+					delete rpn_right;
 				}
 			}
 			else if (operator_value == 6 and left_operand[0] == 0) {
 				// one arity operator
 				size_t length_right = 0;
-				right_operand = rpn_right->rpn;
 				for (unsigned element_index = 0; element_index != rpn_right->number_of_element; element_index++) {
-					length_right += wcslen(right_operand + length_right) + 1;
+					length_right += wcslen(rpn_right->rpn + length_right) + 1;
 				}
 				wchar_t* part_rpn = new wchar_t[length_right + 2];
-				memcpy(part_rpn, right_operand, length_right * 2);
+				memcpy(part_rpn, rpn_right->rpn, length_right * 2);
 				part_rpn[length_right] = operator_value;
 				part_rpn[length_right + 1] = 0;
 				rpn_exp->rpn = part_rpn;
 				rpn_exp->number_of_element = rpn_right->number_of_element + 1;
+				delete rpn_right;
 				delete[] left_operand;
 				delete[] right_operand;
 				if (rpn_out) { *rpn_out = rpn_exp; }
@@ -2673,7 +2684,7 @@ bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 					wchar_t* part_expr = new wchar_t[length - 1];
 					memcpy(part_expr, tag_expr + 1, (size_t)(length - 2) * 2);
 					part_expr[length - 2] = 0;
-					RPN_EXP* part_rpn = new RPN_EXP{};
+					RPN_EXP* part_rpn = new RPN_EXP;
 					bool result = expression(part_expr, &part_rpn);
 					delete[] part_expr;
 					if (result) {
@@ -2686,10 +2697,12 @@ bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 				}
 				else {
 					// function calling
-					if (function_call(tag_expr, rpn_exp)) {
+					RPN_EXP* rpn_call;
+					if (function_call(tag_expr, &rpn_call)) {
 						delete[] tag_expr;
-						if (rpn_out) { *rpn_out = rpn_exp; }
-						else { delete rpn_exp; }
+						delete rpn_exp;
+						if (rpn_out) { *rpn_out = rpn_call; }
+						else { delete rpn_call; }
 						return true;
 					}
 				}
@@ -2791,8 +2804,8 @@ RESULT Construct::declaration(wchar_t* expr) {
 							(void*)L"A",
 								new USHORT{ count },
 								variables,
-								boundaries_out,
 								type_out,
+								boundaries_out,
 						};
 
 					}
@@ -3002,7 +3015,7 @@ RESULT Construct::output(wchar_t* expr) {
 		wchar_t* expr_part = new wchar_t[wcslen(expr) - 6];
 		memcpy(expr_part, expr + 7, (wcslen(expr) - 7) * 2);
 		expr_part[wcslen(expr) - 7] = 0;
-		RPN_EXP* rpn_out = nullptr;
+		RPN_EXP* rpn_out;
 		if (Element::expression(expr_part, &rpn_out)) {
 			delete[] expr_part;
 			result.matched = true;
@@ -3082,7 +3095,7 @@ RESULT Construct::if_header_2(wchar_t* expr) {
 		result.matched = true;
 		result.args = new void* [] {
 			nullptr,
-				rpn_out,
+			rpn_out,
 		};
 		result.tokens = new TOKEN[]{
 			{ 3, TOKENTYPE::Keyword },
@@ -3455,8 +3468,8 @@ RESULT Construct::function_header(wchar_t* expr) {
 				strip(parameter_part);
 				return_type[wcslen(expr) - position - 8] = 0;
 				strip(return_type);
-				PARAMETER* params = nullptr;
-				USHORT number_of_args = 0;
+				PARAMETER* params;
+				USHORT number_of_args;
 				bool valid_name = Element::variable(function_name) and Element::variable(return_type);
 				if (not valid_name) {
 					delete[] function_name;
@@ -3882,7 +3895,7 @@ RESULT Construct::putrecord_statement(wchar_t* expr) {
 }
 RESULT Construct::single_expression(wchar_t* expr) {
 	RESULT result;
-	RPN_EXP* rpn_out = nullptr;
+	RPN_EXP* rpn_out;
 	if (Element::expression(expr, &rpn_out)) {
 		result.matched = true;
 		result.args = new void* [] {

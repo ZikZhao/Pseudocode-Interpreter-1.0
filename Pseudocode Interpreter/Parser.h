@@ -73,11 +73,10 @@ struct RPN_EXP {
 // structure that represent a parameter of a function
 struct PARAMETER {
 	wchar_t* name = nullptr;
-	union {
-		wchar_t* type_string = nullptr;
-		DATA* type;
-	};
+	wchar_t* type_string = nullptr;
+	DATA* type;
 	bool passed_by_ref = false;
+	~PARAMETER();
 };
 
 // a whole structure representing a construct
@@ -351,7 +350,7 @@ namespace Element {
 	bool addressing(wchar_t* expr);
 	bool operator_precedence(wchar_t character, USHORT* precedence_out = nullptr);
 	bool parameter_list(wchar_t* expr, PARAMETER** param_out = nullptr, USHORT* count_out = nullptr);
-	bool function_call(wchar_t* expr, RPN_EXP*& rpn_out);
+	bool function_call(wchar_t* expr, RPN_EXP** rpn_out);
 	bool expression(wchar_t* expr, RPN_EXP** rpn_out = nullptr);
 }
 

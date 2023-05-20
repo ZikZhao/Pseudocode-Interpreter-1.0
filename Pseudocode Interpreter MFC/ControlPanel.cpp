@@ -26,9 +26,9 @@ int CControlPanelTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	// 创建主源DC
 	;
-	m_Source.CreateCompatibleDC(pWindowDC);
+	m_Source.CreateCompatibleDC(&ScreenDC);
 	CBitmap* pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
+	pBitmap->CreateCompatibleBitmap(&ScreenDC, m_Width, m_Height);
 	m_Source.SelectObject(pBitmap);
 	m_Source.SelectObject(m_Font);
 	m_Source.SetBkColor(RGB(30, 30, 30));
@@ -36,23 +36,23 @@ int CControlPanelTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	CRect rect(0, 0, m_Width, m_Height);
 	m_Source.DrawTextW(m_Text, &rect, 0);
 	// 创建悬浮源DC
-	m_Hover.CreateCompatibleDC(pWindowDC);
+	m_Hover.CreateCompatibleDC(&ScreenDC);
 	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
+	pBitmap->CreateCompatibleBitmap(&ScreenDC, m_Width, m_Height);
 	m_Hover.SelectObject(pBitmap);
 	m_Hover.SelectObject(m_Font);
 	m_Hover.SetBkColor(RGB(30, 30, 30));
 	m_Hover.SetTextColor(RGB(255, 255, 255));
 	m_Hover.DrawTextW(m_Text, &rect, 0);
 	// 创建选中源DC
-	m_Selected.CreateCompatibleDC(pWindowDC);
+	m_Selected.CreateCompatibleDC(&ScreenDC);
 	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
+	pBitmap->CreateCompatibleBitmap(&ScreenDC, m_Width, m_Height);
 	m_Selected.SelectObject(pBitmap);
 	CDC temp;
-	temp.CreateCompatibleDC(pWindowDC);
+	temp.CreateCompatibleDC(&ScreenDC);
 	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, 3);
+	pBitmap->CreateCompatibleBitmap(&ScreenDC, m_Width, 3);
 	temp.SelectObject(pBitmap);
 	temp.SelectObject(pThemeColorBrush);
 	CPen pen(PS_SOLID, 0, RGB(254, 74, 99));
@@ -231,7 +231,7 @@ void CControlPanelButton::OnLButtonDown(UINT nFlags, CPoint point)
 void CControlPanelButton::OnLButtonUp(UINT nFlags, CPoint point)
 {
 	ReleaseCapture();
-	if (point.x < 68 and point.y < 88) {
+	if (point.x < 68 and point.y < 88 and not m_bDisabled) {
 		CMainFrame::pObject->SendMessageW(WM_COMMAND, m_CommandID, NULL);
 	}
 }
@@ -375,9 +375,9 @@ int CControlPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	;
 	// 创建悬浮于按钮之上时的高亮背景
-	CControlPanelButton::m_HoverBG.CreateCompatibleDC(pWindowDC);
+	CControlPanelButton::m_HoverBG.CreateCompatibleDC(&ScreenDC);
 	CBitmap* pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, 68, 88);
+	pBitmap->CreateCompatibleBitmap(&ScreenDC, 68, 88);
 	CControlPanelButton::m_HoverBG.SelectObject(pBitmap);
 	CBrush brush(RGB(61, 61, 61));
 	CControlPanelButton::m_HoverBG.SelectObject(&brush);
@@ -387,7 +387,7 @@ int CControlPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	// 计算Tag组件字体大小
 	CDC temp;
-	temp.CreateCompatibleDC(pWindowDC);
+	temp.CreateCompatibleDC(&ScreenDC);
 	temp.SelectObject(CControlPanelTag::m_Font);
 	CSize size;
 	GetTextExtentPoint32W(temp, L"你好", 2, &size);
@@ -395,9 +395,9 @@ int CControlPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	CControlPanelTag::m_Height = size.cy;
 
 	// 计算分割条
-	CControlPanelSplitter::m_DC.CreateCompatibleDC(pWindowDC);
+	CControlPanelSplitter::m_DC.CreateCompatibleDC(&ScreenDC);
 	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, 1, 78);
+	pBitmap->CreateCompatibleBitmap(&ScreenDC, 1, 78);
 	CControlPanelSplitter::m_DC.SelectObject(pBitmap);
 	CRect rect(0, 0, 1, 78);
 	CBrush brush2(RGB(56, 56, 56));

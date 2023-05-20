@@ -8,7 +8,7 @@
 #define WM_STEP WM_USER + 1 // 单步执行消息
 
 extern CDC MemoryDC;
-extern CDC* pWindowDC;
+extern CDC ScreenDC;
 extern CBrush* pThemeColorBrush;
 extern CBrush* pGreyBlackBrush;
 extern CPen* pNullPen;

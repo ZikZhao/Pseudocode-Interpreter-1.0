@@ -429,8 +429,8 @@ namespace Execution {
 				delete type_data;
 			}
 			else { // array type
-				DATA* type_data = evaluate_type((wchar_t*)result.args[4]);
-				DataType::Array* object = new DataType::Array{ type_data, (USHORT*)result.args[3] };
+				DATA* type_data = evaluate_type((wchar_t*)result.args[3]);
+				DataType::Array* object = new DataType::Array{ type_data, (USHORT*)result.args[4] };
 				data = new DATA{ 6, object, true };
 			}
 			if (define_record) {

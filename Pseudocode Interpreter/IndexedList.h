@@ -301,7 +301,6 @@ public:
 		if (index == 0) {
 			stack[stack_ptr - 1]->value = m_Root = this_node->next;
 			this_node->next->previous = m_Root;
-			clear();
 		}
 		else {
 			// 当索引指向的节点被移除
@@ -319,11 +318,16 @@ public:
 		delete this_node;
 		m_Size--;
 		// 更新索引
-		for (USHORT stack_index = 0; stack_index != stack_ptr; stack_index++) {
-			this_index_node = stack[stack_index]->next;
-			while (this_index_node) {
-				this_index_node->index--;
-				this_index_node = this_index_node->next;
+		if (m_Size == 0) {
+			clear();
+		}
+		else {
+			for (USHORT stack_index = 0; stack_index != stack_ptr; stack_index++) {
+				this_index_node = stack[stack_index]->next;
+				while (this_index_node) {
+					this_index_node->index--;
+					this_index_node = this_index_node->next;
+				}
 			}
 		}
 		return value;

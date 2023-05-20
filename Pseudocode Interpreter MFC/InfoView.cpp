@@ -32,9 +32,9 @@ int CInfoViewTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Width = rect.right - rect.left;
 	m_Height = rect.bottom - rect.top;
 	// 创建主源
-	m_Source.CreateCompatibleDC(pWindowDC);
+	m_Source.CreateCompatibleDC(&ScreenDC);
 	CBitmap* pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
+	pBitmap->CreateCompatibleBitmap(&ScreenDC, m_Width, m_Height);
 	m_Source.SelectObject(pBitmap);
 	rect = CRect(0, 0, m_Width, m_Height);
 	m_Source.FillRect(&rect, pGreyBlackBrush);
@@ -43,9 +43,9 @@ int CInfoViewTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Source.SelectObject(m_Font);
 	m_Source.DrawTextW(m_Text, -1, &rect, DT_CENTER | DT_VCENTER);
 	// 创建悬浮源
-	m_Hover.CreateCompatibleDC(pWindowDC);
+	m_Hover.CreateCompatibleDC(&ScreenDC);
 	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
+	pBitmap->CreateCompatibleBitmap(&ScreenDC, m_Width, m_Height);
 	m_Hover.SelectObject(pBitmap);
 	m_Hover.FillRect(&rect, pGreyBlackBrush);
 	CBrush brush(RGB(61, 61, 61));
@@ -58,9 +58,9 @@ int CInfoViewTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Hover.SelectObject(m_Font);
 	m_Hover.DrawTextW(m_Text, -1, &rect, DT_CENTER | DT_VCENTER);
 	// 创建选中源
-	m_Selected.CreateCompatibleDC(pWindowDC);
+	m_Selected.CreateCompatibleDC(&ScreenDC);
 	pBitmap = new CBitmap;
-	pBitmap->CreateCompatibleBitmap(pWindowDC, m_Width, m_Height);
+	pBitmap->CreateCompatibleBitmap(&ScreenDC, m_Width, m_Height);
 	m_Selected.SelectObject(pBitmap);
 	m_Selected.FillRect(&rect, pGreyBlackBrush);
 	m_Selected.SelectObject(pThemeColorBrush);
@@ -158,7 +158,7 @@ int CInfoView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		false, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS,
 		PROOF_QUALITY, DEFAULT_PITCH | FF_DONTCARE << 2, L"Microsoft Yahei UI");
 	CDC tempDC;
-	tempDC.CreateCompatibleDC(pWindowDC);
+	tempDC.CreateCompatibleDC(&ScreenDC);
 	tempDC.SelectObject(&CInfoViewTag::m_Font);
 	CRect rect;
 	tempDC.DrawTextW(L"一", -1, &rect, DT_CALCRECT);

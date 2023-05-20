@@ -44,8 +44,8 @@ int CConsoleOutput::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return -1;
 
 	// 创建渲染文字源
-	m_Source.CreateCompatibleDC(pWindowDC);
-	m_Selection.CreateCompatibleDC(pWindowDC);
+	m_Source.CreateCompatibleDC(&ScreenDC);
+	m_Selection.CreateCompatibleDC(&ScreenDC);
 	m_Source.SelectObject(CConsole::font);
 	// 计算字符大小
 	CRect rect(0, 0, 0, 0);
@@ -81,10 +81,10 @@ void CConsoleOutput::OnSize(UINT nType, int cx, int cy)
 	m_Width = cx - 10;
 	m_Height = cy;
 
-	HBITMAP hBitmap = CreateCompatibleBitmap(*pWindowDC, m_Width, m_Height);
+	HBITMAP hBitmap = CreateCompatibleBitmap(ScreenDC, m_Width, m_Height);
 	HGLOBAL hOldBitmap = SelectObject(m_Source, hBitmap);
 	DeleteObject(hOldBitmap);
-	hBitmap = CreateCompatibleBitmap(*pWindowDC, m_Width, m_Height);
+	hBitmap = CreateCompatibleBitmap(ScreenDC, m_Width, m_Height);
 	hOldBitmap = SelectObject(m_Selection, hBitmap);
 	DeleteObject(hOldBitmap);
 	RecalcTotalHeight();
@@ -524,8 +524,8 @@ int CConsoleInput::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		return -1;
 
 	// 创建源
-	m_Source.CreateCompatibleDC(pWindowDC);
-	m_Selection.CreateCompatibleDC(pWindowDC);
+	m_Source.CreateCompatibleDC(&ScreenDC);
+	m_Selection.CreateCompatibleDC(&ScreenDC);
 	m_Source.SelectObject(CConsole::font);
 	// 计算字符大小
 	CRect rect;
@@ -558,10 +558,10 @@ void CConsoleInput::OnSize(UINT nType, int cx, int cy)
 	CWnd::OnSize(nType, cx, cy);
 	m_Width = cx;
 	
-	HBITMAP hBitmap = CreateCompatibleBitmap(*pWindowDC, cx - m_Offset, cy);
+	HBITMAP hBitmap = CreateCompatibleBitmap(ScreenDC, cx - m_Offset, cy);
 	HGLOBAL hOldBitmap = SelectObject(m_Source, hBitmap);
 	DeleteObject(hOldBitmap);
-	hBitmap = CreateCompatibleBitmap(*pWindowDC, cx, cy);
+	hBitmap = CreateCompatibleBitmap(ScreenDC, cx, cy);
 	hOldBitmap = SelectObject(m_Selection, hBitmap);
 	DeleteObject(hOldBitmap);
 	ArrangeText();
