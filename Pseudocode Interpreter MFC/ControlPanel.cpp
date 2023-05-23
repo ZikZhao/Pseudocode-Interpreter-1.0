@@ -25,7 +25,6 @@ CControlPanelTag::~CControlPanelTag()
 int CControlPanelTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
 	// 创建主源DC
-	;
 	m_Source.CreateCompatibleDC(&ScreenDC);
 	CBitmap* pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(&ScreenDC, m_Width, m_Height);
@@ -306,8 +305,9 @@ int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_HIDE);
 		break;
 	case 3:
-		break;
-	case 4:
+		BEGIN_GROUP(ID_TOOLS)
+			BUTTON(ID_TOOLS_REFERENCE, IDB_TOOLS_REFERENCE, L"参考", 0)
+		END_GROUP()
 		break;
 	}
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
@@ -349,8 +349,7 @@ CControlPanel::CControlPanel()
 		CControlPanelTag(0, L"文件"),
 		CControlPanelTag(1, L"编辑"),
 		CControlPanelTag(2, L"调试"),
-		CControlPanelTag(3, L"生成"),
-		CControlPanelTag(4, L"设置"),
+		CControlPanelTag(3, L"工具"),
 	};
 
 	// 创建组
@@ -408,12 +407,10 @@ int CControlPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Tags[1].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(70, 10, 70 + size.cx, 10 + size.cy), this, NULL);
 	m_Tags[2].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(130, 10, 130 + size.cx, 10 + size.cy), this, NULL);
 	m_Tags[3].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(190, 10, 190 + size.cx, 10 + size.cy), this, NULL);
-	m_Tags[4].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(250, 10, 250 + size.cx, 10 + size.cy), this, NULL);
 	m_Groups[0].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_FILE);
 	m_Groups[1].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_EDIT);
 	m_Groups[2].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_DEBUG);
-	m_Groups[3].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_GENERATE);
-	m_Groups[4].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_SETTINGS);
+	m_Groups[3].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_TOOLS);
 	ShiftTag(0);
 
 	return 0;
@@ -444,7 +441,7 @@ CControlPanelGroup* CControlPanel::GetGroup(UINT id)
 		return m_Groups + 1;
 	case ID_DEBUG:
 		return m_Groups + 2;
-	case ID_GENERATE:
+	case ID_TOOLS:
 		return m_Groups + 3;
 	case ID_SETTINGS:
 		return m_Groups + 4;

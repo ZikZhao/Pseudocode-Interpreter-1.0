@@ -58,23 +58,6 @@ long double string_to_real(wchar_t* expr) {
 	return result;
 }
 
-wchar_t* unsigned_to_string(unsigned number) {
-	if (number == 0) {
-		wchar_t* result = new wchar_t[2];
-		result[0] = L'0';
-		result[1] = 0;
-		return result;
-	}
-	size_t digit = log10(number) + 1;
-	wchar_t* result = new wchar_t[digit + 1];
-	result[digit] = 0;
-	for (size_t index = digit - 1; index != -1; index--) {
-		result[index] = (number % 10) + 48;
-		number /= 10;
-	}
-	return result;
-}
-
 wchar_t* length_limiting(wchar_t* expr, size_t length_target) {
 	// format a string with specific length
 	size_t length_now = wcslen(expr);
@@ -294,7 +277,7 @@ Error::Error(ErrorType error_type_in, const wchar_t* error_message_in) {
 }
 
 void BinaryTree::insert(wchar_t* key, DATA* value, bool constant) {
-	BinaryTree::Node* node = new BinaryTree::Node{ key, value, constant };
+	BinaryTree::Node* node = new BinaryTree::Node{ key, wcslen(key) + 1, value, constant };
 	if (this->root == nullptr) {
 		this->root = node;
 	}
@@ -358,6 +341,7 @@ BinaryTree::Node* BinaryTree::find(wchar_t* key) {
 	return nullptr;
 }
 BinaryTree::Node* BinaryTree::list_nodes(BinaryTree::Node* current, USHORT* out_number) {
+	if (not this->root) { return nullptr; }
 	USHORT left_number = 0;
 	USHORT right_number = 0;
 	BinaryTree::Node* left_nodes = nullptr;
@@ -369,9 +353,49 @@ BinaryTree::Node* BinaryTree::list_nodes(BinaryTree::Node* current, USHORT* out_
 		right_nodes = this->list_nodes(current->right, &right_number);
 	}
 	BinaryTree::Node* result = new BinaryTree::Node[left_number + right_number + 1];
-	memcpy(result, current, sizeof(BinaryTree::Node));
-	memcpy(result + 1, left_nodes, sizeof(BinaryTree::Node) * left_number);
-	memcpy(result + 1 + left_number, right_nodes, sizeof(BinaryTree::Node) * right_number);
+	if (left_nodes) {
+		memcpy(result, left_nodes, sizeof(BinaryTree::Node) * left_number);
+		delete[] left_nodes;
+	}
+	memcpy(result + left_number, current, sizeof(BinaryTree::Node));
+	if (right_nodes) {
+		memcpy(result + 1 + left_number, right_nodes, sizeof(BinaryTree::Node) * right_number);
+		delete[] right_nodes;
+	}
+	if (out_number) {
+		*out_number = 1 + left_number + right_number;
+	}
+	return result;
+}
+BinaryTree::Node* BinaryTree::list_nodes_copy(BinaryTree::Node* current, HANDLE hProcess, USHORT* out_number)
+{
+	if (not this->root) { return nullptr; }
+	USHORT left_number = 0;
+	USHORT right_number = 0;
+	BinaryTree::Node* left_nodes = nullptr;
+	BinaryTree::Node* right_nodes = nullptr;
+	if (current->left) {
+		BinaryTree::Node* duplicate_left = (BinaryTree::Node*)malloc(sizeof(BinaryTree::Node));
+		ReadProcessMemory(hProcess, current->left, duplicate_left, sizeof(BinaryTree::Node), nullptr);
+		left_nodes = this->list_nodes_copy(duplicate_left, &left_number);
+		free(duplicate_left);
+	}
+	if (current->right) {
+		BinaryTree::Node* duplicate_right = (BinaryTree::Node*)malloc(sizeof(BinaryTree::Node));
+		ReadProcessMemory(hProcess, current->right, duplicate_right, sizeof(BinaryTree::Node), nullptr);
+		right_nodes = this->list_nodes_copy(duplicate_right, &right_number);
+		free(duplicate_right);
+	}
+	BinaryTree::Node* result = new BinaryTree::Node[left_number + right_number + 1];
+	if (left_nodes) {
+		memcpy(result, left_nodes, sizeof(BinaryTree::Node) * left_number);
+		delete[] left_nodes;
+	}
+	memcpy(result + left_number, current, sizeof(BinaryTree::Node));
+	if (right_nodes) {
+		memcpy(result + 1 + left_number, right_nodes, sizeof(BinaryTree::Node) * right_number);
+		delete[] right_nodes;
+	}
 	if (out_number) {
 		*out_number = 1 + left_number + right_number;
 	}
@@ -651,20 +675,22 @@ DataType::Date* DataType::Date::add(Date* offset) {
 }
 wchar_t* DataType::Date::output() {
 	wchar_t* result = new wchar_t[20];
-	result[4] = result[7] = 95;
-	result[10] = 43;
-	result[13] = result[16] = 58;
+	result[4] = result[7] = '_';
+	result[10] = '+';
+	result[13] = result[16] = ':';
 	result[19] = 0;
 	USHORT* ptr[] = { &this->year, &this->month, &this->day,
 		&this->hour, &this->minute, &this->second };
 	for (USHORT index = 0; index != 6; index++) {
 		if (index == 0) {
-			wchar_t* string = length_limiting(unsigned_to_string(*ptr[index]), 4);
+			wchar_t* string = new wchar_t[5];
+			StringCchPrintfW(string, 5, L"%+4d", *ptr[index]);
 			memcpy(result, string, 8);
 			delete[] string;
 		}
 		else {
-			wchar_t* string = length_limiting(unsigned_to_string(*ptr[index]), 2);
+			wchar_t* string = new wchar_t[3];
+			StringCchPrintfW(string, 3, L"%+2d", *ptr[index]);
 			memcpy(result + 2 + index * 3, string, 4);
 			delete[] string;
 		}
@@ -897,7 +923,7 @@ DataType::Function::Function(size_t start_line_in, USHORT number_of_args_in, PAR
 bool DataType::Function::push_args(BinaryTree* locals, DATA** args) {
 	for (USHORT index = 0; index != this->number_of_args; index++) {
 		if (not ((Any*)args[index]->value)->init) {
-			wchar_t* error_message = new wchar_t[18 + (USHORT)log10(index)];
+			wchar_t* error_message = new wchar_t[17 + GET_DIGITS(index)];
 			memcpy(error_message, L"参数 ", 6);
 			USHORT value = index + 1;
 			USHORT offset = 0;
@@ -906,7 +932,7 @@ bool DataType::Function::push_args(BinaryTree* locals, DATA** args) {
 				value /= 10;
 				offset += 1;
 			}
-			memcpy(error_message + 4 + (USHORT)log10(index), L" 尚未初始化", 14);
+			memcpy(error_message + 3 + GET_DIGITS(index), L" 尚未初始化", 14);
 			throw Error(ValueError, error_message);
 		}
 		if (this->params[index].type->type < 7) {
@@ -1279,186 +1305,136 @@ bool DataType::check_identical(DATA* left, DATA* right) {
 	}
 	return false;
 }
-wchar_t* DataType::output_data(DATA* data, DWORD* count_out) {
+wchar_t* DataType::output_data(DATA* data, size_t& count_out) {
 	if (not ((DataType::Any*)data->value)->init) {
-		*count_out = 6;
+		count_out = 6;
 		return new wchar_t[] { L"<未初始化>" };
 	}
 	switch (data->type) {
 	case 0:
 	{
 		long long value = ((DataType::Integer*)data->value)->value;
-		bool negative = value < 0;
-		value = negative ? -value : value;
-		unsigned length = (negative ? 1 : 0) + (unsigned)log10(abs(value)) + 1;
-		wchar_t* string = new wchar_t[length * 2];
-		if (negative) { string[0] = L'-'; }
-		for (unsigned index = 0; index != length - 1 * negative; index++) {
-			string[length - index - 1] = value % 10 + 48;
-			value /= 10;
-		}
-		*count_out = (size_t)length;
+		count_out = GET_DIGITS(value);
+		wchar_t* string = new wchar_t[count_out + 1];
+		StringCchPrintfW(string, count_out + 1, L"%d", value);
 		return string;
 	}
 	case 1:
 	{
 		long double value = ((DataType::Real*)data->value)->value;
-		bool negative = value < 0;
-		value = negative ? -value : value;
-		long long whole_part = (long long)value;
-		long double fraction_part = value - whole_part;
-		unsigned length = (negative ? 1 : 0) + (unsigned)log10(whole_part) + 1;
-		wchar_t* string = new wchar_t[length + 7 + (negative ? 1 : 0)];
-		if (negative) { string[0] = 45; }
-		for (unsigned index = 0; index != length - 1 * negative; index++) {
-			string[length - index - 1] = whole_part % 10 + 48;
-			whole_part /= 10;
-		}
-		string[length] = 46;
-		for (USHORT index = 0; index != 6; index++) {
-			USHORT this_value = (USHORT)(fraction_part * 10) % 10;
-			string[length + index + 1] = (char)(this_value + 48);
-			fraction_part = fraction_part * 10 - this_value;
-		}
-		*count_out = (size_t)length + 7;
+		count_out = GET_DIGITS(value) + 7;
+		wchar_t* string = new wchar_t[count_out + 1];
+		StringCchPrintfW(string, count_out + 1, L"%.6f", value);
 		return string;
 	}
 	case 2:
 	{
-		wchar_t* buffer = new wchar_t[1];
-		memcpy(buffer, &((DataType::Char*)data->value)->value, 2);
-		*count_out = 1;
+		wchar_t* buffer = new wchar_t[2];
+		buffer[0] = ((DataType::Char*)data->value)->value;
+		buffer[1] = 0;
+		count_out = 1;
 		return buffer;
 	}
 	case 3:
 	{
-		wchar_t* buffer = new wchar_t[((DataType::String*)data->value)->length];
+		wchar_t* buffer = new wchar_t[((DataType::String*)data->value)->length + 1];
 		memcpy(buffer, ((DataType::String*)data->value)->string, ((DataType::String*)data->value)->length * 2);
-		*count_out = ((DataType::String*)data->value)->length;
+		buffer[((DataType::String*)data->value)->length] = 0;
+		count_out = ((DataType::String*)data->value)->length;
 		return buffer;
 	}
 	case 4:
 	{
 		if (((DataType::Boolean*)data->value)->value) {
-			*count_out = 4;
+			count_out = 4;
 			return new wchar_t[] { L"TRUE" };
 		}
 		else {
-			*count_out = 5;
+			count_out = 5;
 			return new wchar_t[] { L"FALSE" };
 		}
 	}
 	case 5:
 	{
 		wchar_t* expr = ((DataType::Date*)data->value)->output();
-		*count_out = wcslen(expr);
+		count_out = wcslen(expr);
 		return expr;
 	}
 	default:
 	{
 		wchar_t* content = new wchar_t[] { L"<该数据仅能以对象形式输出>" };
-		*count_out = 14;
+		count_out = 14;
 		return content;
 	}
 	}
 }
-wchar_t* DataType::output_data_as_object(DATA* data, DWORD* count_out) {
+wchar_t* DataType::output_data_as_object(DATA* data, size_t& count_out) {
 	if (not ((DataType::Any*)data->value)->init) {
-		*count_out = 6;
+		count_out = 6;
 		return new wchar_t[] { L"<未初始化>" };
 	}
 	switch (data->type) {
 	case 0:
 	{
-		DWORD count = 0;
-		wchar_t* content = output_data(data, &count);
-		wchar_t* result_message = new wchar_t[count + 4];
-		static const wchar_t* head = L"整数(";
-		memcpy(result_message, head, 6);
-		memcpy(result_message + 3, content, (size_t)count * 2);
-		static const wchar_t tail = L')';
-		result_message[count + 3] = tail;
+		wchar_t* content = output_data(data, count_out);
+		wchar_t* result_message = new wchar_t[count_out + 5];
+		StringCchPrintfW(result_message, count_out + 5, L"整数(%s)", content);
 		delete[] content;
-		*count_out = count + 4;
+		count_out += 4;
 		return result_message;
 	}
 	case 1:
 	{
-		DWORD count = 0;
-		wchar_t* content = output_data(data, &count);
-		wchar_t* result_message = new wchar_t[count + 5];
-		static const wchar_t* head = L"浮点数(";
-		memcpy(result_message, head, 8);
-		memcpy(result_message + 4, content, count * 2);
-		static const wchar_t tail = ')';
-		result_message[count + 4] = tail;
+		wchar_t* content = output_data(data, count_out);
+		wchar_t* result_message = new wchar_t[count_out + 6];
+		StringCchPrintfW(result_message, count_out + 6, L"浮点数(%s)", content);
 		delete[] content;
-		*count_out = count + 5;
+		count_out += 5;
 		return result_message;
 	}
 	case 2:
 	{
-		DWORD count = 0;
-		wchar_t* content = output_data(data, &count);
-		wchar_t* result_message = new wchar_t[7];
-		static const wchar_t* head = L"字符('";
-		memcpy(result_message, head, 8);
-		result_message[4] = content[0];
-		static const wchar_t* tail = L"')";
-		memcpy(result_message + 4 + count, tail, 4);
+		wchar_t* content = output_data(data, count_out);
+		wchar_t* result_message = new wchar_t[count_out + 5];
+		StringCchPrintfW(result_message, count_out + 5, L"字符(%s)", content);
 		delete[] content;
-		*count_out = 7;
+		count_out += 4;
 		return result_message;
 	}
 	case 3:
 	{
-		DWORD count = 0;
-		wchar_t* content = output_data(data, &count);
-		wchar_t* result_message = new wchar_t[count + 7];
-		static const wchar_t* head = L"字符串(\"";
-		memcpy(result_message, head, 10);
-		memcpy(result_message + 5, content, count * 2);
-		static const wchar_t* tail = L"\")";
-		memcpy(result_message + 5 + count, tail, 4);
+		wchar_t* content = output_data(data, count_out);
+		wchar_t* result_message = new wchar_t[count_out + 6];
+		StringCchPrintfW(result_message, count_out + 6, L"字符串(%s)", content);
 		delete[] content;
-		*count_out = count + 7;
+		count_out += 5;
 		return result_message;
 	}
 	case 4:
 	{
-		DWORD count = 0;
-		wchar_t* content = output_data(data, &count);
-		wchar_t* result_message = new wchar_t[count + 5];
-		static const wchar_t* head = L"布尔值(";
-		memcpy(result_message, head, 8);
-		memcpy(result_message + 4, content, count * 2);
-		static const wchar_t* tail = L")";
-		memcpy(result_message + 4 + count, tail, 2);
+		wchar_t* content = output_data(data, count_out);
+		wchar_t* result_message = new wchar_t[count_out + 6];
+		StringCchPrintfW(result_message, count_out + 6, L"布尔值(%s)", content);
 		delete[] content;
-		*count_out = count + 5;
+		count_out += 5;
 		return result_message;
 	}
 	case 5:
 	{
-		DWORD count = 0;
-		wchar_t* content = output_data(data, &count);
-		wchar_t* result_message = new wchar_t[count + 7];
-		static const wchar_t* head = L"日期与时间(";
-		memcpy(result_message, head, 12);
-		memcpy(result_message + 6, content, count * 2);
-		static const wchar_t* tail = L")";
-		memcpy(result_message + 6 + count, tail, 2);
+		wchar_t* content = output_data(data, count_out);
+		wchar_t* result_message = new wchar_t[count_out + 8];
+		StringCchPrintfW(result_message, count_out + 8, L"日期与时间(%s)", content);
 		delete[] content;
-		*count_out = count + 7;
+		count_out += 7;
 		return result_message;
 	}
 	case 6:
 	{
 		wchar_t** ptr = new wchar_t* [((DataType::Array*)data->value)->total_size];
-		DWORD* counts = new DWORD[((DataType::Array*)data->value)->total_size];
+		size_t* counts = new size_t[((DataType::Array*)data->value)->total_size];
 		DWORD total_count = 3;
 		for (size_t index = 0; index != ((DataType::Array*)data->value)->total_size; index++) {
-			ptr[index] = output_data_as_object(((DataType::Array*)data->value)->memory[index], &counts[index]);
+			ptr[index] = output_data_as_object(((DataType::Array*)data->value)->memory[index], counts[index]);
 			total_count += counts[index] + 2;
 		}
 		wchar_t* result_message = new wchar_t[total_count];
@@ -1466,7 +1442,7 @@ wchar_t* DataType::output_data_as_object(DATA* data, DWORD* count_out) {
 		memcpy(result_message, head, 6);
 		DWORD offset = 3;
 		for (LONG64 index = 0; index != ((DataType::Array*)data->value)->total_size; index++) {
-			memcpy(result_message + offset, ptr[index], (size_t)counts[index] * 2);
+			memcpy(result_message + offset, ptr[index], counts[index] * 2);
 			static const wchar_t* spliter = L", ";
 			memcpy(result_message + offset + counts[index], spliter, 4);
 			offset += counts[index] + 2;
@@ -1475,7 +1451,7 @@ wchar_t* DataType::output_data_as_object(DATA* data, DWORD* count_out) {
 		static const wchar_t* tail = L"]";
 		memcpy(result_message + offset - 2, tail, 2);
 		delete[] ptr;
-		*count_out = total_count;
+		count_out = total_count;
 		return result_message;
 	}
 	case 7:
@@ -1502,18 +1478,18 @@ wchar_t* DataType::output_data_as_object(DATA* data, DWORD* count_out) {
 		}
 		static const wchar_t tail = L')';
 		memcpy(result_message + offset - 2, &tail, 2);
-		*count_out = total_count;
+		count_out = total_count;
 		return result_message;
 	}
 	case 8:
 	{
 		USHORT length = ((DataType::RecordType*)((DataType::Record*)data->value)->source)->number_of_fields;
 		wchar_t** value_ptr = new wchar_t* [length];
-		DWORD* value_lengths = new DWORD[length];
+		size_t* value_lengths = new size_t[length];
 		size_t total_count = 4;
 		for (USHORT index = 0; index != length; index++) {
 			DATA* value_data = ((DataType::Record*)data->value)->read(index);
-			value_ptr[index] = output_data_as_object(value_data, value_lengths + index);
+			value_ptr[index] = output_data_as_object(value_data, value_lengths[index]);
 			total_count += wcslen(((DataType::RecordType*)((DataType::Record*)data->value)->source)->fields[index]) + value_lengths[index] + 3;
 		}
 		wchar_t* result_message = new wchar_t[total_count];
@@ -1535,79 +1511,70 @@ wchar_t* DataType::output_data_as_object(DATA* data, DWORD* count_out) {
 		delete[] value_lengths;
 		static const wchar_t tail = '}';
 		memcpy(result_message + offset - 2, &tail, 2);
-		*count_out = total_count;
+		count_out = total_count;
 		return result_message;
 	}
 	case 9:
 	{
-		DWORD count = 0;
-		wchar_t* content = nullptr;
+		const wchar_t* content = nullptr;
 		switch (((DataType::PointerType*)data->value)->type->type) {
 		case 0:
-			count = 4;
-			content = const_cast<wchar_t*>(L"整数类型");
+			count_out = 4;
+			content = L"整数类型";
 			break;
 		case 1:
-			count = 5;
-			content = const_cast<wchar_t*>(L"浮点数类型");
+			count_out = 5;
+			content = L"浮点数类型";
 			break;
 		case 2:
-			count = 4;
-			content = const_cast<wchar_t*>(L"字符类型");
+			count_out = 4;
+			content = L"字符类型";
 			break;
 		case 3:
-			count = 5;
-			content = const_cast<wchar_t*>(L"字符串类型");
+			count_out = 5;
+			content = L"字符串类型";
 			break;
 		case 4:
-			count = 5;
-			content = const_cast<wchar_t*>(L"布尔值类型");
+			count_out = 5;
+			content = L"布尔值类型";
 			break;
 		case 5:
-			count = 7;
-			content = const_cast<wchar_t*>(L"日期与时间类型");
+			count_out = 7;
+			content = L"日期与时间类型";
 			break;
 		case 6:
-			count = 4;
-			content = const_cast<wchar_t*>(L"数组类型");
+			count_out = 4;
+			content = L"数组类型";
 			break;
 		case 8:
-			count = 5;
-			content = const_cast<wchar_t*>(L"结构体类型");
+			count_out = 5;
+			content = L"结构体类型";
 			break;
 		case 10:
-			count = 4;
-			content = const_cast<wchar_t*>(L"指针类型");
+			count_out = 4;
+			content = L"指针类型";
 			break;
 		case 12:
-			count = 4;
-			content = const_cast<wchar_t*>(L"枚举类型");
+			count_out = 4;
+			content = L"枚举类型";
 			break;
 		}
-		wchar_t* message = new wchar_t[count + 10];
-		static const wchar_t* head = L"指针类型(目标: ";
-		memcpy(message, head, 18);
-		memcpy(message + 9, content, count * 2);
-		static const wchar_t tail = L')';
-		message[count + 9] = tail;
-		*count_out = count + 10;
+		wchar_t* message = new wchar_t[count_out + 11];
+		StringCchPrintfW(message, count_out + 11, L"指针类型(目标: %s）", content);
+		count_out += 10;
 		return message;
 	}
 	case 10:
 	{
 		if (not ((Pointer*)data->value)->valid) {
-			*count_out = 6;
+			count_out = 6;
 			return new wchar_t[] { L"<指针无效>" };
 		}
-		DWORD count = wcslen(((Pointer*)data->value)->node->key);
-		wchar_t* buffer = new wchar_t[count + 8];
-		static const wchar_t* head = L"指针(目标: ";
-		memcpy(buffer, head, 14);
-		memcpy(buffer + 7, ((Pointer*)data->value)->node->key, (size_t)count * 2);
-		static const wchar_t tail = L')';
-		buffer[count + 7] = tail;
-		*count_out = count + 8;
-		return buffer;
+		count_out = wcslen(((Pointer*)data->value)->node->key);
+		wchar_t* message = new wchar_t[count_out + 9];
+		StringCchPrintfW(message, count_out + 9, L"指针(目标：%s)", ((Pointer*)data->value)->node->key);
+		count_out += 8;
+		return message;
 	}
 	case 11:
 	{
@@ -1621,43 +1588,25 @@ wchar_t* DataType::output_data_as_object(DATA* data, DWORD* count_out) {
 		memcpy(buffer, head, 10);
 		DWORD offset = 5;
 		for (USHORT index = 0; index != ((DataType::EnumeratedType*)data->value)->length; index++) {
-			DWORD count = wcslen(terms[index]);
-			memcpy(buffer + offset, terms[index], (size_t)count * 2);
+			size_t count_out = wcslen(terms[index]);
+			memcpy(buffer + offset, terms[index], count_out * 2);
 			static const wchar_t* spliter = L", ";
-			memcpy(buffer + offset + count, spliter, 4);
-			offset += count + 2;
+			memcpy(buffer + offset + count_out, spliter, 4);
+			offset += count_out + 2;
 		}
 		static const wchar_t tail = L')';
 		buffer[total_count - 1] = tail;
-		*count_out = total_count;
+		count_out = total_count;
 		return buffer;
 	}
 	case 12:
 	{
 		USHORT choice = ((DataType::Enumerated*)data->value)->current;
 		wchar_t*& term = ((DataType::EnumeratedType*)((DataType::Enumerated*)data->value)->source)->values[choice];
-		DWORD count = wcslen(term) + (USHORT)log10(choice) + 16;
-		wchar_t* buffer = new wchar_t[count];
-		static const wchar_t* head = L"枚举(值: ";
-		memcpy(buffer, head, 12);
-		size_t enumerated_string_length = (size_t)((USHORT)log10(choice)) + 1;
-		if (choice == 0) {
-			buffer[6] = L'0';
-		}
-		else {
-			for (size_t index = 0; choice >= 1; index++) {
-				buffer[index + 6] = choice % 10 + 48;
-				choice /= 10;
-			}
-		}
-		static const wchar_t* middle = L", 枚举常量: ";
-		memcpy(buffer + 6 + enumerated_string_length, middle, 16);
-		memcpy(buffer + 14 + enumerated_string_length, term, wcslen(term) * 2);
-		static const wchar_t tail = L')';
-		buffer[count - 1] = tail;
-		*count_out = count;
-		return buffer;
-		break;
+		count_out = wcslen(term) + GET_DIGITS(choice) + 12;
+		wchar_t* message = new wchar_t[count_out + 1];
+		StringCchPrintfW(message, count_out + 1, L"枚举(值：%d，枚举常量：%s)", choice, term);
+		return message;
 	}
 	}
 	return nullptr;
@@ -2455,15 +2404,12 @@ bool Element::function_call(wchar_t* expr, RPN_EXP** rpn_out)
 			last_spliter = index;
 			if (expr[index] == L')') { // end of function calling
 				if (number_of_bracket == 1) {
-					wchar_t* final_number_of_args = unsigned_to_string(number_of_args);
-					wchar_t* final_function_name = new wchar_t[wcslen(function_name) + 1 + wcslen(final_number_of_args) + 1];
-					memcpy(final_function_name, function_name, wcslen(function_name) * 2);
-					final_function_name[wcslen(function_name)] = 9;
-					memcpy(final_function_name + wcslen(function_name) + 1, final_number_of_args, (wcslen(final_number_of_args) + 1) * 2);
-					final_function_name[wcslen(function_name) + 1 + wcslen(final_number_of_args)] = 0;
+					//wchar_t* final_number_of_args = unsigned_to_string(number_of_args);
+					size_t length = wcslen(function_name) + GET_DIGITS(number_of_args) + 2;
+					wchar_t* final_function_name = new wchar_t[length];
+					StringCchPrintfW(final_function_name, length, L"%s\x9%d", function_name, number_of_args);
 					wchar_t* rpn_out_string = new wchar_t[total_args_length + wcslen(final_function_name) + 1];
 					delete[] function_name;
-					delete[] final_number_of_args;
 					memcpy(rpn_out_string, rpn_exp->rpn, total_args_length * 2);
 					memcpy(rpn_out_string + total_args_length, final_function_name, (wcslen(final_function_name) + 1) * 2);
 					delete[] final_function_name;
@@ -2709,7 +2655,14 @@ bool Element::expression(wchar_t* expr, RPN_EXP** rpn_out) {
 			}
 			else { // single element
 				if (integer(tag_expr) or real(tag_expr) or character(tag_expr) or string(tag_expr) or
-					tag_expr[0] == 7 or tag_expr[0] == 8 or date(tag_expr) or variable_path(tag_expr) or addressing(tag_expr)) {
+					date(tag_expr) or variable_path(tag_expr) or addressing(tag_expr)) {
+					rpn_exp->rpn = tag_expr;
+					rpn_exp->number_of_element = 1;
+					if (rpn_out) { *rpn_out = rpn_exp; }
+					else { delete rpn_exp; delete[] tag_expr; }
+					return true;
+				}
+				else if ((tag_expr[0] == 7 or tag_expr[0] == 8) and tag_expr[1] == 0) {
 					rpn_exp->rpn = tag_expr;
 					rpn_exp->number_of_element = 1;
 					if (rpn_out) { *rpn_out = rpn_exp; }

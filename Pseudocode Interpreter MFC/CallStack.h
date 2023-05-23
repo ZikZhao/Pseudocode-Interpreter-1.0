@@ -30,9 +30,9 @@ public:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnShowWindow(BOOL bShow, UINT nStatus);
 	void LoadCallStack(CALLSTACK* callstack); // 加载调用堆栈
-	void UpdateSlider(); // 更新滚动条
 	static void VerticalCallback(double percentage); // 垂直滚动体回调函数
 protected:
+	void UpdateSlider(); // 更新滚动条
 	void ArrangeBG(); // 渲染背景源
 	void ArrangeFrames(); // 渲染栈帧源
 };

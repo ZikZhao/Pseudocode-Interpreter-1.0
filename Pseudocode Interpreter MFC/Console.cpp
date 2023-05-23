@@ -1116,11 +1116,15 @@ void CConsole::SignalProc(UINT message, WPARAM wParam, LPARAM lParam)
 	case SIGNAL_BREAKPOINT: case SIGNAL_EXECUTION:
 		CEditor::pObject->PostMessageW(WM_STEP, 0, lParam);
 		SendSignal(SIGNAL_INFORMATION, INFORMATION_CALLING_STACK_REQUEST, 0);
+		SendSignal(SIGNAL_INFORMATION, INFORMATION_VARIABLE_TABLE_REQUEST, 0);
 		break;
 	case SIGNAL_INFORMATION:
 		switch (wParam) {
 		case INFORMATION_CALLING_STACK_RESPONSE:
 			CCallStack::pObject->LoadCallStack(ReadMemory((CALLSTACK*)lParam));
+			break;
+		case INFORMATION_VARIABLE_TABLE_RESPONSE:
+			CVariableTable::pObject->LoadGlobal(ReadMemory((BinaryTree*)lParam));
 			break;
 		}
 	}

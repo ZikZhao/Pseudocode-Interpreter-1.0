@@ -213,6 +213,7 @@
     <ClInclude Include="Pseudocode Interpreter MFC.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="VariableTable.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BreakpointDlg.cpp" />
@@ -231,6 +232,7 @@
     <ClCompile Include="TagPanel.cpp" />
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="Pseudocode Interpreter MFC.cpp" />
+    <ClCompile Include="VariableTable.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Pseudocode Interpreter MFC.reg" />
@@ -262,6 +264,7 @@
     <Image Include="images\file_saveas.bmp" />
     <Image Include="images\file_savefile.bmp" />
     <Image Include="images\PI.ico" />
+    <Image Include="images\tools_reference.bmp" />
   </ItemGroup>
   <ItemGroup>
     <Font Include="YAHEI CONSOLAS HYBRID.TTF" />

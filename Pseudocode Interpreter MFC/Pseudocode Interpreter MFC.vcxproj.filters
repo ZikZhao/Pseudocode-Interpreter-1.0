@@ -60,6 +60,9 @@
     <ClInclude Include="CallStack.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="VariableTable.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Pseudocode Interpreter MFC.cpp">
@@ -96,6 +99,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="CallStack.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="VariableTable.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -175,6 +181,9 @@
       <Filter>资源文件</Filter>
     </Image>
     <Image Include="images\edit_leftarrow.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\tools_reference.bmp">
       <Filter>资源文件</Filter>
     </Image>
   </ItemGroup>

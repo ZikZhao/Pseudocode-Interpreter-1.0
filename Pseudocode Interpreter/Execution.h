@@ -80,15 +80,9 @@ namespace Builtins {
 		for (USHORT index = 0; index != number_of_args; index++) {
 			if (args[index]->type != types[index]) {
 				if (error_message_out) {
-					static wchar_t const* message_template = L"函数：第参数与定义时的数据类型不符";
-					static size_t length = wcslen(message_template);
-					wchar_t* args_index = unsigned_to_string((size_t)index + 1);
-					wchar_t* error_message = new wchar_t[wcslen(function_name) + length + wcslen(args_index) + 2];
-					memcpy(error_message, function_name, wcslen(function_name) * 2);
-					error_message[wcslen(function_name)] = 32;
-					memcpy(error_message + wcslen(function_name) + 1, message_template, 8);
-					memcpy(error_message + wcslen(function_name) + 5, args_index, wcslen(args_index) * 2);
-					memcpy(error_message + wcslen(function_name) + 5 + wcslen(args_index), message_template + 4, length * 2);
+					static size_t length = wcslen(function_name) + GET_DIGITS(index + 1) + 21;
+					wchar_t* error_message = new wchar_t[length];
+					StringCchPrintfW(error_message, length, L"%s 函数：第 %d 参数与定义时的数据类型不符", function_name, index + 1);
 					*error_message_out = error_message;
 				}
 				return false;
@@ -106,8 +100,11 @@ namespace Builtins {
 			throw Error(ArgumentError, error_message_out);
 		}
 		wchar_t* string = ((DataType::String*)ThisString->value)->string;
-		size_t start = (size_t)((DataType::Integer*)x->value)->value;
-		size_t length = (size_t)((DataType::Integer*)y->value)->value;
+		long long start = (long long)((DataType::Integer*)x->value)->value;
+		long long length = (long long)((DataType::Integer*)y->value)->value;
+		if (length <= 0) {
+			throw Error(ArgumentError, L"MID函数：长度不可为零或负数");
+		}
 		if (start >= ((DataType::String*)ThisString->value)->length) {
 			throw Error(ArgumentError, L"MID函数：截取起点超出字符串下标范围");
 		}
@@ -120,6 +117,9 @@ namespace Builtins {
 		wchar_t* error_message_out = nullptr;
 		if (not check_args(args, 1, types, &error_message_out)) {
 			throw Error(ArgumentError, error_message_out);
+		}
+		if (not ((DataType::Any*)ThisString->value)->init) {
+			throw Error(ArgumentError, L"LENGTH函数：字符串未初始化");
 		}
 		wchar_t* string = ((DataType::String*)ThisString->value)->string;
 		DATA* result_data = new DATA{ 0, new DataType::Integer(wcslen(string)) };
@@ -571,8 +571,8 @@ namespace Execution {
 		if (not data) {
 			throw Error(EvaluationError, L"调用的子程序返回值为空，无法完成输出操作");
 		}
-		DWORD count = 0;
-		wchar_t* message = settings & OUTPUT_AS_OBJECT ? DataType::output_data_as_object(data, &count) : DataType::output_data(data, &count);
+		size_t count = 0;
+		wchar_t* message = settings & OUTPUT_AS_OBJECT ? DataType::output_data_as_object(data, count) : DataType::output_data(data, count);
 		WRITE_CONSOLE(standard_output, message, count);
 		static const wchar_t new_line = L'\n';
 		if (settings & AUTOMATIC_NEW_LINE_AFTER_OUTPUT) {

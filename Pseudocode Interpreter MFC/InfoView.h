@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Console.h"
 #include "CallStack.h"
+#include "VariableTable.h"
 
 class CInfoViewTag : public CWnd
 {
@@ -42,6 +43,7 @@ protected:
 	CInfoViewTag* m_Tags[3];
 	CConsole m_Console;
 	CCallStack m_CallStack;
+	CVariableTable m_VariableTable;
 public:
 	CInfoView();
 	~CInfoView();

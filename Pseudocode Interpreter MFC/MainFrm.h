@@ -40,5 +40,7 @@ public:
 	afx_msg void OnDropFiles(HDROP hDropInfo);
 	afx_msg void OnClose();
 	afx_msg void OnDispatchCommand(UINT uID); // 命令消息分发（因为执行函数需要this指针）
+	// 命令
+	afx_msg void OnReference();
 	void UpdateStatus(bool state, wchar_t* text); // 用于更新状态栏来指示子进程状态
 };

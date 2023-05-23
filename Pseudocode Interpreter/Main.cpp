@@ -3,7 +3,6 @@
 #include <cmath>
 #include <ctime>
 #include <list>
-#include <strsafe.h>
 #include "Debug.h"
 #include "Parser.h"
 #include "Execution.h"
@@ -439,6 +438,7 @@ INT_PTR SignalProc(UINT message, WPARAM wParam, LPARAM lParam) {
 			}
 			break;
 		}
+		break;
 	}
 	case SIGNAL_EXECUTION:
 	{
@@ -511,7 +511,7 @@ inline bool CheckBreakpoint(ULONG64 line_index) {
 	return false;
 }
 
-// interprete and execute the code without debugging the code
+// interpret and execute the code without debugging the code
 int ExecuteNormal() {
 	callstack.stack[0] = CALLSTACK::FRAME{};
 	callstack.stack[0].name = new wchar_t[] {L"<主程序>"};

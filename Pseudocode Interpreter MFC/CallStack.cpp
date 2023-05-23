@@ -37,6 +37,7 @@ int CCallStack::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	m_BG.CreateCompatibleDC(&ScreenDC);
 	m_BG.SelectObject(m_Font);
+	m_BG.SelectObject(m_Pen);
 	m_BG.SetTextColor(RGB(255, 255, 255));
 	m_BG.SetBkMode(TRANSPARENT);
 	m_Source.CreateCompatibleDC(&ScreenDC);
@@ -77,6 +78,7 @@ void CCallStack::OnSize(UINT nType, int cx, int cy)
 	CWnd::OnSize(nType, cx, cy);
 	m_Width = cx - 10;
 	m_Height = cy;
+
 	HANDLE hBitmap = CreateCompatibleBitmap(ScreenDC, m_Width, m_WordSize.cy);
 	HANDLE hOldBitmap = SelectObject(m_BG, hBitmap);
 	DeleteObject(hOldBitmap);
@@ -138,21 +140,20 @@ void CCallStack::LoadCallStack(CALLSTACK* callstack)
 	ArrangeFrames();
 	Invalidate(FALSE);
 }
-inline void CCallStack::UpdateSlider()
-{
-	m_Slider.SetRatio((double)(m_Height - m_WordSize.cy) / m_FullHeight);
-}
 void CCallStack::VerticalCallback(double percentage)
 {
 	pObject->m_Percentage = percentage;
 	pObject->ArrangeFrames();
 	pObject->Invalidate(FALSE);
 }
+inline void CCallStack::UpdateSlider()
+{
+	m_Slider.SetRatio((double)(m_Height - m_WordSize.cy) / m_FullHeight);
+}
 void CCallStack::ArrangeBG()
 {
 	CRect rect(0, 0, m_Width, m_WordSize.cy);
 	m_BG.FillRect(&rect, pGreyBlackBrush);
-	m_BG.SelectObject(m_Pen);
 	m_BG.MoveTo(CPoint(0, m_WordSize.cy - 1));
 	m_BG.LineTo(CPoint(m_Width, m_WordSize.cy - 1));
 	m_BG.MoveTo(CPoint(m_FirstWidth, 0));
@@ -168,6 +169,7 @@ void CCallStack::ArrangeBG()
 }
 void CCallStack::ArrangeFrames()
 {
+	if (not m_CallStack) { return; }
 	m_Source.PatBlt(0, 0, m_Width, m_Height, BLACKNESS);
 	double start_index = m_Percentage * (m_CallStack->ptr + 1);
 	int y_offset = -start_index * m_WordSize.cy;

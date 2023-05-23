@@ -120,15 +120,14 @@ public:
 	static inline CFont font; // 字体
 	static inline CBrush selectionColor; //选区背景色
 	bool m_bRun; // 子进程正在运行
+	HANDLE m_DebugHandle; // 可读取内存的进程句柄
 protected:
 	CConsoleOutput m_Output;
 	CConsoleInput m_Input;
 	PIPE m_Pipes; // 所有管道句柄
 	STARTUPINFO m_SI; // 进程启动信息
 	PROCESS_INFORMATION m_PI; // 进程信息
-	HANDLE m_DebugHandle; // 可读取内存的进程句柄
 	bool m_bShow; // 是否显示窗口
-	size_t m_BlockSize; // 存储块大小查询的结果
 public:
 	CConsole();
 	virtual ~CConsole();

@@ -1,17 +1,17 @@
 ﻿#pragma once
+#include <strsafe.h>
 #include "IndexedList.h"
 #ifdef TRY
 #undef TRY
 #endif
+#define GET_DIGITS(number) (number >= 1 ? (size_t)log10(number) + 1 : (number >= -1 ? (number > 0 ? 1ull : 2ull) : (size_t)log10(-number) + 1))
 #define ENDTOKEN { 0, TOKENTYPE::Null }
 
 extern LONGLONG current_instruction_index;
 
 void strip(wchar_t* line); // remove spaces before and after text
 
-long double string_to_real(wchar_t* expr); // convert numerial string into real
-
-wchar_t* unsigned_to_string(unsigned number); // convert unsigned int into string
+long double string_to_real(wchar_t* expr); // convert numerical string into real
 
 wchar_t* length_limiting(wchar_t* expr, size_t length_target); // format string into specific length
 
@@ -127,6 +127,7 @@ public:
 	// node->value->value		pointer of instance of class in DataType namespace (naturally void pointer)
 	struct Node {
 		wchar_t* key = nullptr;
+		size_t length = 0;
 		DATA* value = nullptr;
 		bool constant = false;
 		Node* left = nullptr;
@@ -140,6 +141,7 @@ public:
 	void insert(wchar_t* key, DATA* value, bool constant = false);
 	Node* find(wchar_t* key);
 	Node* list_nodes(Node* current, USHORT* out_number = nullptr);
+	Node* list_nodes_copy(Node* current, HANDLE hProcess, USHORT* out_number = nullptr); // suitable for cross process access
 protected:
 	void clear(Node* current);
 public:
@@ -325,8 +327,8 @@ namespace DataType {
 	DATA* type_adaptation(DATA* data_in, DATA* target_type);
 	void release_data(DATA* data);
 	bool check_identical(DATA* left, DATA* right);
-	wchar_t* output_data(DATA* data, DWORD* count_out);
-	wchar_t* output_data_as_object(DATA* data, DWORD* count_out);
+	wchar_t* output_data(DATA* data, size_t& count_out);
+	wchar_t* output_data_as_object(DATA* data, size_t& count_out);
 	char* sequentialise(DATA* data);
 	DATA* desequentialise(char* digest);
 }

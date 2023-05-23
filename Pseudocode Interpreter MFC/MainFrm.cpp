@@ -152,7 +152,12 @@ void CMainFrame::OnDispatchCommand(UINT uID)
 		DISPATCH_CASE(ID_DEBUG_STEPIN, CConsole, OnDebugStepin)
 		DISPATCH_CASE(ID_DEBUG_STEPOVER, CConsole, OnDebugStepover)
 		DISPATCH_CASE(ID_DEBUG_STEPOUT, CConsole, OnDebugStepout)
+		DISPATCH_CASE(ID_TOOLS_REFERENCE, CMainFrame, OnReference)
 	}
+}
+void CMainFrame::OnReference()
+{
+	ShellExecuteW(NULL, L"open", L"\"Pseudocode Interpreter Reference\\index.html\"", nullptr, nullptr, SW_SHOWMAXIMIZED);
 }
 void CMainFrame::UpdateStatus(bool state, wchar_t* text)
 {

@@ -26,7 +26,7 @@
 #define IDC_EDIT1                       140
 #define ID_DEBUG                        140
 #define IDB_DEBUG_STEPOUT               140
-#define ID_GENERATE                     141
+#define ID_TOOLS                        141
 #define IDB_DEBUG_CONTINUE              141
 #define ID_SETTINGS                     142
 #define IDB_FILE_OPEN                   142
@@ -42,6 +42,8 @@
 #define ID_EDIT_LEFTARROW               149
 #define IDB_BITMAP1                     149
 #define IDB_EDIT_LEFTARROW              149
+#define IDB_TOOLS_REFERENCE             150
+#define ID_TOOLS_REFERENCE              150
 #define ID_DEBUG_RUN                    32774
 #define ID_DEBUG_DEBUG                  32775
 #define ID_DEBUG_HALT                   32776
@@ -50,9 +52,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        150
+#define _APS_NEXT_RESOURCE_VALUE        151
 #define _APS_NEXT_COMMAND_VALUE         32784
 #define _APS_NEXT_CONTROL_VALUE         141
-#define _APS_NEXT_SYMED_VALUE           150
+#define _APS_NEXT_SYMED_VALUE           151
 #endif
 #endif

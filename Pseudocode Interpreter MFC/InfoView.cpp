@@ -153,6 +153,7 @@ int CInfoView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	m_Console.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(), this, NULL);
 	m_CallStack.Create(NULL, NULL, WS_CHILD, CRect(), this, NULL);
+	m_VariableTable.Create(NULL, NULL, WS_CHILD, CRect(), this, NULL);
 	m_SplitterPen.CreatePen(PS_SOLID, 1, RGB(254, 74, 99));
 	CInfoViewTag::m_Font.CreateFontW(24, 0, 0, 0, FW_NORMAL, false, false,
 		false, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS,
@@ -192,6 +193,7 @@ void CInfoView::OnSize(UINT nType, int cx, int cy)
 	CRect rect(0, m_CharSize.cy + 4, cx, cy);
 	m_Console.MoveWindow(rect, FALSE);
 	m_CallStack.MoveWindow(rect, FALSE);
+	m_VariableTable.MoveWindow(rect, FALSE);
 }
 void CInfoView::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 {
@@ -204,6 +206,9 @@ void CInfoView::ShiftTag(USHORT index)
 	case 0:
 		m_Console.ShowWindow(SW_HIDE);
 		break;
+	case 1:
+		m_VariableTable.ShowWindow(SW_HIDE);
+		break;
 	case 2:
 		m_CallStack.ShowWindow(SW_HIDE);
 		break;
@@ -213,6 +218,9 @@ void CInfoView::ShiftTag(USHORT index)
 	switch (m_CurrentIndex) {
 	case 0:
 		m_Console.ShowWindow(SW_SHOW);
+		break;
+	case 1:
+		m_VariableTable.ShowWindow(SW_SHOW);
 		break;
 	case 2:
 		m_CallStack.ShowWindow(SW_SHOW);
