@@ -30,12 +30,12 @@ CFileTag::CFileTag(wchar_t* path)
 		DWORD size_high = 0;
 		DWORD size = GetFileSize(m_Handle, &size_high);
 		if (size == INVALID_FILE_SIZE) {
-			throw L"文件读取失败";
+			AfxMessageBox(L"文件读取失败", MB_ICONERROR);
 		}
 		size_t final_size = (size_t)size + (((size_t)size_high << sizeof(DWORD)));
 		char* char_buffer = new char[final_size + 1];
 		if (not ReadFile(m_Handle, char_buffer, final_size, nullptr, nullptr)) {
-			throw L"文件读取失败";
+			AfxMessageBox(L"文件读取失败", MB_ICONERROR);
 		}
 		char_buffer[final_size] = 0;
 		size_t buffer_size = MultiByteToWideChar(CP_UTF8, MB_PRECOMPOSED, char_buffer, -1, nullptr, 0);
@@ -222,9 +222,9 @@ void CFileTag::Save()
 	if (m_Handle) {
 		SetFilePointer(m_Handle, 0, 0, FILE_BEGIN);
 		for (IndexedList<wchar_t*>::iterator iter = m_Lines.begin();;) {
-			int size = WideCharToMultiByte(CP_ACP, 0, *iter, -1, nullptr, 0, nullptr, nullptr);
+			int size = WideCharToMultiByte(CP_UTF8, 0, *iter, -1, nullptr, 0, nullptr, nullptr);
 			char* buffer = new char[size - 1];
-			WideCharToMultiByte(CP_ACP, 0, *iter, -1, buffer, size - 1, nullptr, nullptr);
+			WideCharToMultiByte(CP_UTF8, 0, *iter, -1, buffer, size - 1, nullptr, nullptr);
 			WriteFile(m_Handle, buffer, size - 1, nullptr, nullptr);
 			iter++;
 			if (iter == m_Lines.end()) {

@@ -3,6 +3,8 @@
 class App : public CWinAppEx
 {
 	DECLARE_MESSAGE_MAP()
+protected:
+	ULONG_PTR m_GdiplusToken;
 public:
 	App() noexcept;
 	virtual BOOL InitInstance();

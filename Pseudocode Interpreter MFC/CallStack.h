@@ -6,7 +6,6 @@ class CCallStack : public CWnd
 public:
 	static inline CCallStack* pObject = nullptr;
 protected:
-	bool m_bShow;
 	CDC m_BG;
 	CDC m_Source;
 	CDC m_Selection;
@@ -28,7 +27,7 @@ public:
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
 	afx_msg void OnPaint();
 	afx_msg void OnSize(UINT nType, int cx, int cy);
-	afx_msg void OnShowWindow(BOOL bShow, UINT nStatus);
+	afx_msg void OnLButtonDblClk(UINT nFlags, CPoint point);
 	void LoadCallStack(CALLSTACK* callstack); // 加载调用堆栈
 	static void VerticalCallback(double percentage); // 垂直滚动体回调函数
 protected:

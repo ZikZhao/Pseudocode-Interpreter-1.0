@@ -895,6 +895,15 @@ void CConsole::OnDebugStepout()
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPOUT, 0);
 }
+void CConsole::SetBreakpoint(ULONG64 line_index, bool state)
+{
+	if (state) {
+		SendSignal(SIGNAL_BREAKPOINT, BREAKPOINT_ADD, line_index);
+	}
+	else {
+		SendSignal(SIGNAL_BREAKPOINT, BREAKPOINT_DELETE, line_index);
+	}
+}
 void CConsole::InitSubprocess(bool debug_mode)
 {
 	// 更新组件状态
@@ -965,6 +974,7 @@ void CConsole::ExitSubprocess(UINT exit_code)
 	catch (int) { /*当窗口被关闭时强制退出*/ }
 	m_Output.SetListState(false);
 	CCallStack::pObject->LoadCallStack(nullptr);
+	CVariableTable::pObject->LoadGlobal(nullptr);
 	m_bRun = false;
 }
 DWORD CConsole::Join(LPVOID lpParameter)
@@ -1111,12 +1121,12 @@ void CConsole::SignalProc(UINT message, WPARAM wParam, LPARAM lParam)
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->ShowWindow(SW_SHOW);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(true);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_HIDE);
-		CCallStack::pObject->LoadCallStack(nullptr);
 		break;
 	case SIGNAL_BREAKPOINT: case SIGNAL_EXECUTION:
 		CEditor::pObject->PostMessageW(WM_STEP, 0, lParam);
-		SendSignal(SIGNAL_INFORMATION, INFORMATION_CALLING_STACK_REQUEST, 0);
 		SendSignal(SIGNAL_INFORMATION, INFORMATION_VARIABLE_TABLE_REQUEST, 0);
+		SendSignal(SIGNAL_INFORMATION, INFORMATION_CALLING_STACK_REQUEST, 0);
+		SendSignal(SIGNAL_INFORMATION, INFORMATION_RETURN_VALUE_REQUEST, 0);
 		break;
 	case SIGNAL_INFORMATION:
 		switch (wParam) {
@@ -1125,6 +1135,11 @@ void CConsole::SignalProc(UINT message, WPARAM wParam, LPARAM lParam)
 			break;
 		case INFORMATION_VARIABLE_TABLE_RESPONSE:
 			CVariableTable::pObject->LoadGlobal(ReadMemory((BinaryTree*)lParam));
+			break;
+		case INFORMATION_RETURN_VALUE_RESPONSE:
+			if (lParam) {
+				CVariableTable::pObject->LoadReturnValue(ReadMemory((DATA*)lParam));
+			}
 			break;
 		}
 	}

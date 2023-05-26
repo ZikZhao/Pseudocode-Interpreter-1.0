@@ -15,6 +15,7 @@ App::App() noexcept
 	SetAppID(_T("PseudocodeInterpreter.IDE.1.0"));
 	SCREEN_WIDTH = GetSystemMetrics(SM_CXFULLSCREEN);
 	SCREEN_HEIGHT = GetSystemMetrics(SM_CYFULLSCREEN);
+	m_GdiplusToken = 0;
 }
 BOOL App::InitInstance()
 {
@@ -35,6 +36,9 @@ BOOL App::InitInstance()
 	InitKeyboardManager();
 	InitTooltipManager();
 
+	Gdiplus::GdiplusStartupInput si{};
+	Gdiplus::GdiplusStartup(&m_GdiplusToken, &si, NULL);
+
 	m_pMainWnd = new CMainFrame;
 	m_pMainWnd->CreateEx(NULL, NULL, L"Pseudocode Interpreter", WS_OVERLAPPEDWINDOW, CRect(), nullptr, NULL);
 	m_pMainWnd->ShowWindow(SW_SHOW);
@@ -45,8 +49,8 @@ BOOL App::InitInstance()
 }
 int App::ExitInstance()
 {
-	//TODO: 处理可能已添加的附加资源
 	AfxOleTerm(FALSE);
+	Gdiplus::GdiplusShutdown(m_GdiplusToken);
 
 	return CWinAppEx::ExitInstance();
 }

@@ -25,10 +25,11 @@
 #define EXECUTION_STEPIN 2
 #define EXECUTION_STEPOVER 4
 #define EXECUTION_STEPOUT 8
-#define EXECUTION_FORCE_SET 16s
 #define EXECUTION_STEPPED 1 // LPARAM: line index
 
 #define INFORMATION_VARIABLE_TABLE_REQUEST 1 // returns pointer to global variable binary tree
 #define INFORMATION_CALLING_STACK_REQUEST 2
+#define INFORMATION_RETURN_VALUE_REQUEST 3
 #define INFORMATION_VARIABLE_TABLE_RESPONSE 1 // LPARAM: pointer to the binary tree representing variable table
 #define INFORMATION_CALLING_STACK_RESPONSE 2 // LPARAM: pointer to the calling stack struct
+#define INFORMATION_RETURN_VALUE_RESPONSE 3 // LPARAM: pointer to the DATA struct

@@ -215,6 +215,9 @@ void CEditor::OnLButtonUp(UINT nFlags, CPoint point)
 					m_Breakpoints.erase(iter);
 					ArrangeBreakpoints();
 					REDRAW_WINDOW();
+					if (CConsole::pObject->m_bRun) {
+						CConsole::pObject->SetBreakpoint(line_index, false);
+					}
 					return;
 				}
 			}
@@ -222,6 +225,9 @@ void CEditor::OnLButtonUp(UINT nFlags, CPoint point)
 			m_Breakpoints.push_back(BREAKPOINT{ line_index, 0, 0, 0 });
 			ArrangeBreakpoints();
 			REDRAW_WINDOW();
+			if (CConsole::pObject->m_bRun) {
+				CConsole::pObject->SetBreakpoint(line_index, true);
+			}
 		}
 		else {
 			m_bDrag = false;

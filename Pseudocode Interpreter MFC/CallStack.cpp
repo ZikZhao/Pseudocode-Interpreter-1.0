@@ -5,11 +5,10 @@ BEGIN_MESSAGE_MAP(CCallStack, CWnd)
 	ON_WM_ERASEBKGND()
 	ON_WM_PAINT()
 	ON_WM_SIZE()
-	ON_WM_SHOWWINDOW()
+	ON_WM_LBUTTONDBLCLK()
 END_MESSAGE_MAP()
 CCallStack::CCallStack()
 {
-	m_bShow = false;
 	m_CallStack = nullptr;
 	m_Width = m_Height = 0;
 	m_FullHeight = 0;
@@ -66,8 +65,8 @@ void CCallStack::OnPaint()
 	CRect rect(0, 0, m_Width, m_Height);
 	MemoryDC.FillRect(&rect, pGreyBlackBrush);
 	if (m_CallStack) {
-		double start_index = m_Percentage * (m_CallStack->ptr + 1);
-		MemoryDC.BitBlt(0, (m_SelectionDepth - start_index + 1) * m_WordSize.cy, m_Width, m_WordSize.cy, &m_Selection, 0, 0, SRCCOPY);
+		double start_index = m_Percentage * m_CallStack->ptr;
+		MemoryDC.BitBlt(0, (m_CallStack->ptr - m_SelectionDepth - start_index) * m_WordSize.cy, m_Width, m_WordSize.cy, &m_Selection, 0, 0, SRCCOPY);
 		MemoryDC.TransparentBlt(0, m_WordSize.cy, m_Width, m_Height - m_WordSize.cy, &m_Source, 0, 0, m_Width, m_Height - m_WordSize.cy, 0);
 	}
 	MemoryDC.BitBlt(0, 0, m_Width, m_WordSize.cy, &m_BG, 0, 0, SRCCOPY);
@@ -93,17 +92,20 @@ void CCallStack::OnSize(UINT nType, int cx, int cy)
 	rect = CRect(cx - 10, 0, cx, cy);
 	m_Slider.MoveWindow(&rect, TRUE);
 	ArrangeBG();
-	if (m_bShow and m_CallStack) {
-		ArrangeFrames();
-	}
+	ArrangeFrames();
+	Invalidate(FALSE);
 }
-void CCallStack::OnShowWindow(BOOL bShow, UINT nStatus)
+void CCallStack::OnLButtonDblClk(UINT nFlags, CPoint point)
 {
-	CWnd::OnShowWindow(bShow, nStatus);
-	m_bShow = bShow;
-	if (m_bShow) {
-		REDRAW_WINDOW();
+	if (not m_CallStack) { return; }
+	double start_line = m_Percentage * m_CallStack->ptr;
+	double difference = (double)point.y / m_WordSize.cy - 1;
+	m_SelectionDepth = (USHORT)(m_CallStack->ptr - start_line - difference);
+	Invalidate(FALSE);
+	if (m_SelectionDepth != 0) {
+		CVariableTable::pObject->LoadLocal(CConsole::pObject->ReadMemory(m_CallStack->stack[m_SelectionDepth].local_variables));
 	}
+	CInfoView::pObject->ShiftTag(1);
 }
 void CCallStack::LoadCallStack(CALLSTACK* callstack)
 {
@@ -111,7 +113,11 @@ void CCallStack::LoadCallStack(CALLSTACK* callstack)
 		delete m_CallStack;
 	}
 	m_CallStack = callstack;
-	if (not m_CallStack) { return; }
+	if (not m_CallStack) {
+		Invalidate(FALSE);
+		return;
+	}
+	m_SelectionDepth = m_CallStack->ptr - 1;
 	// 计算合适的列宽（栈深度）
 	CRect rect;
 	wchar_t* buffer = new wchar_t[(USHORT)log10(m_CallStack->ptr) + 1];
@@ -139,6 +145,9 @@ void CCallStack::LoadCallStack(CALLSTACK* callstack)
 	ArrangeBG();
 	ArrangeFrames();
 	Invalidate(FALSE);
+	if (m_CallStack->ptr != 1) {
+		CVariableTable::pObject->LoadLocal(CConsole::pObject->ReadMemory(m_CallStack->stack[m_CallStack->ptr - 1].local_variables));
+	}
 }
 void CCallStack::VerticalCallback(double percentage)
 {
@@ -183,7 +192,7 @@ void CCallStack::ArrangeFrames()
 		delete[] buffer;
 		rect.top = rect.bottom;
 		rect.bottom += m_WordSize.cy;
-		if (index == 0) {
+		if (index == 0 or rect.top > m_Height - m_WordSize.cy) {
 			break;
 		}
 	}
@@ -197,7 +206,7 @@ void CCallStack::ArrangeFrames()
 		delete[] buffer;
 		rect.top = rect.bottom;
 		rect.bottom += m_WordSize.cy;
-		if (index == 0) {
+		if (index == 0 or rect.top > m_Height - m_WordSize.cy) {
 			break;
 		}
 	}
@@ -209,7 +218,7 @@ void CCallStack::ArrangeFrames()
 		delete[] name;
 		rect.top = rect.bottom;
 		rect.bottom += m_WordSize.cy;
-		if (index == 0) {
+		if (index == 0 or rect.top > m_Height - m_WordSize.cy) {
 			break;
 		}
 	}

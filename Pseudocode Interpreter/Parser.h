@@ -4,7 +4,7 @@
 #ifdef TRY
 #undef TRY
 #endif
-#define GET_DIGITS(number) (number >= 1 ? (size_t)log10(number) + 1 : (number >= -1 ? (number > 0 ? 1ull : 2ull) : (size_t)log10(-number) + 1))
+#define GET_DIGITS(number) (number >= 1 ? (size_t)log10(number) + 1 : (number >= -1 ? (number >= 0 ? 1ull : 2ull) : (size_t)log10(-number) + 1))
 #define ENDTOKEN { 0, TOKENTYPE::Null }
 
 extern LONGLONG current_instruction_index;
@@ -239,6 +239,7 @@ namespace DataType {
 		bool init = true;
 		USHORT number_of_fields;
 		wchar_t** fields;
+		size_t* lengths;
 		DATA* types;
 		RecordType(BinaryTree* field_info);
 	};

@@ -146,6 +146,7 @@ public:
 	bool SendInput(wchar_t* input, DWORD count); // 发送输入到子进程（返回值标识是否允许发送输入）
 	template<typename Type>
 	Type* ReadMemory(Type* address, size_t size = 1); // 读取子进程中地址指向的块
+	void SetBreakpoint(ULONG64 line_index, bool state); // 运行过程中设置断点
 private:
 	void InitSubprocess(bool debug_mode); // 准备监听新进程
 	void ExitSubprocess(UINT exit_code); // 解释器实例结束时运行
