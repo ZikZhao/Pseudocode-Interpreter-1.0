@@ -70,6 +70,12 @@ struct RPN_EXP {
 	~RPN_EXP();
 };
 
+// result of evaluation of an expression
+struct WATCH_RESULT {
+	RPN_EXP* rpn_exp;
+	DATA* data;
+};
+
 // structure that represent a parameter of a function
 struct PARAMETER {
 	wchar_t* name = nullptr;

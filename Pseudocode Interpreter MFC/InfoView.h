@@ -2,6 +2,7 @@
 #include "Console.h"
 #include "CallStack.h"
 #include "VariableTable.h"
+#include "Watch.h"
 
 class CInfoViewTag : public CWnd
 {
@@ -15,10 +16,10 @@ protected:
 	CDC m_Selected; // 选中源
 	bool m_bSelected; // 是否选择
 	bool m_bHover; // 是否悬浮
-	wchar_t* m_Text; // 按钮文本
+	const wchar_t* m_Text; // 按钮文本
 	USHORT m_Index; // 按钮下标
 public:
-	CInfoViewTag(wchar_t* text, USHORT index);
+	CInfoViewTag(const wchar_t* text, USHORT index);
 	~CInfoViewTag();
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg void OnPaint();
@@ -40,10 +41,11 @@ protected:
 	CSize m_CharSize; // 标签文字大小
 	CPen m_SplitterPen; // 绘制分割线用的画笔
 	USHORT m_CurrentIndex; // 当前标签下标
-	CInfoViewTag* m_Tags[3];
+	CInfoViewTag* m_Tags[4];
 	CConsole m_Console;
 	CCallStack m_CallStack;
 	CVariableTable m_VariableTable;
+	CWatch m_Watch;
 public:
 	CInfoView();
 	~CInfoView();

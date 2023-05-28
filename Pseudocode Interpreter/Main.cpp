@@ -473,6 +473,21 @@ INT_PTR SignalProc(UINT message, WPARAM wParam, LPARAM lParam) {
 		}
 		break;
 	}
+	case SIGNAL_WATCH:
+	{
+		RPN_EXP* rpn_exp = (RPN_EXP*)lParam;
+		watch_evaluating = true;
+		try {
+			DATA* result = evaluate(rpn_exp);
+			SendSignal(SIGNAL_WATCH, WATCH_RESPONSE, (LPARAM)new WATCH_RESULT{rpn_exp, result});
+		}
+		catch (Error& error) {
+			DATA* result = new DATA{ 65535, (void*)error.error_message };
+			SendSignal(SIGNAL_WATCH, WATCH_RESPONSE, (LPARAM)new WATCH_RESULT{ rpn_exp, result });
+		}
+		watch_evaluating = false;
+		break;
+	}
 	}
 	return 0;
 }
@@ -503,6 +518,9 @@ void SendSignal(UINT message, WPARAM wParam, LPARAM lParam) {
 
 // check whether the current line of code contains a breakpoint
 inline bool CheckBreakpoint(ULONG64 line_index) {
+	if (watch_evaluating) {
+		return false;
+	}
 	for (list<BREAKPOINT>::iterator iter = breakpoints.begin(); iter != breakpoints.end(); iter++) {
 		if (iter->line_index == line_index) {
 			// cancel stepping

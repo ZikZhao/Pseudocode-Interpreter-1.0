@@ -4,8 +4,9 @@
 // signal types
 #define SIGNAL_CONNECTION 1 // used to establish a connection
 #define SIGNAL_BREAKPOINT 2 // used to manipulate breakpoints
-#define SIGNAL_EXECUTION 4 // used to control execution (by single step, or force executing to specific line)
-#define SIGNAL_INFORMATION 8 // used to transfer information of execution
+#define SIGNAL_EXECUTION 3 // used to control execution (by single step, or force executing to specific line)
+#define SIGNAL_INFORMATION 4 // used to transfer information of execution
+#define SIGNAL_WATCH 5 // used to evaluate watched expressions
 
 // sub-states
 #define CONNECTION_PIPE 1 // LPARAM: handle to send signal back to parent process
@@ -33,3 +34,6 @@
 #define INFORMATION_VARIABLE_TABLE_RESPONSE 1 // LPARAM: pointer to the binary tree representing variable table
 #define INFORMATION_CALLING_STACK_RESPONSE 2 // LPARAM: pointer to the calling stack struct
 #define INFORMATION_RETURN_VALUE_RESPONSE 3 // LPARAM: pointer to the DATA struct
+
+#define WATCH_EVALUATION 1 // LPARAM: pointer to RPN_EXP struct which is located in native address space
+#define WATCH_RESPONSE 1 // LPARAM: pointer to WATCH_RESULT struct which is located in native address space

@@ -147,12 +147,13 @@ public:
 	template<typename Type>
 	Type* ReadMemory(Type* address, size_t size = 1); // 读取子进程中地址指向的块
 	void SetBreakpoint(ULONG64 line_index, bool state); // 运行过程中设置断点
+	HANDLE GetProcessHandle(); // 获取进程句柄
+	static void SendSignal(UINT message, WPARAM wParam, LPARAM lParam); // 发送通信信息
 private:
 	void InitSubprocess(bool debug_mode); // 准备监听新进程
 	void ExitSubprocess(UINT exit_code); // 解释器实例结束时运行
 	static DWORD Join(LPVOID lpParamter); // 进入管道监听循环
 	static DWORD JoinDebug(LPVOID lpParameter); // 进入管道监听循环（调试模式）
-	static void SendSignal(UINT message, WPARAM wParam, LPARAM lParam); // 生产通信信息
 	void SignalProc(UINT message, WPARAM wParam, LPARAM lParam); // 子进程信号处理
 };
 

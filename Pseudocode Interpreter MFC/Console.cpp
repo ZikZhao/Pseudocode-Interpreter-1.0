@@ -541,14 +541,14 @@ void CConsoleInput::OnPaint()
 {
 	CPaintDC dc(this);
 	MemoryDC.BitBlt(0, 0, m_Width, m_CharHeight, &m_Selection, 0, 0, SRCCOPY);
-	MemoryDC.TransparentBlt(0, 0, m_Width, m_CharHeight, &m_Source, 0, 0, m_Width, m_CharHeight, 0);
+	MemoryDC.TransparentBlt(0, 0, m_Width - m_Offset, m_CharHeight, &m_Source, 0, 0, m_Width - m_Offset, m_CharHeight, 0);
 	dc.BitBlt(m_Offset, 0, m_Width, m_CharHeight, &MemoryDC, 0, 0, SRCCOPY);
 }
 BOOL CConsoleInput::OnEraseBkgnd(CDC* pDC)
 {
 	pDC->SelectObject(CConsole::font);
 	pDC->SetTextColor(RGB(255, 255, 255));
-	pDC->SetBkMode(TRANSPARENT);
+	pDC->SetBkColor(RGB(30, 30, 30));
 	CRect rect(5, 0, m_Offset, m_CharHeight);
 	pDC->DrawTextW(L">>>", -1, &rect, 0);
 	return TRUE;
@@ -858,8 +858,10 @@ void CConsole::OnDebugDebug()
 	CreateProcessW(0, command, 0, 0, true, CREATE_NO_WINDOW, 0, 0, &m_SI, &m_PI);
 	CMainFrame::pObject->UpdateStatus(true, new wchar_t[] {L"本地伪代码解释器已启动"});
 	delete[] command;
-	// 监听管道
 	m_DebugHandle = OpenProcess(PROCESS_ALL_ACCESS, TRUE, m_PI.dwProcessId);
+	// 加载监视项
+	CWatch::pObject->BuildRemotePages();
+	// 监听管道
 	CreateThread(NULL, NULL, CConsole::JoinDebug, nullptr, NULL, NULL);
 }
 void CConsole::OnDebugContinue()
@@ -869,6 +871,7 @@ void CConsole::OnDebugContinue()
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	CWatch::pObject->m_bPaused = false;
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_CONTINUE, 0);
 }
 void CConsole::OnDebugStepin()
@@ -877,6 +880,7 @@ void CConsole::OnDebugStepin()
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	CWatch::pObject->m_bPaused = false;
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPIN, 0);
 }
 void CConsole::OnDebugStepover()
@@ -885,6 +889,7 @@ void CConsole::OnDebugStepover()
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	CWatch::pObject->m_bPaused = false;
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPOVER, 0);
 }
 void CConsole::OnDebugStepout()
@@ -893,6 +898,7 @@ void CConsole::OnDebugStepout()
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	CWatch::pObject->m_bPaused = false;
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPOUT, 0);
 }
 void CConsole::SetBreakpoint(ULONG64 line_index, bool state)
@@ -903,6 +909,18 @@ void CConsole::SetBreakpoint(ULONG64 line_index, bool state)
 	else {
 		SendSignal(SIGNAL_BREAKPOINT, BREAKPOINT_DELETE, line_index);
 	}
+}
+HANDLE CConsole::GetProcessHandle()
+{
+	return m_PI.hProcess;
+}
+void CConsole::SendSignal(UINT message, WPARAM wParam, LPARAM lParam)
+{
+	static char buffer[20];
+	memcpy(buffer, &message, 4);
+	memcpy(buffer + 4, &wParam, 8);
+	memcpy(buffer + 12, &lParam, 8);
+	WriteFile(pObject->m_Pipes.signal_in_write, buffer, 20, 0, nullptr);
 }
 void CConsole::InitSubprocess(bool debug_mode)
 {
@@ -920,8 +938,8 @@ void CConsole::InitSubprocess(bool debug_mode)
 	CreatePipe(&m_Pipes.stdout_read, &m_Pipes.stdout_write, &sa, 0);
 	CreatePipe(&m_Pipes.stderr_read, &m_Pipes.stderr_write, &sa, 0);
 	if (debug_mode) {
-		CreatePipe(&m_Pipes.signal_in_read, &m_Pipes.signal_in_write, &sa, 20);
-		CreatePipe(&m_Pipes.signal_out_read, &m_Pipes.signal_out_write, &sa, 20);
+		CreatePipe(&m_Pipes.signal_in_read, &m_Pipes.signal_in_write, &sa, 0);
+		CreatePipe(&m_Pipes.signal_out_read, &m_Pipes.signal_out_write, &sa, 0);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->ShowWindow(SW_HIDE);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_SHOW);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
@@ -1093,14 +1111,6 @@ DWORD CConsole::JoinDebug(LPVOID lpParameter)
 	pObject->ExitSubprocess(state);
 	return 0;
 }
-void CConsole::SendSignal(UINT message, WPARAM wParam, LPARAM lParam)
-{
-	static char buffer[20];
-	memcpy(buffer, &message, 4);
-	memcpy(buffer + 4, &wParam, 8);
-	memcpy(buffer + 12, &lParam, 8);
-	WriteFile(pObject->m_Pipes.signal_in_write, buffer, 20, 0, nullptr);
-}
 inline bool CConsole::SendInput(wchar_t* input, DWORD count)
 {
 	if (m_bRun) {
@@ -1121,12 +1131,21 @@ void CConsole::SignalProc(UINT message, WPARAM wParam, LPARAM lParam)
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->ShowWindow(SW_SHOW);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(true);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_HIDE);
+		CWatch::pObject->CleanWatchResult();
+		CWatch::pObject->CleanRemotePages();
 		break;
 	case SIGNAL_BREAKPOINT: case SIGNAL_EXECUTION:
 		CEditor::pObject->PostMessageW(WM_STEP, 0, lParam);
+		CWatch::pObject->m_bPaused = true;
+		CWatch::pObject->CleanWatchResult();
 		SendSignal(SIGNAL_INFORMATION, INFORMATION_VARIABLE_TABLE_REQUEST, 0);
 		SendSignal(SIGNAL_INFORMATION, INFORMATION_CALLING_STACK_REQUEST, 0);
 		SendSignal(SIGNAL_INFORMATION, INFORMATION_RETURN_VALUE_REQUEST, 0);
+		for (IndexedList<CWatch::WATCH>::iterator iter = CWatch::pObject->m_Watches.begin(); iter != CWatch::pObject->m_Watches.end(); iter++) {
+			if (iter->target_rpn_exp) {
+				SendSignal(SIGNAL_WATCH, WATCH_EVALUATION, (LPARAM)iter->target_rpn_exp);
+			}
+		}
 		break;
 	case SIGNAL_INFORMATION:
 		switch (wParam) {
@@ -1142,5 +1161,10 @@ void CConsole::SignalProc(UINT message, WPARAM wParam, LPARAM lParam)
 			}
 			break;
 		}
+		break;
+	case SIGNAL_WATCH:
+		CWatch::pObject->UpdateWatchResult((WATCH_RESULT*)lParam);
+		break;
 	}
+
 }

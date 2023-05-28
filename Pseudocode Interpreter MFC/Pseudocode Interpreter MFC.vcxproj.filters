@@ -63,6 +63,9 @@
     <ClInclude Include="VariableTable.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Watch.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Pseudocode Interpreter MFC.cpp">
@@ -102,6 +105,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="VariableTable.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Watch.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -30,11 +30,12 @@ wchar_t* record_name;
 BinaryTree record_fields; // data structure used to store declaration statements of record type
 CALLSTACK callstack;
 DATA* return_value = nullptr;
+bool watch_evaluating = false;
 
 DATA* evaluate(RPN_EXP* expr); // forward declaration
 DATA* evaluate_variable(wchar_t* path, bool* constant = nullptr); // forward declaration
 DATA* evaluate_variable(DATA* current, wchar_t* expr); // forward declaration
-DATA* function_calling_debug(wchar_t* function_name, USHORT number_of_args, DATA** args); // forward declaration
+DATA* function_calling(wchar_t* function_name, USHORT number_of_args, DATA** args); // forward declaration
 
 inline BinaryTree::Node* find_variable(wchar_t* variable_name) {
 	BinaryTree::Node* local_node = nullptr;
@@ -1738,7 +1739,7 @@ DATA* evaluate(RPN_EXP* rpn_in) {
 						ptr--;
 						data_ptr[number_of_args - data_index - 1] = stack[ptr];
 					}
-					DATA* data = function_calling_debug(function_name, number_of_args, data_ptr);
+					DATA* data = function_calling(function_name, number_of_args, data_ptr);
 					delete[] function_name;
 					stack[ptr] = data;
 					ptr++;
@@ -1773,8 +1774,7 @@ DATA* evaluate(RPN_EXP* rpn_in) {
 	}
 }
 
-// it named with debug as breakpoint may be hit
-DATA* function_calling_debug(wchar_t* function_name, USHORT number_of_args, DATA** args) {
+DATA* function_calling(wchar_t* function_name, USHORT number_of_args, DATA** args) {
 	// user-defined function calling
 	BinaryTree::Node* node = find_variable(function_name);
 	if (node) {
@@ -1799,7 +1799,7 @@ DATA* function_calling_debug(wchar_t* function_name, USHORT number_of_args, DATA
 						SendSignal(SIGNAL_BREAKPOINT, BREAKPOINT_HIT, current_instruction_index);
 						WaitForSingleObject(breakpoint_handled, INFINITE);
 					}
-					else if (step_type == EXECUTION_STEPIN) {
+					else if (step_type == EXECUTION_STEPIN and not watch_evaluating) {
 						ResetEvent(step_handled);
 						SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPPED, current_instruction_index);
 						WaitForSingleObject(step_handled, INFINITE);
@@ -1838,12 +1838,12 @@ DATA* function_calling_debug(wchar_t* function_name, USHORT number_of_args, DATA
 					current_instruction_index = callstack.GetCurrentCall().line_number;
 					current_locals = callstack.GetCurrentCall().local_variables;
 					// return value
-					if (step_type == EXECUTION_STEPIN) {
+					if (step_type == EXECUTION_STEPIN and not watch_evaluating) {
 						ResetEvent(step_handled);
 						SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPPED, current_instruction_index);
 						WaitForSingleObject(step_handled, INFINITE);
 					}
-					else if ((step_type == EXECUTION_STEPOVER or step_type == EXECUTION_STEPOUT) and step_depth >= callstack.ptr) {
+					else if ((step_type == EXECUTION_STEPOVER or step_type == EXECUTION_STEPOUT) and step_depth >= callstack.ptr and not watch_evaluating) {
 						ResetEvent(step_handled);
 						SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPPED, current_instruction_index);
 						WaitForSingleObject(step_handled, INFINITE);

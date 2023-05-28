@@ -214,6 +214,7 @@
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="VariableTable.h" />
+    <ClInclude Include="Watch.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BreakpointDlg.cpp" />
@@ -233,6 +234,7 @@
     <ClCompile Include="MainFrm.cpp" />
     <ClCompile Include="Pseudocode Interpreter MFC.cpp" />
     <ClCompile Include="VariableTable.cpp" />
+    <ClCompile Include="Watch.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Pseudocode Interpreter MFC.reg" />

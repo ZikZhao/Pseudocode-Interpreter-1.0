@@ -9,7 +9,7 @@ BEGIN_MESSAGE_MAP(CInfoViewTag, CWnd)
 	ON_WM_LBUTTONUP()
 	ON_WM_LBUTTONDOWN()
 END_MESSAGE_MAP()
-CInfoViewTag::CInfoViewTag(wchar_t* text, USHORT index)
+CInfoViewTag::CInfoViewTag(const wchar_t* text, USHORT index)
 {
 	m_Width = m_Height = 0;
 	m_Text = text;
@@ -26,7 +26,6 @@ int CInfoViewTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
-	;
 	CRect rect;
 	GetClientRect(&rect);
 	m_Width = rect.right - rect.left;
@@ -136,9 +135,10 @@ END_MESSAGE_MAP()
 CInfoView::CInfoView()
 {
 	m_Width = m_Height = 0;
-	m_Tags[0] = new CInfoViewTag(const_cast<wchar_t*>(L"控制台"), 0);
-	m_Tags[1] = new CInfoViewTag(const_cast<wchar_t*>(L"变量表"), 1);
-	m_Tags[2] = new CInfoViewTag(const_cast<wchar_t*>(L"调用堆栈"), 2);
+	m_Tags[0] = new CInfoViewTag(L"控制台", 0);
+	m_Tags[1] = new CInfoViewTag(L"变量表", 1);
+	m_Tags[2] = new CInfoViewTag(L"调用堆栈", 2);
+	m_Tags[3] = new CInfoViewTag(L"监视", 3);
 	m_CurrentIndex = 0;
 	pObject = this;
 }
@@ -154,6 +154,7 @@ int CInfoView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Console.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(), this, NULL);
 	m_CallStack.Create(NULL, NULL, WS_CHILD, CRect(), this, NULL);
 	m_VariableTable.Create(NULL, NULL, WS_CHILD, CRect(), this, NULL);
+	m_Watch.Create(NULL, NULL, WS_CHILD, CRect(), this, NULL);
 	m_SplitterPen.CreatePen(PS_SOLID, 1, RGB(254, 74, 99));
 	CInfoViewTag::m_Font.CreateFontW(24, 0, 0, 0, FW_NORMAL, false, false,
 		false, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS,
@@ -167,6 +168,7 @@ int CInfoView::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Tags[0]->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 1, m_CharSize.cx * 3 + 8, m_CharSize.cy + 4), this, NULL);
 	m_Tags[1]->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(m_CharSize.cx * 3 + 16, 1, m_CharSize.cx * 6 + 24, m_CharSize.cy + 4), this, NULL);
 	m_Tags[2]->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(m_CharSize.cx * 6 + 32, 1, m_CharSize.cx * 10 + 40, m_CharSize.cy + 4), this, NULL);
+	m_Tags[3]->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(m_CharSize.cx * 10 + 48, 1, m_CharSize.cx * 12 + 54, m_CharSize.cy + 4), this, NULL);
 	m_Tags[0]->SetSelected(true);
 
 	return 0;
@@ -194,6 +196,7 @@ void CInfoView::OnSize(UINT nType, int cx, int cy)
 	m_Console.MoveWindow(rect, FALSE);
 	m_CallStack.MoveWindow(rect, FALSE);
 	m_VariableTable.MoveWindow(rect, FALSE);
+	m_Watch.MoveWindow(rect, FALSE);
 }
 void CInfoView::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 {
@@ -212,6 +215,9 @@ void CInfoView::ShiftTag(USHORT index)
 	case 2:
 		m_CallStack.ShowWindow(SW_HIDE);
 		break;
+	case 3:
+		m_Watch.ShowWindow(SW_HIDE);
+		break;
 	}
 	m_CurrentIndex = index;
 	m_Tags[m_CurrentIndex]->SetSelected(true);
@@ -224,6 +230,9 @@ void CInfoView::ShiftTag(USHORT index)
 		break;
 	case 2:
 		m_CallStack.ShowWindow(SW_SHOW);
+		break;
+	case 3:
+		m_Watch.ShowWindow(SW_SHOW);
 		break;
 	}
 }

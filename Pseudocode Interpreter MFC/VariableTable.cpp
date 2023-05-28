@@ -97,10 +97,10 @@ void CVariableTable::OnSize(UINT nType, int cx, int cy)
 	m_Width = cx - 10;
 	m_Height = cy;
 
-	HBITMAP hBitmap = CreateCompatibleBitmap(ScreenDC, m_Width, m_Height);
+	HBITMAP hBitmap = CreateCompatibleBitmap(ScreenDC, m_Width, m_WordSize.cy);
 	HGLOBAL hOldBitmap = SelectObject(m_BG, hBitmap);
 	DeleteObject(hBitmap);
-	hBitmap = CreateCompatibleBitmap(ScreenDC, m_Width, m_Height);
+	hBitmap = CreateCompatibleBitmap(ScreenDC, m_Width, m_Height - m_WordSize.cy);
 	hOldBitmap = SelectObject(m_Source, hBitmap);
 	DeleteObject(hBitmap);
 	CRect rect(m_Width, 0, cx, m_Height);
@@ -510,5 +510,8 @@ void CVariableTable::ArrangeTable()
 		rect1.bottom += m_WordSize.cy;
 		rect2.bottom = rect3.bottom = rect1.bottom;
 		rect1.left = 20;
+		if (rect1.top > m_Height - m_WordSize.cy) {
+			break;
+		}
 	}
 }
