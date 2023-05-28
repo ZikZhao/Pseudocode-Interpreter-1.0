@@ -29,11 +29,8 @@ BOOL App::InitInstance()
 
 	EnableTaskbarInteraction(FALSE);
 
-	SetRegistryKey(_T("PseudocodeInterpreter"));
-	//LoadStdProfileSettings(4);  // 加载标准 INI 文件选项(包括 MRU)
+	SetRegistryKey(_T("Pseudocode Interpreter"));
 
-	//InitContextMenuManager();
-	InitKeyboardManager();
 	InitTooltipManager();
 
 	Gdiplus::GdiplusStartupInput si{};
@@ -44,7 +41,6 @@ BOOL App::InitInstance()
 	m_pMainWnd->ShowWindow(SW_SHOW);
 	m_pMainWnd->UpdateWindow();
 	m_pMainWnd->DragAcceptFiles();
-	CTagPanel::pObject->LoadOpenedFiles();
 	return TRUE;
 }
 int App::ExitInstance()
@@ -70,7 +66,6 @@ void App::OnAppAbout()
 	aboutDlg.DoModal();
 }
 
-
 BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
 END_MESSAGE_MAP()
 CAboutDlg::CAboutDlg() noexcept : CDialogEx(IDD_ABOUTBOX)
@@ -80,6 +75,5 @@ void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 }
-
 
 App theApp;

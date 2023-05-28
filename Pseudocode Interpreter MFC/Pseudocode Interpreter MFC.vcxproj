@@ -266,6 +266,11 @@
     <Image Include="images\file_saveas.bmp" />
     <Image Include="images\file_savefile.bmp" />
     <Image Include="images\PI.ico" />
+    <Image Include="images\tools_fi.bmp" />
+    <Image Include="images\tools_nl.bmp" />
+    <Image Include="images\tools_nnr.bmp" />
+    <Image Include="images\tools_nnw.bmp" />
+    <Image Include="images\tools_oo.bmp" />
     <Image Include="images\tools_reference.bmp" />
   </ItemGroup>
   <ItemGroup>

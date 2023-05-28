@@ -121,6 +121,11 @@ public:
 	static inline CBrush selectionColor; //选区背景色
 	bool m_bRun; // 子进程正在运行
 	HANDLE m_DebugHandle; // 可读取内存的进程句柄
+	static inline bool new_line_after_output = true; // 输出后自动添加换行符
+	static inline bool output_as_object = true; // 以对象形式输出
+	static inline bool discard_crlf_on_read = true; // 读取文件时自动丢弃换行符
+	static inline bool automatic_new_line_on_write = true; // 写入文件时添加换行符
+	static inline bool flush_file_buffer_after_write = false; // 每次写入后都刷新文件缓冲
 protected:
 	CConsoleOutput m_Output;
 	CConsoleInput m_Input;

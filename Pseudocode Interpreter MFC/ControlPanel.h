@@ -72,6 +72,28 @@ public:
 	afx_msg void OnPaint();
 };
 
+class CControlPanelSwitch : public CControlPanelComponent
+{
+	DECLARE_MESSAGE_MAP()
+protected:
+	UINT m_ResourceID;
+	UINT m_CommandID;
+	const wchar_t* m_Text;
+	CDC m_Source;
+	bool m_bHover;
+	bool m_bSwitched;
+public:
+	CControlPanelSwitch(UINT commandID, UINT resourceID, const wchar_t* button_text, bool initial_state);
+	virtual ~CControlPanelSwitch();
+	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
+	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
+	afx_msg void OnPaint();
+	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg void OnMouseLeave();
+	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
+};
+
 class CControlPanelGroup : public CWnd
 {
 	DECLARE_MESSAGE_MAP()

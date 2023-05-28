@@ -903,7 +903,7 @@ namespace Execution {
 						}
 					}
 					if (matched) {
-						wchar_t* line = files[file_index].readline(not (settings & DISCARD_CRLF_IN_READ));
+						wchar_t* line = files[file_index].readline(not (settings & DISCARD_CRLF_ON_READ));
 						if (not line) {
 							throw Error(ValueError, L"无法读取");
 						}
@@ -952,7 +952,7 @@ namespace Execution {
 				}
 				if (matched) {
 					bool write_result = files[file_index].writeline(((DataType::String*)message_data->value)->string,
-						settings & AUTOMATIC_NEW_LINE_IN_WRITE, settings & FLUSH_FILE_BUFFERS_AFTER_WRITE);
+						settings & AUTOMATIC_NEW_LINE_ON_WRITE, settings & FLUSH_FILE_BUFFER_AFTER_WRITE);
 					DataType::release_data(filename_data);
 					DataType::release_data(message_data);
 					if (not write_result) {

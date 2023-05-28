@@ -192,6 +192,21 @@
     <Image Include="images\tools_reference.bmp">
       <Filter>资源文件</Filter>
     </Image>
+    <Image Include="images\tools_fi.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\tools_nl.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\tools_nnr.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\tools_nnw.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\tools_oo.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <Font Include="YAHEI CONSOLAS HYBRID.TTF" />

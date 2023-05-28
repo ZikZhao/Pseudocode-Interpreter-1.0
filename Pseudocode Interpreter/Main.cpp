@@ -621,27 +621,26 @@ int wmain(int argc, wchar_t** args)
 	// process arguments
 	static const wchar_t help_message[] = L"Command: \"Pseudocode Interpreter.exe\" "
 		"<filename> [/debug] [/help] "
-		"[/new_line] [/output_object] [/no_crlf_in_read] [/new_line_in_write] [/flush_immediately]\n\n"
+		"[/nl] [/oo] [/nnr] [/nnw] [/fi]\n\n"
 		"Explanation:\n"
-		"<filename>             Path of pseudocode file to interprete\n"
-		"/debug                 Interprete in debug mode\n"
-		"/help                  Output help message\n"
+		"<filename>		Path of pseudocode file to interpret\n"
+		"/debug			Interpret in debug mode\n"
+		"/help			Output help message\n"
 		"The following arguments are switch option(only has states enabled or disabled:\n"
-		"/new_file              Enabled is default; New line will be added to the output message automatically\n"
-		"/output_object         Enabled is default; Output values as objects; It allows array, record and enumerated to output\n"
-		"/no_crlf_in_read       Enabled is default; Discard CRLF(carriage return/line feed) when READLINE is executed\n"
-		"/new_line_in_write     Enabled is default; Automatic append CRLF to the end of line when WRITELINE is executed\n"
-		"/flush_immediately     Disabled is default; Flush the file buffers immediately after WRITELINE is executed\n\n"
-		"Insert a '-' before argument name to disable a switch option. e.g. /-new_line";
-	static const wchar_t* match_args[] = { L"/debug", L"/help", L"/new_file", L"/-new_file",
-		L"/output_object", L"/-output_object", L"/no_crlf_in_read", L"/-no_crlf_in_read", L"/new_line_in_write",
-		L"/-new_line_in_write", L"/flush_immediately", L"/-flush_immediately"
+		"/nl			Enabled by default; New line will be added to the output message automatically\n"
+		"/oo			Enabled by default; Output values as objects; It allows array, record and enumerated to output\n"
+		"/nnr			Enabled by default; Discard CRLF(carriage return/line feed) when READLINE is executed\n"
+		"/nnw			Enabled by default; Automatic append CRLF to the end of line when WRITELINE is executed\n"
+		"/fi			Disabled by default; Flush the file buffers immediately after WRITELINE is executed\n\n"
+		"Insert a '-' before argument name to disable a switch option. e.g. /-nl";
+	static const wchar_t* match_args[] = {
+		L"/debug", L"/help", L"/nl", L"/-nl", L"/oo", L"/-oo", L"/nnr", L"/-nnr", L"/nnw", L"/-nnw", L"/fi", L"/-fi"
 	};
 	wchar_t* filename = nullptr;
 	for (int arg_index = 1; arg_index != argc; arg_index++) {
 		for (USHORT match_index = 0; match_index != sizeof(match_args) / sizeof(wchar_t*); match_index++) {
 			if (wcslen(match_args[match_index]) == wcslen(args[arg_index])) {
-				if (memcmp(match_args[match_index], args[arg_index], wcslen(match_args[match_index])) == 0) {
+				if (memcmp(match_args[match_index], args[arg_index], wcslen(match_args[match_index]) * 2) == 0) {
 					switch (match_index) {
 					case 0:
 						debug = true;
@@ -662,22 +661,22 @@ int wmain(int argc, wchar_t** args)
 						settings &= ~OUTPUT_AS_OBJECT;
 						break;
 					case 6:
-						settings |= DISCARD_CRLF_IN_READ;
+						settings |= DISCARD_CRLF_ON_READ;
 						break;
 					case 7:
-						settings &= ~DISCARD_CRLF_IN_READ;
+						settings &= ~DISCARD_CRLF_ON_READ;
 						break;
 					case 8:
-						settings |= AUTOMATIC_NEW_LINE_IN_WRITE;
+						settings |= AUTOMATIC_NEW_LINE_ON_WRITE;
 						break;
 					case 9:
-						settings &= ~AUTOMATIC_NEW_LINE_IN_WRITE;
+						settings &= ~AUTOMATIC_NEW_LINE_ON_WRITE;
 						break;
 					case 10:
-						settings |= FLUSH_FILE_BUFFERS_AFTER_WRITE;
+						settings |= FLUSH_FILE_BUFFER_AFTER_WRITE;
 						break;
 					case 11:
-						settings &= ~FLUSH_FILE_BUFFERS_AFTER_WRITE;
+						settings &= ~FLUSH_FILE_BUFFER_AFTER_WRITE;
 						break;
 					default:
 						if (args[arg_index][0] != L'/') {
@@ -687,13 +686,13 @@ int wmain(int argc, wchar_t** args)
 							else {
 								static const wchar_t* error_message = L"无法识别的参数列表";
 								WRITE_CONSOLE(standard_error, error_message, 9);
-								return 1;
+								return -1;
 							}
 						}
 						else {
 							static const wchar_t* error_message = L"无法识别的参数列表";
 							WRITE_CONSOLE(standard_error, error_message, 9);
-							return 1;
+							return -1;
 						}
 						break;
 					}

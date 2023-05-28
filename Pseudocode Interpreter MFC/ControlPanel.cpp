@@ -2,6 +2,7 @@
 #define BEGIN_GROUP(id) { UINT id_group = id;
 #define END_GROUP() }
 #define BUTTON(id, id_bitmap, button_text, x) { CControlPanelButton* button = new CControlPanelButton(id, id_bitmap, button_text); m_Components.push_back(button); button->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(x, 0, x + 68, 88), this, id); CMainFrame::pObject->m_Tip.AddTool(FIND_BUTTON(id_group, id), id); }
+#define SWITCH(id, id_bitmap, button_text, x, initial_state) { CControlPanelSwitch* button = new CControlPanelSwitch(id, id_bitmap, button_text, initial_state); m_Components.push_back(button); button->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(x, 0, x + 68, 88), this, id); CMainFrame::pObject->m_Tip.AddTool(FIND_BUTTON(id_group, id), id); }
 #define SPLITTER(x) { CControlPanelSplitter* splitter = new CControlPanelSplitter(); m_Components.push_back(splitter); splitter->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(x, 5, x + 1, 83), this, NULL); }
 
 BEGIN_MESSAGE_MAP(CControlPanelTag, CWnd)
@@ -136,6 +137,9 @@ CControlPanelButton::~CControlPanelButton()
 }
 int CControlPanelButton::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
+	if (CWnd::OnCreate(lpCreateStruct) == -1)
+		return -1;
+
 	CDC* windowDC = GetDC();
 	// 创建主源DC
 	m_Source.CreateCompatibleDC(windowDC);
@@ -179,9 +183,6 @@ int CControlPanelButton::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	button_bitmap->SetBitmapBits(bitmap.bmHeight * bitmap.bmWidthBytes, buffer);
 	m_SourceDisabled.SelectObject(button_bitmap);
 	delete[] buffer;
-
-	if (CWnd::OnCreate(lpCreateStruct) == -1)
-		return -1;
 
 	return 0;
 }
@@ -255,6 +256,117 @@ void CControlPanelSplitter::OnPaint()
 	dc.BitBlt(0, 0, 1, 78, &m_DC, 0, 0, SRCCOPY);
 }
 
+BEGIN_MESSAGE_MAP(CControlPanelSwitch, CWnd)
+	ON_WM_CREATE()
+	ON_WM_ERASEBKGND()
+	ON_WM_PAINT()
+	ON_WM_MOUSEMOVE()
+	ON_WM_MOUSELEAVE()
+	ON_WM_LBUTTONDOWN()
+	ON_WM_LBUTTONUP()
+END_MESSAGE_MAP()
+CControlPanelSwitch::CControlPanelSwitch(UINT commandID, UINT resourceID, const wchar_t* button_text, bool initial_state)
+{
+	m_ResourceID = resourceID;
+	m_CommandID = commandID;
+	m_Text = button_text;
+	m_bHover = false;
+	m_bSwitched = initial_state;
+}
+CControlPanelSwitch::~CControlPanelSwitch()
+{
+}
+int CControlPanelSwitch::OnCreate(LPCREATESTRUCT lpCreateStruct)
+{
+	if (CWnd::OnCreate(lpCreateStruct) == -1)
+		return -1;
+
+	CDC* windowDC = GetDC();
+	// 创建主源DC
+	m_Source.CreateCompatibleDC(windowDC);
+	m_Source.SelectObject(CControlPanelButton::m_Font);
+	m_Source.SetTextColor(RGB(255, 255, 255));
+	m_Source.SetBkColor(RGB(30, 30, 30));
+	static CRect* text_rect = new CRect(4, 64, 64, 84);
+	CBitmap* button_bitmap = new CBitmap;
+	button_bitmap->CreateCompatibleBitmap(windowDC, 68, 88);
+	m_Source.SelectObject(button_bitmap);
+	CRect rect(0, 0, 68, 88);
+	m_Source.FillRect(&rect, pGreyBlackBrush);
+	// 加载按钮位图并绘制
+	CDC temp;
+	temp.CreateCompatibleDC(windowDC);
+	CBitmap icon;
+	icon.LoadBitmapW(m_ResourceID);
+	temp.SelectObject(&icon);
+	m_Source.BitBlt(4, 4, 60, 60, &temp, 0, 0, SRCCOPY);
+	m_Source.DrawTextW(m_Text, -1, text_rect, DT_CENTER);
+
+	return 0;
+}
+BOOL CControlPanelSwitch::OnEraseBkgnd(CDC* pDC)
+{
+	return TRUE;
+}
+void CControlPanelSwitch::OnPaint()
+{
+	CPaintDC dc(this);
+	static CRect* rect = new CRect(0, 0, 68, 88);
+	if (m_bHover or m_bSwitched) {
+		dc.BitBlt(0, 0, 68, 88, &CControlPanelButton::m_HoverBG, 0, 0, SRCCOPY);
+	}
+	else {
+		dc.FillRect(rect, pGreyBlackBrush);
+	}
+	dc.TransparentBlt(0, 0, 68, 88, &m_Source, 0, 0, 68, 88, RGB(30, 30, 30));
+}
+void CControlPanelSwitch::OnMouseMove(UINT nFlags, CPoint point)
+{
+	if (!m_bHover) {
+		TRACKMOUSEEVENT tme{};
+		tme.cbSize = sizeof(tme);
+		tme.dwFlags = TME_LEAVE;
+		tme.hwndTrack = m_hWnd;
+		TrackMouseEvent(&tme);
+		m_bHover = true;
+		REDRAW_WINDOW();
+	}
+}
+void CControlPanelSwitch::OnMouseLeave()
+{
+	m_bHover = false;
+	REDRAW_WINDOW();
+}
+void CControlPanelSwitch::OnLButtonDown(UINT nFlags, CPoint point)
+{
+	SetCapture();
+}
+void CControlPanelSwitch::OnLButtonUp(UINT nFlags, CPoint point)
+{
+	ReleaseCapture();
+	if (point.x < 68 and point.y < 88) {
+		m_bSwitched = not m_bSwitched;
+		switch (m_CommandID) {
+		case ID_TOOLS_NL:
+			CConsole::new_line_after_output = m_bSwitched;
+			break;
+		case ID_TOOLS_OO:
+			CConsole::output_as_object = m_bSwitched;
+			break;
+		case ID_TOOLS_NNR:
+			CConsole::discard_crlf_on_read = m_bSwitched;
+			break;
+		case ID_TOOLS_NNW:
+			CConsole::automatic_new_line_on_write = m_bSwitched;
+			break;
+		case ID_TOOLS_FI:
+			CConsole::flush_file_buffer_after_write = m_bSwitched;
+			break;
+		}
+		Invalidate(FALSE);
+	}
+}
+
 BEGIN_MESSAGE_MAP(CControlPanelGroup, CWnd)
 	ON_WM_CREATE()
 END_MESSAGE_MAP()
@@ -267,6 +379,9 @@ CControlPanelGroup::~CControlPanelGroup()
 }
 int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 {
+	if (CWnd::OnCreate(lpCreateStruct) == -1)
+		return -1;
+
 	// 相邻控件间宽度为12px
 	switch (m_TagIndex) {
 	case 0:
@@ -306,12 +421,16 @@ int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		break;
 	case 3:
 		BEGIN_GROUP(ID_TOOLS)
-			BUTTON(ID_TOOLS_REFERENCE, IDB_TOOLS_REFERENCE, L"参考", 0)
+			SWITCH(ID_TOOLS_NL, IDB_TOOLS_NL, L"输出换行", 0, true)
+			SWITCH(ID_TOOLS_OO, IDB_TOOLS_OO, L"输出对象", 80, true)
+			SWITCH(ID_TOOLS_NNR, IDB_TOOLS_NNR, L"读取换行", 160, true)
+			SWITCH(ID_TOOLS_NNW, IDB_TOOLS_NNW, L"写入换行", 240, true)
+			SWITCH(ID_TOOLS_FI, IDB_TOOLS_FI, L"写入刷新", 320, false)
+			SPLITTER(400)
+			BUTTON(ID_TOOLS_REFERENCE, IDB_TOOLS_REFERENCE, L"参考", 412)
 		END_GROUP()
 		break;
 	}
-	if (CWnd::OnCreate(lpCreateStruct) == -1)
-		return -1;
 
 	return 0;
 }

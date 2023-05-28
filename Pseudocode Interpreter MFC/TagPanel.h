@@ -78,7 +78,6 @@ public:
 	afx_msg void OnSaveAs();
 	// 自定义函数
 	void OpenFile(wchar_t* filename); // 打开文件
-	void LoadOpenedFiles(); // 打开上次未关闭的文件
 	CFileTag* GetCurrentTag();
 	void ShiftTag(CFileTag* tag);
 	void DestroyTag(CFileTag* tag);

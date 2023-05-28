@@ -40,10 +40,19 @@
 #define IDB_EDIT_PASTE                  147
 #define ID_FILE_SAVEAS                  148
 #define ID_EDIT_LEFTARROW               149
-#define IDB_BITMAP1                     149
 #define IDB_EDIT_LEFTARROW              149
 #define IDB_TOOLS_REFERENCE             150
 #define ID_TOOLS_REFERENCE              150
+#define IDB_TOOLS_FI                    151
+#define ID_TOOLS_NL                     151
+#define IDB_TOOLS_NL                    152
+#define ID_TOOLS_OO                     152
+#define IDB_TOOLS_NNR                   153
+#define ID_TOOLS_NNR                    153
+#define IDB_TOOLS_NNW                   154
+#define ID_TOOLS_NNW                    154
+#define IDB_TOOLS_OO                    155
+#define ID_TOOLS_FI                     155
 #define ID_DEBUG_RUN                    32774
 #define ID_DEBUG_DEBUG                  32775
 #define ID_DEBUG_HALT                   32776
@@ -52,9 +61,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        151
+#define _APS_NEXT_RESOURCE_VALUE        156
 #define _APS_NEXT_COMMAND_VALUE         32784
 #define _APS_NEXT_CONTROL_VALUE         141
-#define _APS_NEXT_SYMED_VALUE           151
+#define _APS_NEXT_SYMED_VALUE           156
 #endif
 #endif

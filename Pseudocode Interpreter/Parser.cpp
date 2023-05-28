@@ -1337,10 +1337,10 @@ wchar_t* DataType::output_data(DATA* data, size_t& count_out) {
 	}
 	case 3:
 	{
-		wchar_t* buffer = new wchar_t[((DataType::String*)data->value)->length + 1];
+		wchar_t* buffer = new wchar_t[((DataType::String*)data->value)->length];
 		memcpy(buffer, ((DataType::String*)data->value)->string, ((DataType::String*)data->value)->length * 2);
 		buffer[((DataType::String*)data->value)->length] = 0;
-		count_out = ((DataType::String*)data->value)->length;
+		count_out = ((DataType::String*)data->value)->length - 1;
 		return buffer;
 	}
 	case 4:

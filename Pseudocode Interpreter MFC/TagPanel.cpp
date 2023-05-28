@@ -488,11 +488,6 @@ void CTagPanel::OpenFile(wchar_t* filename)
 	new_tag->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(20, 75 + index * 65, m_Width - 20, 130 + index * 65), this, NULL);
 	ShiftTag(new_tag);
 }
-void CTagPanel::LoadOpenedFiles()
-{
-	OpenFile(new wchar_t[] { L"C:\\Users\\Zik\\OneDrive - 6666zik\\Desktop\\code.txt" });
-	CEditor::pObject->LoadFile(GetCurrentTag());
-}
 CFileTag* CTagPanel::GetCurrentTag()
 {
 	return *m_Tags[m_CurrentIndex];

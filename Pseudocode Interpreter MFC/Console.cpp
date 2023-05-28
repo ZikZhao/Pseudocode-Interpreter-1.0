@@ -820,9 +820,19 @@ void CConsole::OnDebugRun()
 	m_SI.hStdError = m_Pipes.stderr_write;
 	// 启动子进程
 	ZeroMemory(&m_PI, sizeof(m_PI));
-	wchar_t* other_opt = new wchar_t[1];
-	other_opt[0] = 0;
-	size_t command_length = 33 + wcslen(CTagPanel::pObject->GetCurrentTag()->GetPath()) + wcslen(other_opt);
+	USHORT count = not CConsole::new_line_after_output + 
+		not CConsole::output_as_object +
+		not CConsole::discard_crlf_on_read +
+		not CConsole::automatic_new_line_on_write +
+		not CConsole::flush_file_buffer_after_write;
+	wchar_t* other_opt = new wchar_t[23 + count];
+	StringCchPrintfW(other_opt, 23 + count, L"%s %s %s %s %s",
+		CConsole::new_line_after_output ? L"/nl" : L"/-nl",
+		CConsole::output_as_object ? L"/oo" : L"/-oo",
+		CConsole::discard_crlf_on_read ? L"/nnr" : L"/-nnr",
+		CConsole::automatic_new_line_on_write ? L"/nnw" : L"/-nnw",
+		CConsole::flush_file_buffer_after_write ? L"/fi" : L"/-fi");
+	size_t command_length = 33 + wcslen(CTagPanel::pObject->GetCurrentTag()->GetPath()) + 23 + count;
 	wchar_t* command = new wchar_t[command_length] {};
 	static const wchar_t* format = L"\"Pseudocode Interpreter.exe\" \"%s\" %s";
 	StringCchPrintfW(command, command_length, format, CTagPanel::pObject->GetCurrentTag()->GetPath(), other_opt);
@@ -848,9 +858,19 @@ void CConsole::OnDebugDebug()
 	m_SI.hStdError = m_Pipes.stderr_write;
 	// 启动子进程
 	ZeroMemory(&m_PI, sizeof(m_PI));
-	wchar_t* other_opt = new wchar_t[1];
-	other_opt[0] = 0;
-	size_t command_length = 40 + wcslen(CTagPanel::pObject->GetCurrentTag()->GetPath()) + wcslen(other_opt);
+	USHORT count = not CConsole::new_line_after_output +
+		not CConsole::output_as_object +
+		not CConsole::discard_crlf_on_read +
+		not CConsole::automatic_new_line_on_write +
+		not CConsole::flush_file_buffer_after_write;
+	wchar_t* other_opt = new wchar_t[23 + count];
+	StringCchPrintfW(other_opt, 23 + count, L"%s %s %s %s %s",
+		CConsole::new_line_after_output ? L"/nl" : L"/-nl",
+		CConsole::output_as_object ? L"/oo" : L"/-oo",
+		CConsole::discard_crlf_on_read ? L"/nnr" : L"/-nnr",
+		CConsole::automatic_new_line_on_write ? L"/nnw" : L"/-nnw",
+		CConsole::flush_file_buffer_after_write ? L"/fi" : L"/-fi");
+	size_t command_length = 40 + wcslen(CTagPanel::pObject->GetCurrentTag()->GetPath()) + 23 + count;
 	wchar_t* command = new wchar_t[command_length] {};
 	static const wchar_t* format = L"\"Pseudocode Interpreter.exe\" \"%s\" /debug %s";
 	StringCchPrintfW(command, command_length, format, CTagPanel::pObject->GetCurrentTag()->GetPath(), other_opt);
