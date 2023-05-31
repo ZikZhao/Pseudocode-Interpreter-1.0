@@ -49,6 +49,7 @@ int CControlPanelTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(&ScreenDC, m_Width, m_Height);
 	m_Selected.SelectObject(pBitmap);
+	m_Selected.FillRect(&rect, pGreyBlackBrush);
 	CDC temp;
 	temp.CreateCompatibleDC(&ScreenDC);
 	pBitmap = new CBitmap;
@@ -58,7 +59,7 @@ int CControlPanelTag::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	CPen pen(PS_SOLID, 0, RGB(254, 74, 99));
 	temp.SelectObject(pen);
 	temp.RoundRect(0, 0, m_Width, 3, 2, 2);
-	m_Selected.BitBlt(0, m_Height - 4, m_Width, 3, &temp, 0, 0, SRCCOPY);
+	m_Selected.TransparentBlt(0, m_Height - 4, m_Width, 3, &temp, 0, 0, m_Width, 3, 0);
 	m_Selected.TransparentBlt(0, 0, m_Width, m_Height, &m_Hover, 0, 0, m_Width, m_Height, RGB(30, 30, 30));
 
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
@@ -409,6 +410,7 @@ int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	case 2:
 		BEGIN_GROUP(ID_DEBUG)
 			BUTTON(ID_DEBUG_RUN, IDB_DEBUG_RUN, L"运行", 0)
+			BUTTON(ID_DEBUG_PAUSE, IDB_DEBUG_PAUSE, L"暂停", 0)
 			BUTTON(ID_DEBUG_HALT, IDB_DEBUG_HALT, L"终止", 80)
 			SPLITTER(160)
 			BUTTON(ID_DEBUG_DEBUG, IDB_DEBUG_DEBUG, L"调试", 172)
@@ -417,6 +419,9 @@ int CControlPanelGroup::OnCreate(LPCREATESTRUCT lpCreateStruct)
 			BUTTON(ID_DEBUG_STEPOVER, IDB_DEBUG_STEPOVER, L"步过", 332)
 			BUTTON(ID_DEBUG_STEPOUT, IDB_DEBUG_STEPOUT, L"步出", 412)
 		END_GROUP()
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(false);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(false);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->ShowWindow(SW_HIDE);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_HIDE);
 		break;
 	case 3:
@@ -522,14 +527,14 @@ int CControlPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	CControlPanelSplitter::m_DC.FillRect(&rect, &brush2);
 
 	// 创建当前组
-	m_Tags[0].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(10, 10, 10 + size.cx, 10 + size.cy), this, NULL);
-	m_Tags[1].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(70, 10, 70 + size.cx, 10 + size.cy), this, NULL);
-	m_Tags[2].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(130, 10, 130 + size.cx, 10 + size.cy), this, NULL);
-	m_Tags[3].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(190, 10, 190 + size.cx, 10 + size.cy), this, NULL);
-	m_Groups[0].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_FILE);
-	m_Groups[1].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_EDIT);
-	m_Groups[2].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_DEBUG);
-	m_Groups[3].Create(NULL, NULL, WS_CHILD, CRect(10, 50, 1910, 150), this, ID_TOOLS);
+	m_Tags[0].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(60, 10, 60 + size.cx, 10 + size.cy), GetOwner(), NULL);
+	m_Tags[1].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(120, 10, 120 + size.cx, 10 + size.cy), GetOwner(), NULL);
+	m_Tags[2].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(180, 10, 180 + size.cx, 10 + size.cy), GetOwner(), NULL);
+	m_Tags[3].Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(240, 10, 240 + size.cx, 10 + size.cy), GetOwner(), NULL);
+	m_Groups[0].Create(NULL, NULL, WS_CHILD, CRect(10, 0, 1910, 100), this, ID_FILE);
+	m_Groups[1].Create(NULL, NULL, WS_CHILD, CRect(10, 0, 1910, 100), this, ID_EDIT);
+	m_Groups[2].Create(NULL, NULL, WS_CHILD, CRect(10, 0, 1910, 100), this, ID_DEBUG);
+	m_Groups[3].Create(NULL, NULL, WS_CHILD, CRect(10, 0, 1910, 100), this, ID_TOOLS);
 	ShiftTag(0);
 
 	return 0;
@@ -541,7 +546,7 @@ BOOL CControlPanel::OnEraseBkgnd(CDC* pDC)
 void CControlPanel::OnPaint()
 {
 	CPaintDC dc(this);
-	static CRect* rect = new CRect(0, 0, SCREEN_WIDTH, 150);
+	static CRect* rect = new CRect(0, 0, SCREEN_WIDTH, 100);
 	dc.FillRect(rect, pGreyBlackBrush);
 }
 void CControlPanel::ShiftTag(USHORT tag_index) {

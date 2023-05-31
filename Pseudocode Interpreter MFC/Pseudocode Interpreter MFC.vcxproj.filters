@@ -112,7 +112,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Pseudocode Interpreter MFC.reg" />
     <None Include="res\PseudocodeInterpreterMFC.rc2">
       <Filter>资源文件</Filter>
     </None>
@@ -207,9 +206,12 @@
     <Image Include="images\tools_oo.bmp">
       <Filter>资源文件</Filter>
     </Image>
-  </ItemGroup>
-  <ItemGroup>
-    <Font Include="YAHEI CONSOLAS HYBRID.TTF" />
+    <Image Include="images\debug_pause.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="images\PI.bmp">
+      <Filter>资源文件</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <Text Include="note.txt" />

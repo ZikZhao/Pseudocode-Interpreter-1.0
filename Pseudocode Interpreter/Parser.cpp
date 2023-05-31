@@ -21,7 +21,7 @@ void strip(wchar_t* line) {
 		}
 		if (index == 0) { break; }
 	}
-	memcpy(line, line + start, (end - start) * 2);
+	memmove(line, line + start, (end - start) * 2);
 	line[end - start] = 0;
 }
 
@@ -505,7 +505,7 @@ DataType::String::String(wchar_t* expr) { // created by evaluating string expres
 			for (USHORT index2 = 0; index2 != 3; index2++) {
 				if (this->string[index + 1] == escape_character_in[index2]) {
 					this->string[index] = escape_character_out[index2];
-					memcpy(this->string + index + 1, this->string + index + 2, (wcslen(this->string) - index - 1) * 2);
+					memmove(this->string + index + 1, this->string + index + 2, (wcslen(this->string) - index - 1) * 2);
 					break;
 				}
 			}
@@ -1338,8 +1338,7 @@ wchar_t* DataType::output_data(DATA* data, size_t& count_out) {
 	case 3:
 	{
 		wchar_t* buffer = new wchar_t[((DataType::String*)data->value)->length];
-		memcpy(buffer, ((DataType::String*)data->value)->string, ((DataType::String*)data->value)->length * 2);
-		buffer[((DataType::String*)data->value)->length] = 0;
+		memmove(buffer, ((DataType::String*)data->value)->string, ((DataType::String*)data->value)->length * 2);
 		count_out = ((DataType::String*)data->value)->length - 1;
 		return buffer;
 	}
@@ -2373,7 +2372,7 @@ bool Element::function_call(wchar_t* expr, RPN_EXP** rpn_out)
 			memcpy(this_arg, expr + last_spliter + 1, (index - last_spliter - 1) * 2);
 			this_arg[index - last_spliter - 1] = 0;
 			strip(this_arg);
-			RPN_EXP* arg_rpn;
+			RPN_EXP* arg_rpn = nullptr;
 			if (not (expression(this_arg, &arg_rpn) and expr[index + 1] == 0)) {
 				delete[] expr;
 				delete[] this_arg;

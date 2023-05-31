@@ -53,6 +53,10 @@
 #define ID_TOOLS_NNW                    154
 #define IDB_TOOLS_OO                    155
 #define ID_TOOLS_FI                     155
+#define IDB_DEBUG_PAUSE                 156
+#define ID_DEBUG_PAUSE                  156
+#define IDB_BITMAP1                     158
+#define IDB_PI                          158
 #define ID_DEBUG_RUN                    32774
 #define ID_DEBUG_DEBUG                  32775
 #define ID_DEBUG_HALT                   32776
@@ -61,9 +65,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        156
+#define _APS_NEXT_RESOURCE_VALUE        159
 #define _APS_NEXT_COMMAND_VALUE         32784
 #define _APS_NEXT_CONTROL_VALUE         141
-#define _APS_NEXT_SYMED_VALUE           156
+#define _APS_NEXT_SYMED_VALUE           157
 #endif
 #endif

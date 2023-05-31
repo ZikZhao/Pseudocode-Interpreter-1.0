@@ -27,8 +27,6 @@ BOOL App::InitInstance()
 		return FALSE;
 	}
 
-	EnableTaskbarInteraction(FALSE);
-
 	SetRegistryKey(_T("Pseudocode Interpreter"));
 
 	InitTooltipManager();
@@ -38,7 +36,7 @@ BOOL App::InitInstance()
 
 	m_pMainWnd = new CMainFrame;
 	m_pMainWnd->CreateEx(NULL, NULL, L"Pseudocode Interpreter", WS_OVERLAPPEDWINDOW, CRect(), nullptr, NULL);
-	m_pMainWnd->ShowWindow(SW_SHOW);
+	m_pMainWnd->ShowWindow(SW_MAXIMIZE);
 	m_pMainWnd->UpdateWindow();
 	m_pMainWnd->DragAcceptFiles();
 	return TRUE;

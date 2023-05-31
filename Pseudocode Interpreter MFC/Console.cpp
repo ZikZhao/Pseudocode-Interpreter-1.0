@@ -66,6 +66,7 @@ void CConsoleOutput::OnPaint()
 {
 	m_Lock.lock(); // 保证m_Source并未用于文本长度估算
 	CPaintDC dc(this);
+	MemoryDC.PatBlt(0, 0, m_Width, m_Height, BLACKNESS);
 	MemoryDC.BitBlt(0, 0, m_Width, m_Height, &m_Selection, 0, 0, SRCCOPY);
 	MemoryDC.TransparentBlt(0, 0, m_Width, m_Height, &m_Source, 0, 0, m_Width, m_Height, 0);
 	dc.BitBlt(0, 0, m_Width, m_Height, &MemoryDC, 0, 0, SRCCOPY);
@@ -842,6 +843,10 @@ void CConsole::OnDebugRun()
 	// 监听管道
 	CreateThread(NULL, NULL, CConsole::Join, nullptr, NULL, NULL);
 }
+void CConsole::OnDebugPause()
+{
+	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPIN, 0);
+}
 void CConsole::OnDebugHalt()
 {
 	TerminateProcess(m_PI.hProcess, PROCESS_HALTED);
@@ -891,6 +896,7 @@ void CConsole::OnDebugContinue()
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->SetState(true);
 	CWatch::pObject->m_bPaused = false;
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_CONTINUE, 0);
 }
@@ -900,6 +906,7 @@ void CConsole::OnDebugStepin()
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->SetState(true);
 	CWatch::pObject->m_bPaused = false;
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPIN, 0);
 }
@@ -909,6 +916,7 @@ void CConsole::OnDebugStepover()
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->SetState(true);
 	CWatch::pObject->m_bPaused = false;
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPOVER, 0);
 }
@@ -918,6 +926,7 @@ void CConsole::OnDebugStepout()
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->SetState(true);
 	CWatch::pObject->m_bPaused = false;
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPOUT, 0);
 }
@@ -946,6 +955,9 @@ void CConsole::InitSubprocess(bool debug_mode)
 {
 	// 更新组件状态
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->ShowWindow(SW_HIDE);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->SetState(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->ShowWindow(SW_SHOW);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(true);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(false);
 	CMainFrame::pObject->UpdateStatus(true, new wchar_t[] {L"本地伪代码解释器已启动"});
@@ -987,6 +999,8 @@ void CConsole::ExitSubprocess(UINT exit_code)
 	m_Pipes = PIPE{};
 	// 更新组件状态
 	try {
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->ShowWindow(SW_SHOW);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->ShowWindow(SW_HIDE);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(true);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(false);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->ShowWindow(SW_SHOW);
@@ -1155,6 +1169,11 @@ void CConsole::SignalProc(UINT message, WPARAM wParam, LPARAM lParam)
 		CWatch::pObject->CleanRemotePages();
 		break;
 	case SIGNAL_BREAKPOINT: case SIGNAL_EXECUTION:
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(true);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(true);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetState(true);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetState(true);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->SetState(false);
 		CEditor::pObject->PostMessageW(WM_STEP, 0, lParam);
 		CWatch::pObject->m_bPaused = true;
 		CWatch::pObject->CleanWatchResult();

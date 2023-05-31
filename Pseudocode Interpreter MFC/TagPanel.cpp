@@ -439,6 +439,8 @@ void CTagPanel::OnNew()
 	USHORT index = m_Tags.size() - 1;
 	new_tag->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(20, 75 + index * 65, m_Width - 20, 130 + index * 65), this, NULL);
 	ShiftTag(new_tag);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(true);
 }
 void CTagPanel::OnOpen()
 {
@@ -487,6 +489,8 @@ void CTagPanel::OpenFile(wchar_t* filename)
 	USHORT index = m_Tags.size() - 1;
 	new_tag->Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(20, 75 + index * 65, m_Width - 20, 130 + index * 65), this, NULL);
 	ShiftTag(new_tag);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(true);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(true);
 }
 CFileTag* CTagPanel::GetCurrentTag()
 {
@@ -518,6 +522,8 @@ void CTagPanel::DestroyTag(CFileTag* tag)
 			found = true;
 			tag->DestroyWindow();
 			if (m_Tags.size() == 1) {
+				FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(false);
+				FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(false);
 				CEditor::pObject->LoadFile(nullptr);
 			}
 			else {

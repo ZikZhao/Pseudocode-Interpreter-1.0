@@ -64,7 +64,7 @@ void FormatCode(wchar_t* data) {
 				break;
 			}
 		}
-		memcpy(line, line + index, (size - index + 1) * 2);
+		memmove(line, line + index, (size - index + 1) * 2);
 		for (index = 0; line[index] != 0; index++) {
 			if (line[index] == L'/' and line[index + 1] == L'/') {
 				break;

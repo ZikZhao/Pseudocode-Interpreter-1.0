@@ -23,6 +23,17 @@ public:
 	static inline HBITMAP hBitmap = NULL; // 内存DC位图
 	static inline CToolTipCtrl m_Tip; // 提示文本
 protected:
+	int m_Width, m_Height;
+	bool m_bHover[3]; // 悬浮于按钮的情况
+	CDC m_Icon; // 图标源
+	CDC m_Close; // 关闭按钮源
+	CDC m_CloseHover; // 悬浮于关闭按钮源
+	CDC m_Max; // 最大化按钮源
+	CDC m_MaxHover; // 悬浮于最大化按钮源
+	CDC m_Restore; // 恢复大小源
+	CDC m_RestoreHover; // 悬浮于恢复大小源
+	CDC m_Min; // 最小化按钮源
+	CDC m_MinHover; // 悬浮于最小化按钮源
 	CControlPanel m_ControlPanel;
 	CTagPanel m_TagPanel;
 	CEditor m_Editor;
@@ -31,10 +42,15 @@ protected:
 public:
 	CMainFrame() noexcept;
 	virtual ~CMainFrame();
-	virtual BOOL PreCreateWindow(CREATESTRUCT& cs);
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
+	afx_msg void OnNcCalcSize(BOOL bCalcValidRects, NCCALCSIZE_PARAMS* lpncsp);
+	afx_msg LRESULT OnNcHitTest(CPoint point);
+	afx_msg void OnNcMouseMove(UINT nHitTest, CPoint point);
+	afx_msg void OnNcLButtonDown(UINT nHitTest, CPoint point);
+	afx_msg void OnNcLButtonUp(UINT nHitTest, CPoint point);
 	afx_msg BOOL OnEraseBkgnd(CDC* pDC);
+	afx_msg void OnPaint();
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	afx_msg void OnGetMinMaxInfo(MINMAXINFO* lpMMI);
 	afx_msg void OnDropFiles(HDROP hDropInfo);

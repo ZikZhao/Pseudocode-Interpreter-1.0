@@ -237,7 +237,6 @@
     <ClCompile Include="Watch.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Pseudocode Interpreter MFC.reg" />
     <None Include="Pseudocode Interpreter.css" />
     <None Include="Pseudocode Interpreter.html" />
     <None Include="res\PseudocodeInterpreterMFC.rc2" />
@@ -247,6 +246,7 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="images\debug_continue.bmp" />
+    <Image Include="images\debug_pause.bmp" />
     <Image Include="images\debug_stepin.bmp" />
     <Image Include="images\debug_stepout.bmp" />
     <Image Include="images\debug_stepover.bmp" />
@@ -265,6 +265,7 @@
     <Image Include="images\edit_undo.bmp" />
     <Image Include="images\file_saveas.bmp" />
     <Image Include="images\file_savefile.bmp" />
+    <Image Include="images\PI.bmp" />
     <Image Include="images\PI.ico" />
     <Image Include="images\tools_fi.bmp" />
     <Image Include="images\tools_nl.bmp" />
@@ -272,9 +273,6 @@
     <Image Include="images\tools_nnw.bmp" />
     <Image Include="images\tools_oo.bmp" />
     <Image Include="images\tools_reference.bmp" />
-  </ItemGroup>
-  <ItemGroup>
-    <Font Include="YAHEI CONSOLAS HYBRID.TTF" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="note.txt" />

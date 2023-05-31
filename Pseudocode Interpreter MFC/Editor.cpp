@@ -531,10 +531,6 @@ LRESULT CEditor::OnStep(WPARAM wParam, LPARAM lParam)
 		CentralView(lParam);
 	}
 	Invalidate(FALSE);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetState(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetState(true);
 	return 0;
 }
 void CEditor::LoadFile(CFileTag* tag)
@@ -713,7 +709,7 @@ void CEditor::ArrangeRenderedText()
 }
 void CEditor::ArrangePointer()
 {
-	if (not m_bFocus) { return; }
+	if (not m_bFocus or not m_CurrentTag) { return; }
 	double start_line = m_PercentageVertical * m_CurrentTag->m_Lines.size();
 	LONG width = GET_TEXT_WIDTH(*m_CurrentTag->m_CurrentLine, m_PointerPoint.x);
 	CPoint point;

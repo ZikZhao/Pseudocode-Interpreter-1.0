@@ -142,6 +142,7 @@ public:
 	afx_msg void OnSize(UINT nType, int cx, int cy);
 	// 命令
 	afx_msg void OnDebugRun();
+	afx_msg void OnDebugPause();
 	afx_msg void OnDebugHalt();
 	afx_msg void OnDebugDebug();
 	afx_msg void OnDebugContinue();
