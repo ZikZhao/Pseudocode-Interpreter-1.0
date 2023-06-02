@@ -1188,11 +1188,12 @@ void CConsole::SignalProc(UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 	case SIGNAL_INFORMATION:
 		switch (wParam) {
+		case INFORMATION_VARIABLE_TABLE_RESPONSE:
+			CVariableTable::pObject->RecordPrevious(CConsole::pObject->ReadMemory(CCallStack::pObject->GetLastLocals()));
+			CVariableTable::pObject->LoadGlobal(ReadMemory((BinaryTree*)lParam));
+			break;
 		case INFORMATION_CALLING_STACK_RESPONSE:
 			CCallStack::pObject->LoadCallStack(ReadMemory((CALLSTACK*)lParam));
-			break;
-		case INFORMATION_VARIABLE_TABLE_RESPONSE:
-			CVariableTable::pObject->LoadGlobal(ReadMemory((BinaryTree*)lParam));
 			break;
 		case INFORMATION_RETURN_VALUE_RESPONSE:
 			if (lParam) {

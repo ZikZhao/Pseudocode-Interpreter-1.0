@@ -166,7 +166,12 @@ private:
 template<typename Type>
 inline Type* CConsole::ReadMemory(Type* address, size_t size)
 {
-	Type* buffer = (Type*)malloc(sizeof(Type) * size);
-	ReadProcessMemory(m_DebugHandle, address, buffer, sizeof(Type) * size, NULL);
-	return buffer;
+	if (address) {
+		Type* buffer = (Type*)malloc(sizeof(Type) * size);
+		ReadProcessMemory(m_DebugHandle, address, buffer, sizeof(Type) * size, NULL);
+		return buffer;
+	}
+	else {
+		return nullptr;
+	}
 }

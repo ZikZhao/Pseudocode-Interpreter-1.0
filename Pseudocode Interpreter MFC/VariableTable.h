@@ -8,8 +8,7 @@ public:
 protected:
 	BinaryTree* m_Globals;
 	BinaryTree* m_CurrentLocals;
-	BinaryTree m_PrevGlobals;
-	BinaryTree m_PrevLastLocals;
+	BinaryTree m_PrevVariables;
 	struct ELEMENT {
 		wchar_t* name;
 		wchar_t* value;

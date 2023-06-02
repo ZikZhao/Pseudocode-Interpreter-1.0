@@ -411,6 +411,9 @@ void BinaryTree::clear(BinaryTree::Node* current) {
 	delete current;
 }
 void BinaryTree::clear() {
+	if (not this->root) {
+		return;
+	}
 	if (this->root->left) {
 		this->clear(this->root->left);
 	}

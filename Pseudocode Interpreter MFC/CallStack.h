@@ -30,6 +30,7 @@ public:
 	afx_msg void OnLButtonDblClk(UINT nFlags, CPoint point);
 	void LoadCallStack(CALLSTACK* callstack); // 加载调用堆栈
 	static void VerticalCallback(double percentage); // 垂直滚动体回调函数
+	BinaryTree* GetLastLocals(); // 返回最高层局部变量
 protected:
 	void UpdateSlider(); // 更新滚动条
 	void ArrangeBG(); // 渲染背景源

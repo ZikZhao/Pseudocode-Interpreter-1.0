@@ -113,7 +113,6 @@ void CCallStack::OnLButtonDblClk(UINT nFlags, CPoint point)
 void CCallStack::LoadCallStack(CALLSTACK* callstack)
 {
 	if (m_CallStack) {
-		CVariableTable::pObject->RecordPrevious(CConsole::pObject->ReadMemory(m_CallStack->stack[m_CallStack->ptr - 1].local_variables));
 		delete m_CallStack;
 	}
 	m_CallStack = callstack;
@@ -150,7 +149,7 @@ void CCallStack::LoadCallStack(CALLSTACK* callstack)
 	ArrangeFrames();
 	Invalidate(FALSE);
 	if (m_CallStack->ptr != 1) {
-		CVariableTable::pObject->LoadLocal(CConsole::pObject->ReadMemory(m_CallStack->stack[m_CallStack->ptr - 1].local_variables));
+		CVariableTable::pObject->LoadLocal(CConsole::pObject->ReadMemory(GetLastLocals()));
 	}
 }
 void CCallStack::VerticalCallback(double percentage)
@@ -158,6 +157,15 @@ void CCallStack::VerticalCallback(double percentage)
 	pObject->m_Percentage = percentage;
 	pObject->ArrangeFrames();
 	pObject->Invalidate(FALSE);
+}
+BinaryTree* CCallStack::GetLastLocals()
+{
+	if (m_CallStack) {
+		if (m_CallStack->ptr != 1) {
+			return m_CallStack->stack[m_CallStack->ptr - 1].local_variables;
+		}
+	}
+	return nullptr;
 }
 inline void CCallStack::UpdateSlider()
 {
