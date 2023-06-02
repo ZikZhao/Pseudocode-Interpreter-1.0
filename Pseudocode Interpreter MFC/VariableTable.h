@@ -8,6 +8,8 @@ public:
 protected:
 	BinaryTree* m_Globals;
 	BinaryTree* m_CurrentLocals;
+	BinaryTree m_PrevGlobals;
+	BinaryTree m_PrevLastLocals;
 	struct ELEMENT {
 		wchar_t* name;
 		wchar_t* value;
@@ -18,6 +20,7 @@ protected:
 			NOT_EXPANDED,
 			EXPANDED,
 		} state;
+		bool modified = false;
 	};
 	IndexedList<ELEMENT> m_OrderedList;
 	int m_Width, m_Height;
@@ -42,6 +45,7 @@ public:
 	afx_msg BOOL OnMouseWheel(UINT nFlags, short zDelta, CPoint pt);
 	afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
 	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
+	void RecordPrevious(BinaryTree* last_locals); // 准备高亮变量更改
 	void LoadGlobal(BinaryTree* globals); // 加载全局变量表
 	void LoadLocal(BinaryTree* locals); // 加载局部变量表
 	void LoadReturnValue(DATA* data); // 加载返回值

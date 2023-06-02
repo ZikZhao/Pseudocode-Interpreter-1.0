@@ -95,8 +95,6 @@ int CEditor::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	// 准备断点源
 	m_Breakpoint.CreateCompatibleDC(&ScreenDC);
-	m_BreakpointHitColor.CreateSolidBrush(RGB(202, 205, 56));
-	m_Breakpoint.SelectObject(pNullPen);
 
 	// 创建滚动条
 	m_VSlider.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 0), this, NULL);
@@ -821,28 +819,29 @@ void CEditor::ArrangeBreakpoints()
 	double start_line = m_PercentageVertical * m_CurrentTag->m_Lines.size();
 	double end_line = start_line + (double)m_Height / m_CharSize.cy;
 	m_Breakpoint.SelectObject(pThemeColorBrush);
+	Gdiplus::Graphics graphic(m_Breakpoint);
+	graphic.SetSmoothingMode(Gdiplus::SmoothingModeHighQuality);
+	Gdiplus::SolidBrush brush(Gdiplus::Color(254, 74, 99));
 	for (std::list<BREAKPOINT>::iterator iter = m_Breakpoints.begin(); iter != m_Breakpoints.end(); iter++) {
 		if (start_line - 1 < iter->line_index and iter->line_index < end_line + 1) {
-			m_Breakpoint.MoveTo(CPoint(2, (iter->line_index - start_line) * m_CharSize.cy));
-			CPoint* points = new CPoint[]{
-				CPoint(2, (iter->line_index - start_line) * m_CharSize.cy - 8),
-				CPoint(2, (iter->line_index - start_line) * m_CharSize.cy + 8),
-				CPoint(13, (iter->line_index - start_line) * m_CharSize.cy),
+			Gdiplus::Point* points = new Gdiplus::Point[]{
+				Gdiplus::Point(1, (iter->line_index - start_line) * m_CharSize.cy - 8),
+				Gdiplus::Point(1, (iter->line_index - start_line) * m_CharSize.cy + 8),
+				Gdiplus::Point(12, (iter->line_index - start_line) * m_CharSize.cy),
 			};
-			m_Breakpoint.Polygon(points, 3);
+			graphic.FillPolygon(&brush, points, 3);
 			delete[] points;
 		}
 	}
-	m_Breakpoint.SelectObject(&m_BreakpointHitColor);
+	Gdiplus::SolidBrush brush2(Gdiplus::Color(202, 205, 56));
 	if (m_CurrentStepLineIndex != -1) {
 		if (start_line - 1 < m_CurrentStepLineIndex and m_CurrentStepLineIndex < end_line + 1) {
-			m_Breakpoint.MoveTo(CPoint(2, (m_CurrentStepLineIndex - start_line) * m_CharSize.cy));
-			CPoint* points = new CPoint[]{
-				CPoint(2, (m_CurrentStepLineIndex - start_line) * m_CharSize.cy - 8),
-				CPoint(2, (m_CurrentStepLineIndex - start_line) * m_CharSize.cy + 8),
-				CPoint(13, (m_CurrentStepLineIndex - start_line) * m_CharSize.cy),
+			Gdiplus::Point* points = new Gdiplus::Point[]{
+				Gdiplus::Point(1, (m_CurrentStepLineIndex - start_line) * m_CharSize.cy - 8),
+				Gdiplus::Point(1, (m_CurrentStepLineIndex - start_line) * m_CharSize.cy + 8),
+				Gdiplus::Point(12, (m_CurrentStepLineIndex - start_line) * m_CharSize.cy),
 			};
-			m_Breakpoint.Polygon(points, 3);
+			graphic.FillPolygon(&brush2, points, 3);
 			delete[] points;
 		}
 	}

@@ -33,7 +33,6 @@ protected:
 	bool m_bRecord; // 正在记录连续的单字符输入/删除
 	CBreakpointDlg* m_Dialog; // 断点对话框
 	LONG64 m_CurrentStepLineIndex; // 当前单步执行行数（包括断点）
-	CBrush m_BreakpointHitColor; // 断点命中颜色
 	bool m_bBackendPending; // 等待后台任务结束
 	HANDLE m_BackendThread; // 后台线程句柄
 	std::recursive_mutex m_BackendLock; // 后台任务锁（用于短暂暂停后台任务以避免访问冲突）

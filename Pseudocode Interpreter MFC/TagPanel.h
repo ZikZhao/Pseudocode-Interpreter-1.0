@@ -52,6 +52,9 @@ public:
 	void Save();
 	void SaveAs(wchar_t* new_path);
 	void Close();
+protected:
+	void SplitPath(wchar_t* path);
+	void LoadFile(wchar_t* path);
 };
 
 class CTagPanel : public CWnd

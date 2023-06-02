@@ -12,60 +12,12 @@ END_MESSAGE_MAP()
 CFileTag::CFileTag(wchar_t* path)
 {
 	m_Width = 0;
-	m_Path = path;
-	int last = 0;
-	for (int index = 0; path[index] != 0; index++) {
-		if (path[index] == '\\') {
-			last = index;
-		}
+	SplitPath(path);
+	try {
+		LoadFile(path);
 	}
-	m_Directory = new wchar_t[last + 2];
-	m_Filename = new wchar_t[wcslen(path) - last + 1];
-	memcpy(m_Directory, path, ((size_t)last + 1) * 2);
-	memcpy(m_Filename, path + last + 1, (wcslen(path) - last) * 2);
-	m_Directory[last + 1] = 0;
-	m_Filename[wcslen(path) - last] = 0;
-	m_Handle = CreateFile(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-	if (m_Handle) {
-		DWORD size_high = 0;
-		DWORD size = GetFileSize(m_Handle, &size_high);
-		if (size == INVALID_FILE_SIZE) {
-			AfxMessageBox(L"文件读取失败", MB_ICONERROR);
-		}
-		size_t final_size = (size_t)size + (((size_t)size_high << sizeof(DWORD)));
-		char* char_buffer = new char[final_size + 1];
-		if (not ReadFile(m_Handle, char_buffer, final_size, nullptr, nullptr)) {
-			AfxMessageBox(L"文件读取失败", MB_ICONERROR);
-		}
-		char_buffer[final_size] = 0;
-		size_t buffer_size = MultiByteToWideChar(CP_UTF8, MB_PRECOMPOSED, char_buffer, -1, nullptr, 0);
-		wchar_t* wchar_buffer = new wchar_t[buffer_size];
-		MultiByteToWideChar(CP_UTF8, MB_PRECOMPOSED, char_buffer, -1, wchar_buffer, buffer_size);
-		delete[] char_buffer;
-		ULONG64 offset = 0;
-		m_Lines.set_construction(true);
-		for (ULONG64 index = 0;; index++) {
-			if (wchar_buffer[index] == L'\n') {
-				wchar_t* this_line = new wchar_t[index - offset];
-				memcpy(this_line, wchar_buffer + offset, (index - offset - 1) * 2);
-				this_line[index - offset - 1] = 0;
-				m_Lines.append(this_line);
-				offset = index + 1;
-			}
-			else if (wchar_buffer[index] == L'\0') {
-				wchar_t* this_line = new wchar_t[index - offset + 1];
-				memcpy(this_line, wchar_buffer + offset, (index - offset) * 2);
-				this_line[index - offset] = 0;
-				m_Lines.append(this_line);
-				break;
-			}
-		}
-		m_Lines.set_construction(false);
-		delete[] wchar_buffer;
-		m_CurrentLine = m_Lines.begin();
-	}
-	else {
-		throw L"文件无法访问";
+	catch (const wchar_t* error) {
+		AfxMessageBox(error, MB_ICONERROR);
 	}
 	m_bHover = false;
 	m_bHoverClose = false;
@@ -102,8 +54,6 @@ void CFileTag::OnSize(UINT nType, int cx, int cy)
 	CWnd::OnSize(nType, cx, cy);
 
 	m_Width = cx;
-	;
-
 }
 BOOL CFileTag::OnEraseBkgnd(CDC* pDC)
 {
@@ -136,7 +86,7 @@ void CFileTag::OnPaint()
 		MemoryDC.MoveTo(CPoint(m_Width - 10, 20));
 		MemoryDC.LineTo(CPoint(m_Width - 25, 35));
 	}
-	if (m_Path) {
+	if (m_Handle) {
 		if (m_bEdited) {
 			MemoryDC.TransparentBlt(12, 6, 40, 20, &m_Edited, 0, 0, 40, 20, 0);
 		}
@@ -217,7 +167,6 @@ const wchar_t* CFileTag::GetPath() const
 }
 void CFileTag::Save()
 {
-	m_bEdited = false;
 	REDRAW_WINDOW();
 	if (m_Handle) {
 		SetFilePointer(m_Handle, 0, 0, FILE_BEGIN);
@@ -240,6 +189,7 @@ void CFileTag::Save()
 	else {
 		CMainFrame::pObject->SendMessageW(WM_COMMAND, ID_FILE_SAVEAS, 0);
 	}
+	m_bEdited = false;
 }
 void CFileTag::SaveAs(wchar_t* new_path)
 {
@@ -260,6 +210,12 @@ void CFileTag::SaveAs(wchar_t* new_path)
 		}
 		FlushFileBuffers(m_Handle);
 		SetEndOfFile(handle);
+		if (not m_Handle) {
+			m_Handle = handle;
+			wchar_t* duplicate_path = new wchar_t[wcslen(new_path) + 1];
+			memcpy(duplicate_path, new_path, (wcslen(new_path) + 1) * 2);
+			SplitPath(duplicate_path);
+		}
 	}
 	else {
 		MessageBoxW(L"文件无法访问", L"异常", MB_OK | MB_ICONERROR);
@@ -280,6 +236,67 @@ void CFileTag::Close()
 		}
 	}
 	CTagPanel::pObject->DestroyTag(this);
+}
+void CFileTag::SplitPath(wchar_t* path)
+{
+	m_Path = path;
+	int last = 0;
+	for (int index = 0; path[index] != 0; index++) {
+		if (path[index] == '\\') {
+			last = index;
+		}
+	}
+	m_Directory = new wchar_t[last + 2];
+	m_Filename = new wchar_t[wcslen(path) - last + 1];
+	memcpy(m_Directory, path, ((size_t)last + 1) * 2);
+	memcpy(m_Filename, path + last + 1, (wcslen(path) - last) * 2);
+	m_Directory[last + 1] = 0;
+	m_Filename[wcslen(path) - last] = 0;
+}
+void CFileTag::LoadFile(wchar_t* path)
+{
+	m_Handle = CreateFile(path, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+	if (m_Handle) {
+		DWORD size_high = 0;
+		DWORD size = GetFileSize(m_Handle, &size_high);
+		if (size == INVALID_FILE_SIZE) {
+			throw L"文件读取失败";
+		}
+		size_t final_size = (size_t)size + (((size_t)size_high << sizeof(DWORD)));
+		char* char_buffer = new char[final_size + 1];
+		if (not ReadFile(m_Handle, char_buffer, final_size, nullptr, nullptr)) {
+			throw L"文件读取失败";
+		}
+		char_buffer[final_size] = 0;
+		size_t buffer_size = MultiByteToWideChar(CP_UTF8, MB_PRECOMPOSED, char_buffer, -1, nullptr, 0);
+		wchar_t* wchar_buffer = new wchar_t[buffer_size];
+		MultiByteToWideChar(CP_UTF8, MB_PRECOMPOSED, char_buffer, -1, wchar_buffer, buffer_size);
+		delete[] char_buffer;
+		ULONG64 offset = 0;
+		m_Lines.set_construction(true);
+		for (ULONG64 index = 0;; index++) {
+			if (wchar_buffer[index] == L'\n') {
+				wchar_t* this_line = new wchar_t[index - offset];
+				memcpy(this_line, wchar_buffer + offset, (index - offset - 1) * 2);
+				this_line[index - offset - 1] = 0;
+				m_Lines.append(this_line);
+				offset = index + 1;
+			}
+			else if (wchar_buffer[index] == L'\0') {
+				wchar_t* this_line = new wchar_t[index - offset + 1];
+				memcpy(this_line, wchar_buffer + offset, (index - offset) * 2);
+				this_line[index - offset] = 0;
+				m_Lines.append(this_line);
+				break;
+			}
+		}
+		m_Lines.set_construction(false);
+		delete[] wchar_buffer;
+		m_CurrentLine = m_Lines.begin();
+	}
+	else {
+		throw L"文件读取失败";
+	}
 }
 
 BEGIN_MESSAGE_MAP(CTagPanel, CWnd)
@@ -330,48 +347,40 @@ int CTagPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	pBitmap = new CBitmap;
 	pBitmap->CreateCompatibleBitmap(&ScreenDC, 40, 20);
 	CFileTag::m_Edited.SelectObject(pBitmap);
-	CDC temp;
-	temp.CreateCompatibleDC(&ScreenDC);
-	CBitmap temp_bitmap;
-	temp_bitmap.CreateCompatibleBitmap(&ScreenDC, 400, 200);
-	temp.SelectObject(&temp_bitmap);
-	rect = CRect(0, 0, 400, 200);
+
 	CFont font;
-	font.CreateFontW(180, 0, 0, 0, FW_NORMAL, false, false,
+	font.CreateFontW(18, 0, 0, 0, FW_NORMAL, false, false,
 		false, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS,
 		PROOF_QUALITY, DEFAULT_PITCH | FF_DONTCARE << 2, L"Microsoft Yahei UI");
-	temp.SelectObject(&font);
-	temp.SetBkMode(TRANSPARENT);
+	rect = CRect(0, 0, 40, 20);
+	CRect rect_text(0, 2, 40, 20);
+
+	CFileTag::m_Latest.SelectObject(&font);
+	CFileTag::m_Latest.SetBkMode(TRANSPARENT);
 	CBrush brush(RGB(107, 199, 164));
-	temp.SetTextColor(RGB(0, 0, 0));
-	temp.SelectObject(&brush);
-	temp.SelectObject(pNullPen);
-	temp.RoundRect(&rect, CPoint(75, 75));
-	temp.DrawTextW(L"最新", -1, &rect, DT_CENTER | DT_VCENTER);
-	CFileTag::m_Latest.SetStretchBltMode(HALFTONE);
-	CFileTag::m_Latest.StretchBlt(0, 0, 40, 20, &temp, 0, 0, 400, 200, SRCCOPY);
+	CFileTag::m_Latest.SetTextColor(RGB(0, 0, 0));
+	CFileTag::m_Latest.SelectObject(pNullPen);
+	CFileTag::m_Latest.FillRect(&rect, &brush);
+	CFileTag::m_Latest.DrawTextW(L"最新", -1, &rect_text, DT_CENTER);
 	brush.DeleteObject();
+
+	CFileTag::m_Newed.SelectObject(&font);
+	CFileTag::m_Newed.SetBkMode(TRANSPARENT);
 	brush.CreateSolidBrush(RGB(190, 183, 255));
-	temp.SetTextColor(RGB(0, 0, 0));
-	temp.SetBkMode(TRANSPARENT);
-	temp.SelectObject(&brush);
-	temp.SelectObject(pNullPen);
-	temp.RoundRect(&rect, CPoint(75, 75));
-	temp.SelectObject(font);
-	temp.DrawTextW(L"新建", -1, &rect, DT_CENTER);
-	CFileTag::m_Newed.SetStretchBltMode(HALFTONE);
-	CFileTag::m_Newed.StretchBlt(0, 0, 40, 20, &temp, 0, 0, 400, 200, SRCCOPY);
+	CFileTag::m_Newed.SetTextColor(RGB(0, 0, 0));
+	CFileTag::m_Newed.SelectObject(pNullPen);
+	CFileTag::m_Newed.FillRect(&rect, &brush);
+	CFileTag::m_Newed.DrawTextW(L"新建", -1, &rect_text, DT_CENTER);
 	brush.DeleteObject();
+
+	CFileTag::m_Edited.SelectObject(&font);
+	CFileTag::m_Edited.SetBkMode(TRANSPARENT);
 	brush.CreateSolidBrush(RGB(202, 205, 56));
-	temp.SetTextColor(RGB(0, 0, 0));
-	temp.SetBkMode(TRANSPARENT);
-	temp.SelectObject(&brush);
-	temp.SelectObject(pNullPen);
-	temp.RoundRect(&rect, CPoint(75, 75));
-	temp.SelectObject(font);
-	temp.DrawTextW(L"更新", -1, &rect, DT_CENTER);
-	CFileTag::m_Edited.SetStretchBltMode(HALFTONE);
-	CFileTag::m_Edited.StretchBlt(0, 0, 40, 20, &temp, 0, 0, 400, 200, SRCCOPY);
+	CFileTag::m_Edited.SetTextColor(RGB(0, 0, 0));
+	CFileTag::m_Edited.SelectObject(pNullPen);
+	CFileTag::m_Edited.FillRect(&rect, &brush);
+	CFileTag::m_Edited.SelectObject(font);
+	CFileTag::m_Edited.DrawTextW(L"更新", -1, &rect_text, DT_CENTER);
 
 	// 准备字体
 	CFileTag::m_Font1.CreateFontW(30, 0, 0, 0, FW_NORMAL, false, false,
@@ -392,7 +401,7 @@ int CTagPanel::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	font.CreateFontW(30, 0, 0, 0, FW_BOLD, false, false,
 		false, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS,
 		ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE << 2, L"Microsoft Yahei UI");
-	m_Source.SelectObject(font);
+	m_Source.SelectObject(&font);
 	rect = CRect(0, 0, 300, SCREEN_HEIGHT);
 	CFileTag::m_Brush.CreateSolidBrush(RGB(37, 37, 38));
 	m_Source.FillRect(&rect, &CFileTag::m_Brush);
@@ -520,7 +529,6 @@ void CTagPanel::DestroyTag(CFileTag* tag)
 	for (USHORT index = 0; index != m_Tags.size(); index++) {
 		if (tag == *m_Tags[index]) {
 			found = true;
-			tag->DestroyWindow();
 			if (m_Tags.size() == 1) {
 				FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(false);
 				FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(false);
@@ -534,6 +542,7 @@ void CTagPanel::DestroyTag(CFileTag* tag)
 					ShiftTag(*m_Tags[index - 1]);
 				}
 			}
+			tag->DestroyWindow();
 			delete tag;
 			m_Tags.pop(index);
 			index--;

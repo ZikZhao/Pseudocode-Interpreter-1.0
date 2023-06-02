@@ -2374,7 +2374,6 @@ bool Element::function_call(wchar_t* expr, RPN_EXP** rpn_out)
 			strip(this_arg);
 			RPN_EXP* arg_rpn = nullptr;
 			if (not (expression(this_arg, &arg_rpn) and expr[index + 1] == 0)) {
-				delete[] expr;
 				delete[] this_arg;
 				delete[] function_name;
 				delete rpn_exp;

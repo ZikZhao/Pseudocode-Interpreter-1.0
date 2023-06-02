@@ -105,11 +105,15 @@ void CCallStack::OnLButtonDblClk(UINT nFlags, CPoint point)
 	if (m_SelectionDepth != 0) {
 		CVariableTable::pObject->LoadLocal(CConsole::pObject->ReadMemory(m_CallStack->stack[m_SelectionDepth].local_variables));
 	}
+	else {
+		CVariableTable::pObject->LoadLocal(nullptr);
+	}
 	CInfoView::pObject->ShiftTag(1);
 }
 void CCallStack::LoadCallStack(CALLSTACK* callstack)
 {
 	if (m_CallStack) {
+		CVariableTable::pObject->RecordPrevious(CConsole::pObject->ReadMemory(m_CallStack->stack[m_CallStack->ptr - 1].local_variables));
 		delete m_CallStack;
 	}
 	m_CallStack = callstack;

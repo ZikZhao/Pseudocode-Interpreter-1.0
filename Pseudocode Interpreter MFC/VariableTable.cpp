@@ -168,6 +168,27 @@ void CVariableTable::OnLButtonUp(UINT nFlags, CPoint point)
 		}
 	}
 }
+void CVariableTable::RecordPrevious(BinaryTree* last_locals)
+{
+	m_PrevGlobals.clear();
+	m_PrevLastLocals.clear();
+	BinaryTree::Node* duplicate_root = CConsole::pObject->ReadMemory(m_Globals->root);
+	USHORT count = 0;
+	BinaryTree::Node* nodes = m_Globals->list_nodes_copy(duplicate_root, CConsole::pObject->m_DebugHandle, &count);
+	free(duplicate_root);
+	for (USHORT index = 0; index != count; index++) {
+		m_PrevGlobals.insert(nodes[index].key, nodes[index].value, false);
+	}
+	free(nodes);
+	duplicate_root = CConsole::pObject->ReadMemory(last_locals->root);
+	count = 0;
+	nodes = last_locals->list_nodes_copy(duplicate_root, CConsole::pObject->m_DebugHandle, &count);
+	free(duplicate_root);
+	for (USHORT index = 0; index != count; index++) {
+		m_PrevLastLocals.insert(nodes[index].key, nodes[index].value, false);
+	}
+	free(nodes);
+}
 void CVariableTable::LoadGlobal(BinaryTree* globals)
 {
 	for (IndexedList<ELEMENT>::iterator iter = m_OrderedList.begin(); iter != m_OrderedList.end(); iter++) {
@@ -195,13 +216,27 @@ void CVariableTable::LoadGlobal(BinaryTree* globals)
 		wchar_t* type_name = IdentifyType(duplicate_data);
 		wchar_t* key = CConsole::pObject->ReadMemory(nodes[index].key, nodes[index].length);
 		wchar_t* value = RetrieveValue(duplicate_data);
+		ELEMENT new_element;
 		if (duplicate_data->type == 6 or duplicate_data->type == 8) {
-			m_OrderedList.append(ELEMENT{ key, value, type_name, 0, ELEMENT::NOT_EXPANDED });
+			new_element = ELEMENT{ key, value, type_name, 0, ELEMENT::NOT_EXPANDED };
 			ExpandComplexType(duplicate_data, 1);
 		}
 		else {
-			m_OrderedList.append(ELEMENT{ key, value, type_name, 0, ELEMENT::NOT_EXPANDABLE });
+			new_element = ELEMENT{ key, value, type_name, 0, ELEMENT::NOT_EXPANDABLE };
 		}
+		BinaryTree::Node* node = m_PrevLastLocals.find(key);
+		if (node) {
+			if (node->value != nodes[index].value) {
+				new_element.modified = true;
+			}
+		}
+		else {
+			node = m_PrevGlobals.find(key);
+			if (node->value != nodes[index].value) {
+				new_element.modified = true;
+			}
+		}
+		m_OrderedList.append(new_element);
 		free(duplicate_data);
 	}
 	m_OrderedList.set_construction(false);
@@ -216,6 +251,7 @@ void CVariableTable::LoadLocal(BinaryTree* locals)
 		LoadGlobal(m_Globals);
 	}
 	m_CurrentLocals = locals;
+	if (not m_CurrentLocals) { return; }
 	USHORT number = 0;
 	BinaryTree::Node* duplicate_root = CConsole::pObject->ReadMemory(m_CurrentLocals->root);
 	BinaryTree::Node* nodes = m_CurrentLocals->list_nodes_copy(duplicate_root, CConsole::pObject->m_DebugHandle, &number);
@@ -493,6 +529,12 @@ void CVariableTable::ArrangeTable()
 			continue;
 		}
 		rect1.left += 20 * iter->level;
+		if (iter->modified) {
+			m_Source.SetTextColor(RGB(245, 87, 98));
+		}
+		else {
+			m_Source.SetTextColor(RGB(255, 255, 255));
+		}
 		m_Source.DrawTextW(iter->name, -1, &rect1, DT_END_ELLIPSIS);
 		level = iter->level;
 		if (iter->state == ELEMENT::NOT_EXPANDED) {

@@ -603,7 +603,7 @@ void CWatch::DeleteWatch(USHORT index, USHORT index_leaf)
 	m_Watches.pop(index);
 	USHORT level = m_OrderedList[index_leaf]->level;
 	m_OrderedList.pop(index_leaf);
-	if (index_leaf == m_OrderedList.size()) {
+	if (index_leaf != m_OrderedList.size()) {
 		for (IndexedList<ELEMENT>::iterator iter = m_OrderedList[index_leaf + 1]; iter != m_OrderedList.end(); iter++) {
 			if (iter->level == level) {
 				break;
