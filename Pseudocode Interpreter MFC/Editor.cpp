@@ -557,6 +557,9 @@ void CEditor::LoadFile(CFileTag* tag)
 		m_BackendThread = CreateThread(NULL, NULL, BackendTasking, nullptr, NULL, NULL);
 		SetCursor(LoadCursorW(NULL, IDC_ARROW));
 	}
+	else {
+		DestroyCaret();
+	}
 	Invalidate(FALSE);
 }
 void CEditor::VerticalCallback(double percentage)

@@ -184,7 +184,7 @@ LRESULT CMainFrame::OnNcHitTest(CPoint point)
 {
 	CRect rect;
 	GetWindowRect(&rect);
-	point.Offset(-rect.left, -rect.top);
+	point.Offset(-rect.left - 8, -rect.top - 8);
 	CRect rect_close(m_Width - 42, 10, m_Width - 10, 42);
 	CRect rect_max_restore(m_Width - 84, 10, m_Width - 52, 42);
 	CRect rect_min(m_Width - 126, 10, m_Width - 94, 42);
