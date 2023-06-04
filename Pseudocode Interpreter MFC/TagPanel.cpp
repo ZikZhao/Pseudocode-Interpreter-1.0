@@ -215,6 +215,7 @@ void CFileTag::SaveAs(wchar_t* new_path)
 			wchar_t* duplicate_path = new wchar_t[wcslen(new_path) + 1];
 			memcpy(duplicate_path, new_path, (wcslen(new_path) + 1) * 2);
 			SplitPath(duplicate_path);
+			Invalidate(FALSE);
 		}
 	}
 	else {

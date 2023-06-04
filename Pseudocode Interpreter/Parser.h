@@ -370,8 +370,8 @@ namespace Construct {
 	RESULT constant(wchar_t* expr);
 	RESULT type_header(wchar_t* expr);
 	RESULT type_ender(wchar_t* expr);
-	RESULT pointer_type_header(wchar_t* expr);
-	RESULT enumerated_type_header(wchar_t* expr);
+	RESULT pointer_type(wchar_t* expr);
+	RESULT enumerated_type(wchar_t* expr);
 	RESULT assignment(wchar_t* expr);
 	RESULT output(wchar_t* expr);
 	RESULT input(wchar_t* expr);
@@ -411,7 +411,7 @@ namespace Construct {
 	RESULT single_expression(wchar_t* expr);
 	// if new constructs are added, add deconstruction to struct CONSTRUCT
 	static void* constructs[] = {
-		empty_line, declaration, constant, type_header, type_ender, pointer_type_header, enumerated_type_header,
+		empty_line, declaration, constant, type_header, type_ender, pointer_type, enumerated_type,
 		assignment, output, input, if_header_1, if_header_2, then_tag, else_tag, if_ender, case_of_header,
 		case_tag, otherwise_tag, case_of_ender, for_header_1, for_header_2, for_ender, while_header, while_ender,
 		repeat_header, repeat_ender, procedure_header, procedure_ender, function_header, function_ender,
@@ -420,7 +420,7 @@ namespace Construct {
 		putrecord_statement, single_expression
 	};
 	enum construct_index {
-		_empty_line, _declaration, _constant, _type_header, _type_ender, _pointer_type_header, _enumerated_type_header,
+		_empty_line, _declaration, _constant, _type_header, _type_ender, _pointer_type, _enumerated_type,
 		_assignment, _output, _input, _if_header_1, _if_header_2, _then_tag, _else_tag, _if_ender, _case_of_header,
 		_case_tag, _otherwise_tag, _case_of_ender, _for_header_1, _for_header_2, _for_ender, _while_header, _while_ender,
 		_repeat_header, _repeat_ender, _procedure_header, _procedure_ender, _function_header, _function_ender,

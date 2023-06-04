@@ -163,11 +163,11 @@ CONSTRUCT::~CONSTRUCT() {
 	case Construct::_type_header:
 		delete[] (wchar_t*)result.args[0];
 		break;
-	case Construct::_pointer_type_header:
+	case Construct::_pointer_type:
 		delete[] (wchar_t*)result.args[0];
 		delete[] (wchar_t*)result.args[1];
 		break;
-	case Construct::_enumerated_type_header:
+	case Construct::_enumerated_type:
 		delete[] (wchar_t*)result.args[0];
 		delete[] (wchar_t*)result.args[1];
 		break;
@@ -2209,7 +2209,7 @@ bool Element::variable_path(wchar_t* expr) {
 }
 bool Element::addressing(wchar_t* expr) {
 	if (not wcslen(expr)) { return false; }
-	if (expr[0] == 64) {
+	if (expr[0] == L'@') {
 		expr++;
 		strip(expr);
 		return variable(expr);
@@ -2852,7 +2852,7 @@ RESULT Construct::type_ender(wchar_t* expr) {
 	}
 	return result;
 }
-RESULT Construct::pointer_type_header(wchar_t* expr) {
+RESULT Construct::pointer_type(wchar_t* expr) {
 	RESULT result;
 	if (match_keyword(expr, L"TYPE ") == 0) {
 		for (size_t index = 5; expr[index] != 0; index++) {
@@ -2889,7 +2889,7 @@ RESULT Construct::pointer_type_header(wchar_t* expr) {
 	}
 	return result;
 }
-RESULT Construct::enumerated_type_header(wchar_t* expr) {
+RESULT Construct::enumerated_type(wchar_t* expr) {
 	RESULT result;
 	if (match_keyword(expr, L"TYPE ") == 0) {
 		for (size_t index = 5; expr[index] != 0; index++) {

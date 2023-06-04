@@ -148,6 +148,8 @@ void CEditor::OnPaint()
 {
 	Lock lock(&m_BackendLock);
 	CPaintDC dc(this);
+	CRect rect(m_Width, m_Height, m_Width + 10, m_Height + 10);
+	dc.FillRect(&rect, pGreyBlackBrush);
 	if (m_CurrentTag) {
 		ArrangeText();
 		ArrangePointer();
@@ -157,8 +159,6 @@ void CEditor::OnPaint()
 		MemoryDC.TransparentBlt(0, 0, m_Width, m_Height, &m_Source, 0, 0, m_Width, m_Height, 0);
 		MemoryDC.BitBlt(0, 0, m_Width, m_Height, &m_Breakpoint, 0, 0, SRCCOPY);
 		dc.BitBlt(0, 0, m_Width, m_Height, &MemoryDC, 0, 0, SRCCOPY);
-		CRect rect(m_Width, m_Height, m_Width + 10, m_Height + 10);
-		dc.FillRect(&rect, pGreyBlackBrush);
 	}
 	else {
 		dc.BitBlt(0, 0, m_Width, m_Height, &m_Free, 0, 0, SRCCOPY);
@@ -558,7 +558,10 @@ void CEditor::LoadFile(CFileTag* tag)
 		SetCursor(LoadCursorW(NULL, IDC_ARROW));
 	}
 	else {
-		DestroyCaret();
+		if (m_bCaret) {
+			m_bCaret = false;
+			HideCaret();
+		}
 	}
 	Invalidate(FALSE);
 }

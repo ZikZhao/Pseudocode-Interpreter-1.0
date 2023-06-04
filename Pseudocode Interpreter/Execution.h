@@ -508,7 +508,7 @@ namespace Execution {
 		define_record = false;
 		record_name = nullptr;
 	}
-	void pointer_type_header(RESULT result) {
+	void pointer_type(RESULT result) {
 		if (current_locals) {
 			throw Error(SyntaxError, L"在局部域中定义指针类型是非法的");
 		}
@@ -553,7 +553,7 @@ namespace Execution {
 			}
 		}
 	}
-	void enumerated_type_header(RESULT result){
+	void enumerated_type(RESULT result){
 		if (current_locals) {
 			throw Error(SyntaxError, L"在局部域中定义枚举类型是非法的");
 		}
@@ -1124,7 +1124,7 @@ namespace Execution {
 		}
 	}
 	void* executions[] = {
-		empty_line, declaration, constant, type_header, type_ender, pointer_type_header, enumerated_type_header,
+		empty_line, declaration, constant, type_header, type_ender, pointer_type, enumerated_type,
 		assignment, output, input, if_header_1, if_header_2, then_tag, else_tag, if_ender, case_of_header,
 		case_tag, otherwise_tag, case_of_ender, for_header_1, for_header_2, for_ender, while_header, while_ender,
 		repeat_header, repeat_ender, procedure_header, procedure_ender, function_header, function_ender,
