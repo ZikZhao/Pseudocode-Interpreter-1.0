@@ -107,7 +107,7 @@ void FormatErrorMessage(Error error) {
 	int size = WideCharToMultiByte(CP_ACP, NULL, message, -1, nullptr, 0, NULL, NULL);
 	char* buffer = new char[size];
 	WideCharToMultiByte(CP_ACP, NULL, message, -1, buffer, size, NULL, NULL);
-	WriteFile(standard_error, buffer, size, NULL, NULL);
+	WriteFile(standard_error, buffer, size - 1, NULL, NULL);
 	delete[] buffer;
 	delete[] message;
 	if (error.error_type == SyntaxError) {

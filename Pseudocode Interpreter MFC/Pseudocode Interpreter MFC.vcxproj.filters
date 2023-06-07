@@ -115,12 +115,6 @@
     <None Include="res\PseudocodeInterpreterMFC.rc2">
       <Filter>资源文件</Filter>
     </None>
-    <None Include="Pseudocode Interpreter.html">
-      <Filter>资源文件</Filter>
-    </None>
-    <None Include="Pseudocode Interpreter.css">
-      <Filter>资源文件</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="PseudocodeInterpreterMFC.rc">

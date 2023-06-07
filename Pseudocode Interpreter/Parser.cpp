@@ -190,6 +190,9 @@ CONSTRUCT::~CONSTRUCT() {
 	case Construct::_case_of_header:
 		delete (RPN_EXP*)result.args[1];
 		break;
+	case Construct::_case_tag:
+		delete (RPN_EXP*)result.args[1];
+		break;
 	case Construct::_case_of_ender:
 		delete (Nesting*)result.args[0];
 		break;
@@ -2376,7 +2379,7 @@ bool Element::function_call(wchar_t* expr, RPN_EXP** rpn_out)
 			this_arg[index - last_spliter - 1] = 0;
 			strip(this_arg);
 			RPN_EXP* arg_rpn = nullptr;
-			if (not (expression(this_arg, &arg_rpn) and expr[index + 1] == 0)) {
+			if (not expression(this_arg, &arg_rpn)) {
 				delete[] this_arg;
 				delete[] function_name;
 				delete rpn_exp;
@@ -3132,7 +3135,7 @@ RESULT Construct::case_tag(wchar_t* expr) {
 			result.matched = true;
 			result.args = new void* [] {
 				nullptr,
-					rpn_out,
+				rpn_out,
 			};
 			result.tokens = new TOKEN[]{
 				{ (USHORT)(wcslen(expr) - 1), TOKENTYPE::Expression },

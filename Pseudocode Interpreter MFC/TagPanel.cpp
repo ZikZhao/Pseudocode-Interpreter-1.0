@@ -29,7 +29,7 @@ CFileTag::CFileTag(wchar_t* path)
 CFileTag::CFileTag()
 {
 	m_Width = 0;
-	m_Path = new wchar_t[1] {0};
+	m_Path = new wchar_t[] {L"unnamed file"};
 	m_Directory = new wchar_t[1] {0};
 	m_Filename = new wchar_t[] {L"unnamed file"};
 	m_Handle = NULL;
@@ -190,15 +190,16 @@ void CFileTag::Save()
 		CMainFrame::pObject->SendMessageW(WM_COMMAND, ID_FILE_SAVEAS, 0);
 	}
 	m_bEdited = false;
+	Invalidate(FALSE);
 }
 void CFileTag::SaveAs(wchar_t* new_path)
 {
 	HANDLE handle = CreateFile(new_path, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0);
 	if (handle) {
 		for (IndexedList<wchar_t*>::iterator iter = m_Lines.begin();;) {
-			int size = WideCharToMultiByte(CP_ACP, 0, *iter, -1, nullptr, 0, nullptr, nullptr);
+			int size = WideCharToMultiByte(CP_UTF8, 0, *iter, -1, nullptr, 0, nullptr, nullptr);
 			char* buffer = new char[size - 1];
-			WideCharToMultiByte(CP_ACP, 0, *iter, -1, buffer, size - 1, nullptr, nullptr);
+			WideCharToMultiByte(CP_UTF8, 0, *iter, -1, buffer, size - 1, nullptr, nullptr);
 			WriteFile(handle, buffer, size - 1, nullptr, nullptr);
 			iter++;
 			if (iter == m_Lines.end()) {
@@ -210,10 +211,11 @@ void CFileTag::SaveAs(wchar_t* new_path)
 		}
 		FlushFileBuffers(m_Handle);
 		SetEndOfFile(handle);
+		CloseHandle(handle);
 		if (not m_Handle) {
-			m_Handle = handle;
 			wchar_t* duplicate_path = new wchar_t[wcslen(new_path) + 1];
 			memcpy(duplicate_path, new_path, (wcslen(new_path) + 1) * 2);
+			LoadFile(duplicate_path);
 			SplitPath(duplicate_path);
 			Invalidate(FALSE);
 		}
@@ -222,7 +224,7 @@ void CFileTag::SaveAs(wchar_t* new_path)
 		MessageBoxW(L"文件无法访问", L"异常", MB_OK | MB_ICONERROR);
 	}
 }
-void CFileTag::Close()
+bool CFileTag::Close()
 {
 	if (m_bEdited) {
 		wchar_t* buffer = new wchar_t[19 + wcslen(m_Path)];
@@ -230,13 +232,14 @@ void CFileTag::Close()
 		int result = AfxMessageBox(buffer, MB_YESNOCANCEL);
 		delete[] buffer;
 		if (result == IDCANCEL) {
-			return;
+			return false;
 		}
 		else if (result == IDYES) {
 			Save();
 		}
 	}
 	CTagPanel::pObject->DestroyTag(this);
+	return true;
 }
 void CFileTag::SplitPath(wchar_t* path)
 {
@@ -261,12 +264,14 @@ void CFileTag::LoadFile(wchar_t* path)
 		DWORD size_high = 0;
 		DWORD size = GetFileSize(m_Handle, &size_high);
 		if (size == INVALID_FILE_SIZE) {
-			throw L"文件读取失败";
+			MessageBoxW(L"文件读取失败", L"异常", MB_OK | MB_ICONERROR);
+			return;
 		}
 		size_t final_size = (size_t)size + (((size_t)size_high << sizeof(DWORD)));
 		char* char_buffer = new char[final_size + 1];
 		if (not ReadFile(m_Handle, char_buffer, final_size, nullptr, nullptr)) {
-			throw L"文件读取失败";
+			MessageBoxW(L"文件读取失败", L"异常", MB_OK | MB_ICONERROR);
+			return;
 		}
 		char_buffer[final_size] = 0;
 		size_t buffer_size = MultiByteToWideChar(CP_UTF8, MB_PRECOMPOSED, char_buffer, -1, nullptr, 0);
@@ -296,7 +301,8 @@ void CFileTag::LoadFile(wchar_t* path)
 		m_CurrentLine = m_Lines.begin();
 	}
 	else {
-		throw L"文件读取失败";
+		MessageBoxW(L"文件读取失败", L"异常", MB_OK | MB_ICONERROR);
+		return;
 	}
 }
 
@@ -555,4 +561,17 @@ void CTagPanel::DestroyTag(CFileTag* tag)
 			rect.bottom -= 65;
 		}
 	}
+}
+bool CTagPanel::DestoryAllFile()
+{
+	USHORT index = 0;
+	for (USHORT count = 0; count != m_Tags.size(); count++) {
+		if (not (*m_Tags[0])->Close()) {
+			index++;
+		}
+		else {
+			count--;
+		}
+	}
+	return index == 0;
 }

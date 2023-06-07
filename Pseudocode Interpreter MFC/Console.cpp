@@ -181,6 +181,7 @@ void CConsoleOutput::AppendText(char* buffer, DWORD transferred)
 }
 void CConsoleOutput::AppendInput(wchar_t* input, DWORD count)
 {
+	m_Lock.lock();
 	IndexedList<LINE>::iterator last_line = m_Lines[-1];
 	size_t original_length = wcslen(last_line->line);
 	wchar_t* combined_line = new wchar_t[original_length + count + 1];
@@ -189,11 +190,16 @@ void CConsoleOutput::AppendInput(wchar_t* input, DWORD count)
 	combined_line[original_length + count] = 0;
 	delete[] last_line->line;
 	USHORT original_height_unit = last_line->height_unit;
+	ULONG accumulate_height_unit = last_line->accumulated_height_unit;
 	*last_line = EncodeLine(combined_line);
+	last_line->accumulated_height_unit = accumulate_height_unit;
 	USHORT difference = last_line->height_unit - original_height_unit;
 	last_line->height_unit += difference;
 	m_Lines.append(LINE{ new wchar_t[] {0}, 0, 1, m_TotalHeightUnit + difference });
 	m_TotalHeightUnit += difference + 1;
+	m_Lock.unlock();
+	UpdateSlider();
+	m_Slider.SetPercentage(1.0);
 }
 void CConsoleOutput::ClearBuffer()
 {
@@ -228,7 +234,7 @@ CConsoleOutput::LINE CConsoleOutput::EncodeLine(wchar_t* line)
 	LINE line_out{};
 	line_out.line = line;
 	line_out.length = wcslen(line);
-	if (m_Width <= 0) {
+	if (m_Width <= 0 or line[0] == 0) {
 		line_out.height_unit = 1;
 	}
 	else {
@@ -278,11 +284,7 @@ void CConsoleOutput::ArrangeText()
 	m_Source.PatBlt(0, 0, m_Width, m_Height, BLACKNESS);
 	LONG cy = m_Percentage * m_TotalHeightUnit * m_CharSize.cy;
 	IndexedList<LINE>::iterator this_line = SearchStartLine(cy);
-	CRect rect(
-		0,
-		cy,
-		m_Width,
-		cy + m_CharSize.cy
+	CRect rect(0, cy, m_Width, cy + m_CharSize.cy
 	);
 	// 计算自动换行
 	USHORT width_unit = m_Width / m_CharSize.cx;
@@ -779,8 +781,16 @@ int CConsole::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (CWnd::OnCreate(lpCreateStruct) == -1)
 		return -1;
 
+	SECURITY_ATTRIBUTES sa{};
+	sa.nLength = sizeof(sa);
+	sa.bInheritHandle = true;
+	sa.lpSecurityDescriptor = 0;
+	CreatePipe(&m_Pipes.stdin_read, &m_Pipes.stdin_write, &sa, 0);
+	CreatePipe(&m_Pipes.stdout_read, &m_Pipes.stdout_write, &sa, 0);
+	CreatePipe(&m_Pipes.stderr_read, &m_Pipes.stderr_write, &sa, 0);
+	CreatePipe(&m_Pipes.signal_in_read, &m_Pipes.signal_in_write, &sa, 20);
+	CreatePipe(&m_Pipes.signal_out_read, &m_Pipes.signal_out_write, &sa, 20);
 	// 创建字体
-	//AddFontResourceW(L"YAHEI CONSOLAS HYBRID.TTF");
 	font.CreateFontW(20, 0, 0, 0, FW_NORMAL, false, false,
 		false, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS,
 		PROOF_QUALITY, DEFAULT_PITCH | FF_DONTCARE << 2, L"Microsoft Yahei UI");
@@ -955,26 +965,17 @@ void CConsole::InitSubprocess(bool debug_mode)
 {
 	// 更新组件状态
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->ShowWindow(SW_HIDE);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->SetState(true);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->ShowWindow(SW_SHOW);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_HALT)->SetState(true);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->SetState(false);
 	CMainFrame::pObject->UpdateStatus(true, new wchar_t[] {L"本地伪代码解释器已启动"});
 	// 创建管道
-	SECURITY_ATTRIBUTES sa{};
-	sa.nLength = sizeof(sa);
-	sa.bInheritHandle = true;
-	sa.lpSecurityDescriptor = 0;
-	CreatePipe(&m_Pipes.stdin_read, &m_Pipes.stdin_write, &sa, 0);
-	CreatePipe(&m_Pipes.stdout_read, &m_Pipes.stdout_write, &sa, 0);
-	CreatePipe(&m_Pipes.stderr_read, &m_Pipes.stderr_write, &sa, 0);
 	if (debug_mode) {
-		CreatePipe(&m_Pipes.signal_in_read, &m_Pipes.signal_in_write, &sa, 0);
-		CreatePipe(&m_Pipes.signal_out_read, &m_Pipes.signal_out_write, &sa, 0);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_DEBUG)->ShowWindow(SW_HIDE);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->ShowWindow(SW_SHOW);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->ShowWindow(SW_HIDE);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->SetState(true);
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->ShowWindow(SW_SHOW);
 	}
 	// 清理控制台
 	m_Output.ClearBuffer();
@@ -983,21 +984,19 @@ void CConsole::InitSubprocess(bool debug_mode)
 }
 void CConsole::ExitSubprocess(UINT exit_code)
 {
-	// 关闭管道
-	CloseHandle(m_Pipes.stdin_read);
-	CloseHandle(m_Pipes.stdin_write);
-	CloseHandle(m_Pipes.stdout_read);
-	CloseHandle(m_Pipes.stdout_write);
-	CloseHandle(m_Pipes.stderr_read);
-	CloseHandle(m_Pipes.stderr_write);
-	if (m_Pipes.signal_in_read) {
-		CloseHandle(m_Pipes.signal_in_read);
-		CloseHandle(m_Pipes.signal_in_write);
-		CloseHandle(m_Pipes.signal_out_read);
-		CloseHandle(m_Pipes.signal_out_write);
+	// 清除输入缓冲
+	DWORD remain;
+	PeekNamedPipe(m_Pipes.stdin_read, nullptr, 0, nullptr, &remain, nullptr);
+	if (remain) {
+		char* buffer = new char[remain];
+		ReadFile(m_Pipes.stdin_read, buffer, remain, nullptr, nullptr);
+		delete[] buffer;
 	}
-	m_Pipes = PIPE{};
 	// 更新组件状态
+	m_Output.SetListState(false);
+	CCallStack::pObject->LoadCallStack(nullptr);
+	CVariableTable::pObject->LoadGlobal(nullptr);
+	m_bRun = false;
 	try {
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_RUN)->ShowWindow(SW_SHOW);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->ShowWindow(SW_HIDE);
@@ -1024,10 +1023,6 @@ void CConsole::ExitSubprocess(UINT exit_code)
 		CEditor::pObject->PostMessageW(WM_STEP, 0, -1);
 	}
 	catch (int) { /*当窗口被关闭时强制退出*/ }
-	m_Output.SetListState(false);
-	CCallStack::pObject->LoadCallStack(nullptr);
-	CVariableTable::pObject->LoadGlobal(nullptr);
-	m_bRun = false;
 }
 DWORD CConsole::Join(LPVOID lpParameter)
 {
@@ -1092,7 +1087,6 @@ DWORD CConsole::JoinDebug(LPVOID lpParameter)
 	char* buffer = new char[20];
 	DWORD size_allocated = 20;
 	DWORD state = STILL_ACTIVE;
-	DWORD read = 0;
 	DWORD remain_stdout = 0;
 	DWORD remain_stderr = 0;
 	DWORD remain_signal = 0;
@@ -1107,8 +1101,9 @@ DWORD CConsole::JoinDebug(LPVOID lpParameter)
 					buffer = new char[remain_stdout];
 					size_allocated = remain_stdout;
 				}
-				if (not ReadFile(pObject->m_Pipes.stdout_read, buffer, remain_stdout, 0, 0)) {
-					throw L"管道读取异常";
+				if (not ReadFile(pObject->m_Pipes.stdout_read, buffer, remain_stdout, nullptr, nullptr)) {
+					AfxMessageBox(L"管道读取异常", MB_OK | MB_ICONERROR);
+					return -1;
 				}
 				pObject->m_Output.AppendText(buffer, remain_stdout);
 			}
@@ -1118,14 +1113,16 @@ DWORD CConsole::JoinDebug(LPVOID lpParameter)
 					buffer = new char[remain_stderr];
 					size_allocated = remain_stderr;
 				}
-				if (not ReadFile(pObject->m_Pipes.stderr_read, buffer, remain_stderr, 0, 0)) {
-					throw L"管道读取异常";
+				if (not ReadFile(pObject->m_Pipes.stderr_read, buffer, remain_stderr, nullptr, nullptr)) {
+					AfxMessageBox(L"管道读取异常", MB_OK | MB_ICONERROR);
+					return -1;
 				}
 				pObject->m_Output.AppendText(buffer, remain_stderr);
 			}
 			if (remain_signal) {
 				if (not ReadFile(pObject->m_Pipes.signal_out_read, buffer, 20, nullptr, nullptr)) {
-					throw L"管道读取异常";
+					AfxMessageBox(L"管道读取异常", MB_OK | MB_ICONERROR);
+					return -1;
 				}
 				UINT message = *(UINT*)buffer;
 				WPARAM wParam = *(WPARAM*)(buffer + 4);

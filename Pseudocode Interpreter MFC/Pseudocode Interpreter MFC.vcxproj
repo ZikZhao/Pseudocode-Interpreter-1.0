@@ -237,8 +237,6 @@
     <ClCompile Include="Watch.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Pseudocode Interpreter.css" />
-    <None Include="Pseudocode Interpreter.html" />
     <None Include="res\PseudocodeInterpreterMFC.rc2" />
   </ItemGroup>
   <ItemGroup>

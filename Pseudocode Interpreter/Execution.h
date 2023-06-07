@@ -597,9 +597,9 @@ namespace Execution {
 		}
 		char* buffer = new char[size];
 		ReadFile(standard_input, buffer, size, nullptr, nullptr);
-		int wchar_size = MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, buffer, size, nullptr, NULL);
+		int wchar_size = MultiByteToWideChar(CP_ACP, NULL, buffer, size, nullptr, NULL);
 		wchar_t* wchar_buffer = new wchar_t[wchar_size + 1];
-		MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, buffer, size, wchar_buffer, wchar_size);
+		MultiByteToWideChar(CP_ACP, NULL, buffer, size, wchar_buffer, wchar_size);
 		delete[] buffer;
 		wchar_buffer[wchar_size] = 0;
 		DATA* data = new DATA{ 3, new DataType::String(wchar_size, wchar_buffer) };
@@ -726,17 +726,17 @@ namespace Execution {
 			else if (data->type == 1) { step = (long long)((DataType::Real*)data->value)->value; }
 			else { throw Error(SyntaxError, L"步长必须为整数"); }
 		}
-		if (node->value->type == 0) {
-			((DataType::Integer*)variable_data->value)->value += step;
-		}
-		else if (node->value->type == 1) {
-			((DataType::Real*)variable_data->value)->value += step;
-		}
-		else {
-			throw Error(VariableError, L"非数值变量不能自增");
-		}
-		if (((DataType::Integer*)((Nesting*)result.args[0])->nest_info->for_info.upper_bound->value)->value >= ((DataType::Integer*)node->value->value)->value) { // next loop
+		if (((DataType::Integer*)((Nesting*)result.args[0])->nest_info->for_info.upper_bound->value)->value != ((DataType::Integer*)node->value->value)->value) { // next loop
 			current_instruction_index = ((Nesting*)result.args[0])->line_numbers[0];
+			if (node->value->type == 0) {
+				((DataType::Integer*)variable_data->value)->value += step;
+			}
+			else if (node->value->type == 1) {
+				((DataType::Real*)variable_data->value)->value += step;
+			}
+			else {
+				throw Error(VariableError, L"非数值变量不能自增");
+			}
 		}
 	}
 	void while_header(RESULT result) {
@@ -811,10 +811,15 @@ namespace Execution {
 		current_instruction_index = ((Nesting*)result.args[0])->line_numbers[1];
 	}
 	void function_ender(RESULT result) {
-		procedure_ender(result);
+		throw Error(ValueError, L"函数必须返回值");
 	}
 	void continue_tag(RESULT result) {
-		current_instruction_index = ((Nesting*)result.args[0])->line_numbers[1] - 1;
+		if (((Nesting*)result.args[0])->nest_type == Nesting::FOR) {
+			current_instruction_index = ((Nesting*)result.args[0])->line_numbers[1];
+		}
+		else {
+			current_instruction_index = ((Nesting*)result.args[0])->line_numbers[1] - 1;
+		}
 	}
 	void break_tag(RESULT result) {
 		current_instruction_index = ((Nesting*)result.args[0])->line_numbers[1];
@@ -937,15 +942,19 @@ namespace Execution {
 		if (filename_data->type != 3) {
 			throw Error(ValueError, L"文件名必须为字符串");
 		}
-		if (message_data->type != 3) {
-			throw Error(ValueError, L"写入的数据必须为字符串");
+		size_t count;
+		wchar_t* message;
+		if (settings & OUTPUT_AS_OBJECT) {
+			message = DataType::output_data_as_object(message_data, count);
 		}
-		wchar_t*& string = ((DataType::String*)filename_data->value)->string;
+		else {
+			message = DataType::output_data(message_data, count);
+		}
 		for (USHORT file_index = 0; file_index != file_ptr; file_index++) {
-			if (wcslen(string) == wcslen(files[file_index].filename)) {
+			if (wcslen(message) == wcslen(files[file_index].filename)) {
 				bool matched = true;
-				for (size_t index = 0; string[index] != 0; index++) {
-					if (string[index] != files[file_index].filename[index]) {
+				for (size_t index = 0; message[index] != 0; index++) {
+					if (message[index] != files[file_index].filename[index]) {
 						matched = false;
 						break;
 					}

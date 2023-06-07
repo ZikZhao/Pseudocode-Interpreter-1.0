@@ -51,7 +51,7 @@ public:
 	const wchar_t* GetPath() const;
 	void Save();
 	void SaveAs(wchar_t* new_path);
-	void Close();
+	bool Close();
 protected:
 	void SplitPath(wchar_t* path);
 	void LoadFile(wchar_t* path);
@@ -81,7 +81,8 @@ public:
 	afx_msg void OnSaveAs();
 	// 自定义函数
 	void OpenFile(wchar_t* filename); // 打开文件
-	CFileTag* GetCurrentTag();
-	void ShiftTag(CFileTag* tag);
-	void DestroyTag(CFileTag* tag);
+	CFileTag* GetCurrentTag(); // 获取当前文件标签
+	void ShiftTag(CFileTag* tag); // 切换到其他的文件标签
+	void DestroyTag(CFileTag* tag); // 关闭单个文件标签
+	bool DestoryAllFile(); // 关闭所有文件
 };

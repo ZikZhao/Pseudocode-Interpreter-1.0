@@ -44,6 +44,7 @@ public:
 	virtual ~CMainFrame();
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
+	afx_msg BOOL OnNcActivate(BOOL bActive);
 	afx_msg void OnNcCalcSize(BOOL bCalcValidRects, NCCALCSIZE_PARAMS* lpncsp);
 	afx_msg LRESULT OnNcHitTest(CPoint point);
 	afx_msg void OnNcMouseMove(UINT nHitTest, CPoint point);

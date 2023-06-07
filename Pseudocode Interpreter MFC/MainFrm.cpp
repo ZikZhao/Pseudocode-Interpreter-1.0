@@ -16,6 +16,7 @@ int SCREEN_HEIGHT = 0;
 // CMainFrame
 BEGIN_MESSAGE_MAP(CMainFrame, CFrameWndEx)
 	ON_WM_CREATE()
+	ON_WM_NCACTIVATE()
 	ON_WM_NCCALCSIZE()
 	ON_WM_NCHITTEST()
 	ON_WM_NCMOUSEMOVE()
@@ -138,7 +139,6 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	graphic7.DrawLine(&pen4, Gdiplus::Point(8, 15), Gdiplus::Point(23, 15));
 	graphic8.DrawLine(&pen4, Gdiplus::Point(8, 15), Gdiplus::Point(23, 15));
 
-
 	// 创建提示文本
 	m_Tip.Create(this, TTS_ALWAYSTIP);
 	m_Tip.SetTipBkColor(RGB(30, 30, 30));
@@ -153,12 +153,12 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_Editor.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(), this, NULL);
 	m_InfoView.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(0, 0, 0, 200), this, NULL);
 	m_StatusBar.Create(NULL, NULL, WS_CHILD | WS_VISIBLE, CRect(), this, NULL);
-	m_ControlPanel.REDRAW_WINDOW();
 
 	// 再创建窗口
 	if (CFrameWndEx::OnCreate(lpCreateStruct))
 		return -1;
 
+	ModifyStyle(WS_CAPTION, NULL, SWP_FRAMECHANGED);
 	ModifyStyleEx(WS_EX_CLIENTEDGE, NULL, SWP_FRAMECHANGED);
 	ModifyStyleEx(WS_EX_DLGMODALFRAME, NULL, SWP_FRAMECHANGED);
 	ModifyStyleEx(WS_EX_WINDOWEDGE, NULL, SWP_FRAMECHANGED);
@@ -168,16 +168,18 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	return 0;
 }
+BOOL CMainFrame::OnNcActivate(BOOL bActive)
+{
+	// disable drawing due to style
+	return TRUE;
+}
 void CMainFrame::OnNcCalcSize(BOOL bCalcValidRects, NCCALCSIZE_PARAMS* lpncsp)
 {
 	CFrameWndEx::OnNcCalcSize(bCalcValidRects, lpncsp);
 	WINDOWPLACEMENT wp;
 	GetWindowPlacement(&wp);
-	if (wp.showCmd == SW_MAXIMIZE) {
-		lpncsp->rgrc[0].top -= 23;
-	}
-	else {
-		lpncsp->rgrc[0].top -= 30;
+	if (wp.showCmd != SW_MAXIMIZE) {
+		lpncsp->rgrc[0].top -= 6;
 	}
 }
 LRESULT CMainFrame::OnNcHitTest(CPoint point)
@@ -267,10 +269,11 @@ void CMainFrame::OnNcLButtonUp(UINT nHitTest, CPoint point)
 		}
 		else {
 			ShowWindow(SW_MAXIMIZE);
+			SetWindowPos(NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED);
 		}
 		break;
 	case HTCLOSE:
-		DestroyWindow();
+		OnClose();
 		return;
 	}
 	CRect rect(m_Width - 126, 0, m_Width, 50);
@@ -346,6 +349,10 @@ void CMainFrame::OnSize(UINT nType, int cx, int cy)
 void CMainFrame::OnGetMinMaxInfo(MINMAXINFO* lpMMI)
 {
 	lpMMI->ptMinTrackSize = POINT(800, 500);
+	RECT rect;
+	SystemParametersInfoW(SPI_GETWORKAREA, NULL, &rect, NULL);
+	rect.bottom = GetSystemMetrics(SM_CYSCREEN) - rect.bottom;
+	lpMMI->ptMaxSize.y -= rect.bottom;
 }
 void CMainFrame::OnDropFiles(HDROP hDropInfo)
 {
@@ -368,7 +375,10 @@ void CMainFrame::OnClose()
 			CConsole::pObject->OnDebugHalt();
 		}
 	}
-	CWnd::OnClose();
+	if (not CTagPanel::pObject->DestoryAllFile()) {
+		return;
+	}
+	DestroyWindow();
 }
 void CMainFrame::OnDispatchCommand(UINT uID)
 {
