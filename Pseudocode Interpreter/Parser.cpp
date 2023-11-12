@@ -27,10 +27,10 @@ void strip(wchar_t* line) {
 
 long double string_to_real(wchar_t* expr) {
 	double result = 0;
-	USHORT start = expr[0] == 43 or expr[0] == 45 ? 1 : 0;
+	USHORT start = expr[0] == L'+' or expr[0] == L'-' ? 1 : 0;
 	for (USHORT index = start; expr[index] != 0; index++) {
-		if (expr[index] >= 48 and expr[index] <= 57 or expr[index] == 46) {
-			if (expr[index] != 46) {
+		if (expr[index] >= L'0' and expr[index] <= L'9' or expr[index] == L'.') {
+			if (expr[index] != L'.') {
 				result *= 10;
 				result += expr[index] - 48;
 			}
@@ -38,21 +38,21 @@ long double string_to_real(wchar_t* expr) {
 				double weight = 1;
 				for (USHORT index2 = index + 1; expr[index2] != 0; index2++) {
 					weight /= 10;
-					if (expr[index2] >= 48 and expr[index2] <= 57) {
+					if (expr[index2] >= L'0' and expr[index2] <= L'9') {
 						result += (expr[index2] - 48) * weight;
 					}
 					else {
-						return 0;
+						throw Error(ArgumentError, L"字符串内仅能包含数字字符和小数点");
 					}
 				}
 				break;
 			}
 		}
 		else {
-			return 0;
+			throw Error(ArgumentError, L"字符串内仅能包含数字字符和小数点");
 		}
 	}
-	if (start == 1 and expr[0] == 45) {
+	if (start == 1 and expr[0] == L'-') {
 		result = -result;
 	}
 	return result;
@@ -492,13 +492,13 @@ DataType::String::String() {
 }
 DataType::String::String(size_t length, wchar_t* values) { // for internal creation
 	this->init = true;
-	if (wcslen(values) < length) {
+	if (wcslen(values) + 1 < length) {
 		length = wcslen(values) + 1;
 	}
 	this->length = length;
-	this->string = new wchar_t[length + 1];
+	this->string = new wchar_t[length];
 	memcpy(this->string, values, (size_t)length * 2);
-	this->string[length] = 0;
+	this->string[length - 1] = 0;
 }
 DataType::String::String(wchar_t* expr) { // created by evaluating string expression
 	this->init = true;
@@ -521,8 +521,10 @@ DataType::String::String(wchar_t* expr) { // created by evaluating string expres
 }
 DataType::String::String(Char* character) {
 	this->init = true;
-	this->length = 1;
-	this->string = new wchar_t[1] {character->value};
+	this->length = 2;
+	this->string = new wchar_t[2];
+	this->string[0] = character->value;
+	this->string[1] = 0;
 }
 DataType::String::~String() {
 	delete[] this->string;
@@ -538,11 +540,11 @@ wchar_t* DataType::String::read(unsigned index) {
 	return result;
 }
 DataType::String* DataType::String::combine(String* right_operand) {
-	size_t final_length = this->length + (*right_operand).length;
-	wchar_t* final_string = new wchar_t[final_length + 1];
-	memcpy(final_string, this->string, (size_t)this->length * 2);
-	memcpy(final_string + this->length, (*right_operand).string, (size_t)(*right_operand).length * 2);
-	final_string[final_length] = 0;
+	size_t final_length = this->length + (*right_operand).length - 1;
+	wchar_t* final_string = new wchar_t[final_length];
+	memcpy(final_string, this->string, (size_t)(this->length - 1) * 2);
+	memcpy(final_string + this->length - 1, (*right_operand).string, (size_t)((*right_operand).length - 1) * 2);
+	final_string[final_length - 1] = 0;
 	return new String(final_length, final_string);
 }
 bool DataType::String::smaller(String* right_operand) {

@@ -177,7 +177,8 @@ void CVariableTable::RecordPrevious(BinaryTree* last_locals)
 		BinaryTree::Node* nodes = m_Globals->list_nodes_copy(duplicate_root, CConsole::pObject->m_DebugHandle, &count);
 		free(duplicate_root);
 		for (USHORT index = 0; index != count; index++) {
-			m_PrevVariables.insert(CConsole::pObject->ReadMemory(nodes[index].key, nodes[index].length), nodes[index].value, false);
+			DATA* duplicate_data = CConsole::pObject->ReadMemory(nodes[index].value);
+			m_PrevVariables.insert(CConsole::pObject->ReadMemory(nodes[index].key, nodes[index].length), (DATA*)duplicate_data->value, false);
 		}
 		free(nodes);
 		if (last_locals) {
@@ -214,6 +215,7 @@ void CVariableTable::LoadGlobal(BinaryTree* globals)
 	}
 	m_Globals = globals;
 	if (not m_Globals) {
+		m_PrevVariables.clear();
 		Invalidate(FALSE);
 		return;
 	}
@@ -237,7 +239,7 @@ void CVariableTable::LoadGlobal(BinaryTree* globals)
 		BinaryTree::Node* node = m_PrevVariables.find(key);
 		if (node) {
 			DATA* duplicate_original_data = CConsole::pObject->ReadMemory(node->value);
-			if (duplicate_data->value != duplicate_original_data->value) {
+			if (duplicate_data->value != (void*)node->value) {
 				new_element.modified = true;
 			}
 			free(duplicate_original_data);
@@ -391,8 +393,8 @@ wchar_t* CVariableTable::RetrieveValue(DATA* data)
 	case 2:
 	{
 		DataType::Char* object = CConsole::pObject->ReadMemory((DataType::Char*)data->value);
-		message = new wchar_t[6];
-		StringCchPrintfW(message, 6, L"字符(%s)", &object->value);
+		message = new wchar_t[8];
+		StringCchPrintfW(message, 8, L"字符(\'%s\')", &object->value);
 		free(object);
 		break;
 	}
@@ -400,8 +402,8 @@ wchar_t* CVariableTable::RetrieveValue(DATA* data)
 	{
 		DataType::String* object = CConsole::pObject->ReadMemory((DataType::String*)data->value);
 		wchar_t* string = CConsole::pObject->ReadMemory(object->string, object->length);
-		message = new wchar_t[6 + object->length];
-		StringCchPrintfW(message, 6 + object->length, L"字符串(%s)", string);
+		message = new wchar_t[7 + object->length];
+		StringCchPrintfW(message, 7 + object->length, L"字符串(\"%s\")", string);
 		free(object);
 		free(string);
 		break;
@@ -409,9 +411,9 @@ wchar_t* CVariableTable::RetrieveValue(DATA* data)
 	case 4:
 	{
 		DataType::Boolean* object = CConsole::pObject->ReadMemory((DataType::Boolean*)data->value);
-		message = new wchar_t[6 + object->value ? 4 : 5];
+		message = new wchar_t[6 + (object->value ? 4 : 5)];
 		const wchar_t* content = object->value ? L"TRUE" : L"FALSE";
-		StringCchPrintfW(message, 6 + object->value ? 4 : 5, L"布尔值(%s)", content);
+		StringCchPrintfW(message, 6 + (object->value ? 4 : 5), L"布尔值(%s)", content);
 		free(object);
 		break;
 	}
@@ -553,7 +555,7 @@ void CVariableTable::ArrangeTable()
 		}
 		rect1.left += 20 * iter->level;
 		if (iter->modified) {
-			m_Source.SetTextColor(RGB(254, 74, 99));
+			m_Source.SetTextColor(RGB(254, 130, 150));
 		}
 		else {
 			m_Source.SetTextColor(RGB(255, 255, 255));

@@ -189,7 +189,7 @@ namespace DataType {
 	class String {
 	public:
 		bool init;
-		size_t length;
+		size_t length; // including null character
 		wchar_t* string;
 		static inline USHORT escape_character_in[3] = { L't', L'n', L'\\' };
 		static inline const wchar_t escape_character_out[3] = { L'\t', L'\n', L'\\' };

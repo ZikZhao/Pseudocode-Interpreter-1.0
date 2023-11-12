@@ -590,19 +590,16 @@ namespace Execution {
 		if (variable_data->type != 3) {
 			throw Error(VariableError, L"接受输入的变量的数据类型必须为字符串");
 		}
-		DWORD size = 0;
-		WaitForSingleObject(standard_input, INFINITE);
-		while (size == 0) {
-			PeekNamedPipe(standard_input, nullptr, NULL, nullptr, &size, nullptr);
-		}
-		char* buffer = new char[size];
-		ReadFile(standard_input, buffer, size, nullptr, nullptr);
-		int wchar_size = MultiByteToWideChar(CP_ACP, NULL, buffer, size, nullptr, NULL);
+		DWORD read = 0;
+		char* buffer = new char[1024];
+		ReadFile(standard_input, buffer, 1024, &read, nullptr);
+		read -= 2;
+		int wchar_size = MultiByteToWideChar(CP_ACP, NULL, buffer, read, nullptr, NULL);
 		wchar_t* wchar_buffer = new wchar_t[wchar_size + 1];
-		MultiByteToWideChar(CP_ACP, NULL, buffer, size, wchar_buffer, wchar_size);
+		MultiByteToWideChar(CP_ACP, NULL, buffer, read, wchar_buffer, wchar_size);
 		delete[] buffer;
 		wchar_buffer[wchar_size] = 0;
-		DATA* data = new DATA{ 3, new DataType::String(wchar_size, wchar_buffer) };
+		DATA* data = new DATA{ 3, new DataType::String(wchar_size + 1, wchar_buffer) };
 		memcpy(variable_data, data, sizeof(DATA));
 		variable_data->variable_data = true;
 		delete[] wchar_buffer;
@@ -1540,11 +1537,6 @@ DATA* evaluate(RPN_EXP* rpn_in) {
 					for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 					delete[] stack;
 					throw Error(EvaluationError, L"自定义类型不能用于运算");
-				default:
-					if (left_operand->variable_data) {
-						left_operand = DataType::copy(left_operand);
-					}
-					break;
 				}
 				// type conversion
 				switch (right_operand->type) {
@@ -1577,11 +1569,6 @@ DATA* evaluate(RPN_EXP* rpn_in) {
 					for (USHORT index = 0; index != ptr; index++) { DataType::release_data(stack[index]); }
 					delete[] stack;
 					throw Error(EvaluationError, L"自定义类型不能用于运算");
-				default:
-					if (right_operand->variable_data) {
-						right_operand = DataType::copy(right_operand);
-					}
-					break;
 				}
 				if (operator_value == 61) {
 					result = new DATA{ 4, new DataType::Boolean(DataType::check_identical(left_operand, right_operand)) };
@@ -1852,7 +1839,7 @@ DATA* function_calling(wchar_t* function_name, USHORT number_of_args, DATA** arg
 						SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPPED, current_instruction_index);
 						WaitForSingleObject(step_handled, INFINITE);
 					}
-					else if ((step_type == EXECUTION_STEPOVER or step_type == EXECUTION_STEPOUT) and step_depth >= callstack.ptr and not watch_evaluating) {
+					else if (step_type == EXECUTION_STEPOUT and step_depth >= callstack.ptr and not watch_evaluating) {
 						ResetEvent(step_handled);
 						SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPPED, current_instruction_index);
 						WaitForSingleObject(step_handled, INFINITE);

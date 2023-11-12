@@ -1043,10 +1043,15 @@ void CEditor::Delete()
 			if (m_PointerPoint.y) {
 				// 如果不是首行
 				RecordDelete(L'\n');
+				wchar_t* combined_line = new wchar_t[wcslen(*m_CurrentTag->m_CurrentLine) + wcslen(*m_CurrentTag->m_Lines[m_PointerPoint.y - 1]) + 1];
+				memcpy(combined_line, *m_CurrentTag->m_Lines[m_PointerPoint.y - 1], wcslen(*m_CurrentTag->m_Lines[m_PointerPoint.y - 1]) * 2);
+				memcpy(combined_line + wcslen(*m_CurrentTag->m_Lines[m_PointerPoint.y - 1]), *m_CurrentTag->m_CurrentLine, (wcslen(*m_CurrentTag->m_CurrentLine) + 1) * 2);
 				m_CurrentTag->m_CurrentLine--;
 				m_CurrentTag->m_Lines.pop(m_PointerPoint.y);
 				m_PointerPoint.y--;
 				m_PointerPoint.x = wcslen(*m_CurrentTag->m_CurrentLine);
+				delete[] *m_CurrentTag->m_CurrentLine;
+				*m_CurrentTag->m_CurrentLine = combined_line;
 				m_FullHeight -= m_CharSize.cy;
 				ParseLine();
 			}

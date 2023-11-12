@@ -788,8 +788,8 @@ int CConsole::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	CreatePipe(&m_Pipes.stdin_read, &m_Pipes.stdin_write, &sa, 0);
 	CreatePipe(&m_Pipes.stdout_read, &m_Pipes.stdout_write, &sa, 0);
 	CreatePipe(&m_Pipes.stderr_read, &m_Pipes.stderr_write, &sa, 0);
-	CreatePipe(&m_Pipes.signal_in_read, &m_Pipes.signal_in_write, &sa, 20);
-	CreatePipe(&m_Pipes.signal_out_read, &m_Pipes.signal_out_write, &sa, 20);
+	CreatePipe(&m_Pipes.signal_in_read, &m_Pipes.signal_in_write, &sa, 0);
+	CreatePipe(&m_Pipes.signal_out_read, &m_Pipes.signal_out_write, &sa, 0);
 	// 创建字体
 	font.CreateFontW(20, 0, 0, 0, FW_NORMAL, false, false,
 		false, DEFAULT_CHARSET, OUT_TT_PRECIS, CLIP_DEFAULT_PRECIS,
@@ -901,7 +901,9 @@ void CConsole::OnDebugDebug()
 }
 void CConsole::OnDebugContinue()
 {
+	CVariableTable::pObject->RecordPrevious(CConsole::pObject->ReadMemory(CCallStack::pObject->GetLastLocals()));
 	CEditor::pObject->SendMessageW(WM_STEP, 0, -1);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->SetState(true);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
@@ -912,6 +914,8 @@ void CConsole::OnDebugContinue()
 }
 void CConsole::OnDebugStepin()
 {
+	CVariableTable::pObject->RecordPrevious(CConsole::pObject->ReadMemory(CCallStack::pObject->GetLastLocals()));
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->SetState(true);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
@@ -922,20 +926,24 @@ void CConsole::OnDebugStepin()
 }
 void CConsole::OnDebugStepover()
 {
+	CVariableTable::pObject->RecordPrevious(CConsole::pObject->ReadMemory(CCallStack::pObject->GetLastLocals()));
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->SetState(true);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->SetState(true);
 	CWatch::pObject->m_bPaused = false;
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPOVER, 0);
 }
 void CConsole::OnDebugStepout()
 {
+	CVariableTable::pObject->RecordPrevious(CConsole::pObject->ReadMemory(CCallStack::pObject->GetLastLocals()));
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->SetState(true);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
-	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetState(false);
+	FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOUT)->SetState(false);
 	FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->SetState(true);
 	CWatch::pObject->m_bPaused = false;
 	SendSignal(SIGNAL_EXECUTION, EXECUTION_STEPOUT, 0);
@@ -943,10 +951,10 @@ void CConsole::OnDebugStepout()
 void CConsole::SetBreakpoint(ULONG64 line_index, bool state)
 {
 	if (state) {
-		SendSignal(SIGNAL_BREAKPOINT, BREAKPOINT_ADD, line_index);
+		SendSignal(SIGNAL_BREAKPOINT, BREAKPOINT_TYPE_NORMAL << 16 | BREAKPOINT_ADD, line_index);
 	}
 	else {
-		SendSignal(SIGNAL_BREAKPOINT, BREAKPOINT_DELETE, line_index);
+		SendSignal(SIGNAL_BREAKPOINT, BREAKPOINT_TYPE_NORMAL << 16 | BREAKPOINT_DELETE, line_index);
 	}
 }
 HANDLE CConsole::GetProcessHandle()
@@ -1147,9 +1155,11 @@ inline bool CConsole::SendInput(wchar_t* input, DWORD count)
 	if (m_bRun) {
 		m_Output.AppendInput(input, count);
 		int size = WideCharToMultiByte(CP_ACP, 0, input, count, nullptr, 0, nullptr, nullptr);
-		char* buffer = new char[size];
+		char* buffer = new char[size + 2];
 		WideCharToMultiByte(CP_ACP, 0, input, count, buffer, size, nullptr, nullptr);
-		WriteFile(m_Pipes.stdin_write, buffer, size, nullptr, nullptr);
+		buffer[size] = '\r';
+		buffer[size + 1] = '\n';
+		WriteFile(m_Pipes.stdin_write, buffer, size + 2, nullptr, nullptr);
 		delete[] buffer;
 	}
 	return m_bRun;
@@ -1166,6 +1176,7 @@ void CConsole::SignalProc(UINT message, WPARAM wParam, LPARAM lParam)
 		CWatch::pObject->CleanRemotePages();
 		break;
 	case SIGNAL_BREAKPOINT: case SIGNAL_EXECUTION:
+		FIND_BUTTON(ID_DEBUG, ID_DEBUG_PAUSE)->SetState(false);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_CONTINUE)->SetState(true);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPIN)->SetState(true);
 		FIND_BUTTON(ID_DEBUG, ID_DEBUG_STEPOVER)->SetState(true);
@@ -1186,7 +1197,6 @@ void CConsole::SignalProc(UINT message, WPARAM wParam, LPARAM lParam)
 	case SIGNAL_INFORMATION:
 		switch (wParam) {
 		case INFORMATION_VARIABLE_TABLE_RESPONSE:
-			CVariableTable::pObject->RecordPrevious(CConsole::pObject->ReadMemory(CCallStack::pObject->GetLastLocals()));
 			CVariableTable::pObject->LoadGlobal(ReadMemory((BinaryTree*)lParam));
 			break;
 		case INFORMATION_CALLING_STACK_RESPONSE:
